@@ -1,0 +1,52 @@
+{
+  "moduleName": "vlad-eng-m01-high-v02",
+  "actorUsername": "VladyslavSkuibida",
+  "defaultLanguage": {
+    "iso639_2": "eng",
+    "iso3166_1": "RU"
+  },
+  "defaultEmotion": "Emotionless",
+  "segments": [
+    {
+      "text": "I must break you."
+    }
+  ],
+  "speed": [
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555,
+    0.555
+  ],
+  "loudness": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ]
+}

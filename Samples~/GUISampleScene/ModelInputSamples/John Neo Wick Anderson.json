@@ -1,0 +1,60 @@
+{
+  "moduleName": "vlad-eng-m01-high-v02",
+  "actorUsername": "VladyslavSkuibida",
+  "defaultLanguage": {
+    "iso639_2": "eng",
+    "iso3166_1": "RU"
+  },
+  "defaultEmotion": "Loathing",
+  "segments": [
+    {
+      "text": "Guns. ⏸ Lots of guns."
+    }
+  ],
+  "speed": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "loudness": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ]
+}

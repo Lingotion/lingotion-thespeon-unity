@@ -1,0 +1,14 @@
+{
+"moduleName": "",
+"actorUsername": "",
+"defaultLanguage": {
+  "iso639_2": "eng",
+  "iso3166_1": "GB"
+},
+"defaultEmotion": "Anticipation",
+"segments": [
+  {
+    "text": "Hello, I hope you like my acting and what I am saying."
+  }
+]
+}

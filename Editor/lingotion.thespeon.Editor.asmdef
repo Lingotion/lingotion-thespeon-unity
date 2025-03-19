@@ -1,0 +1,20 @@
+{
+    "name": "lingotion.thespeon.Editor",
+    "rootNamespace": "",
+    "references": [
+        "Unity.Sentis",
+        "UnityEditor.UI",
+        "lingotion.thespeon.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
