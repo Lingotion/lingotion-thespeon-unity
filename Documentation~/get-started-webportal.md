@@ -21,6 +21,11 @@ Below follows a step-by-step guide on how to carry out these steps.
 
 --- 
 ## Developer Registration
+
+> [!TIP]
+> For best results, use the Google Chrome browser.
+
+
 to get your hands on a Thespeon Actor you must first register as a Developer on the [Lingotion Portal](https://portal.lingotion.com). Upon your first visit you will be asked to sign up using an email address after which a verification email will be sent before the registration process can begin. The first thing you will see are the Lingotion Terms of Service (TOS). Make sure to read these carefully before accepting as it is a legally binding document. An up-to-date TOS can always be found [here](https://www.lingotion.com/termsofservice) and on any eventual updates to the TOS you will be notified and asked to accept the revision once more on your next login. Once accepted the first time the user registration initiates. Check the option for Developer and fill out your and your company's information. This information can be edited at a later time in your user settings. 
 
 The portal consists of the main pages My Projects, Actors, Pricing and User Settings. 
