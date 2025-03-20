@@ -75,7 +75,6 @@ There are 4 different Ethics Levels, one of which each actor will choose as. The
 4. Case by Case
 	 - Each Character use must be approved by the Actor.
 
-Actors have the option to change their set Ethics Level at any time, however a change of an Ethics Level can only affect a future license meaning the Ethics Level at the time of purchase applies. ***QUESTION: Does this only apply to changes to be more strict?***. Complete and updated information and license terms pertaining to Ethics Levels can be found [here ***INSERT THE CORRECT LINK***] (#https://lingotion.com/ethicslevels**SOMELINK**). If there are any conflicts between its information and the information presented here, the webpage information takes precedence over this.
 ##### Order and Download
 You may notice that There are two types of Actors available. There are a number of **Starter** Actors as well as **Flex/Fixed** Actors. These tags refer to the Actor's Pricing status which you may find up-to-date information on under the Pricing tab in the Developer Portal. 
 
@@ -85,12 +84,12 @@ You may notice that There are two types of Actors available. There are a number 
 
 Upon order you will be asked to select a project if one has not already been selected and you will be notified of the Terms of Service applicable to the use of the selected Actor. Once the order has been completed you can download as many instances of the model as you need, meaning only one order is needed for each game title and can be shared with your colleagues within the limits of the Terms of Service. 
 
-Before download you will be informed about what your are downloading. This will for a selected Actor typically be its Actor Pack zip file and a number of Language Pack zip files (one for each supported language) and information as to what they contain. Note that you do not have to unzip the files at any point. Also note that several Actor Packs will reuse the same Language Packs. As such, should you use several Actors speaking the same language, one language pack for each language will likely suffice. You will find more information on that in [Get Started - Unity](get-started-unity). 
+Before download you will be informed about what your are downloading. This will for a selected Actor typically be its Actor Pack file and a number of Language Pack files (one for each supported language) and information as to what they contain. Note that even if these are zip files you shall never unzip the files at any point. Also note that several Actor Packs will reuse the same Language Packs. As such, should you use several Actors speaking the same language, one language pack for each language will likely suffice. You will find more information on that in [Get Started - Unity](get-started-unity). 
 
 ---
 ## Next Steps
 
-After download of the zip files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](get-started-unity) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com ). 
+After download of the package files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](get-started-unity) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com ). 
 
 **Happy Acting!**
 
