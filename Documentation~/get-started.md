@@ -51,6 +51,6 @@ To set up this tool in you need to download the actor and language models from t
       1. **Weg**  
          - *(way/path)* – /veːk/  
          - *(away)* – /vɛk/  
-
+5. Build to web is not yet supported, but will be supported.
 
 
