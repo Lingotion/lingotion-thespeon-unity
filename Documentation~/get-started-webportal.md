@@ -3,7 +3,7 @@
 
 
 - [Overview](#overview)
-- [Developer Registration](#registration)
+- [Developer Registration](#developer-registration)
 - [Creating a Project](#creating-a-project)
 - [Finding the Perfect Actor](#finding-the-perfect-actor)
 	- [Qualities and Ethics Levels](#qualities-and-ethics-levels)
@@ -12,12 +12,12 @@
 
 ---
 ## Overview
-To use the Lingotion Thespeon Engine you need to do 4 things:
+To use the Lingotion Thespeon Engine you need to do 3 things:
 1. Register as a Developer on the [Lingotion Portal](https://portal.lingotion.com).
 2. Choose an appropriate actor for your project and download its Actor Pack and corresponding Language Pack(s). 
 3. Install and use the Lingotion Thespeon Package in Unity.
 
-Below follows a step-by-step guide on how to carry out these steps.
+Below follows a step-by-step guide on how to carry out the first two with the unity related guide available [here](get-started-unity).
 
 --- 
 ## Developer Registration
