@@ -17,7 +17,7 @@ To use the Lingotion Thespeon Engine you need to do 3 things:
 2. Choose an appropriate actor for your project and download its Actor Pack and corresponding Language Pack(s). 
 3. Install and use the Lingotion Thespeon Package in Unity.
 
-Below follows a step-by-step guide on how to carry out the first two with the unity related guide available [here](get-started-unity).
+Below follows a step-by-step guide on how to carry out the first two with the unity related guide available [here](./get-started-unity.md).
 
 --- 
 ## Developer Registration
@@ -26,7 +26,7 @@ Below follows a step-by-step guide on how to carry out the first two with the un
 > For best results, use the Google Chrome browser.
 
 
-to get your hands on a Thespeon Actor you must first register as a Developer on the [Lingotion Portal](https://portal.lingotion.com). Upon your first visit you will be asked to sign up using an email address after which a verification email will be sent before the registration process can begin. The first thing you will see are the Lingotion Terms of Service (TOS). Make sure to read these carefully before accepting as it is a legally binding document. An up-to-date TOS can always be found [here](https://www.lingotion.com/termsofservice) and on any eventual updates to the TOS you will be notified and asked to accept the revision once more on your next login. Once accepted the first time the user registration initiates. Check the option for Developer and fill out your and your company's information. This information can be edited at a later time in your user settings. 
+to get your hands on a Thespeon Actor you must first register as a Developer on the [Lingotion Portal](https://portal.lingotion.com). Upon your first visit you will be asked to sign up using an email address after which a verification email will be sent before the registration process can begin. The first thing you will see are the Lingotion Terms of Service (TOS). Make sure to read these carefully before accepting as it is a legally binding document. An up-to-date TOS can always be found [here](https://portal.lingotion.com/termsofservice) and on any eventual updates to the TOS you will be notified and asked to accept the revision once more on your next login. Once accepted the first time the user registration initiates. Check the option for Developer and fill out your and your company's information. This information can be edited at a later time in your user settings. 
 
 The portal consists of the main pages My Projects, Actors, Pricing and User Settings. 
 - Under My Projects you will find an overview of all your current active projects. A project is necessary to have since each acquired Actor must be connected to a Project for the license to take effect. 
@@ -84,12 +84,12 @@ You may notice that There are two types of Actors available. There are a number 
 
 Upon order you will be asked to select a project if one has not already been selected and you will be notified of the Terms of Service applicable to the use of the selected Actor. Once the order has been completed you can download as many instances of the model as you need, meaning only one order is needed for each game title and can be shared with your colleagues within the limits of the Terms of Service. 
 
-Before download you will be informed about what your are downloading. This will for a selected Actor typically be its Actor Pack file and a number of Language Pack files (one for each supported language) and information as to what they contain. Note that even if these are zip files you shall never unzip the files at any point. Also note that several Actor Packs will reuse the same Language Packs. As such, should you use several Actors speaking the same language, one language pack for each language will likely suffice. You will find more information on that in [Get Started - Unity](get-started-unity). 
+Before download you will be informed about what your are downloading. This will for a selected Actor typically be its Actor Pack file and a number of Language Pack files (one for each supported language) and information as to what they contain. Note that even if these are zip files you shall never unzip the files at any point. Also note that several Actor Packs will reuse the same Language Packs. As such, should you use several Actors speaking the same language, one language pack for each language will likely suffice. You will find more information on that in [Get Started - Unity](./get-started-unity.md). 
 
 ---
 ## Next Steps
 
-After download of the package files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](get-started-unity) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com ). 
+After download of the package files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](./get-started-unity.md) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com ). 
 
 **Happy Acting!**
 
