@@ -433,8 +433,7 @@ The UserModelInput class plays well with the JSON format and can be serialized a
       "emotion": "Fear",
       "IsCustomPhonemized": true,
 
-    }.
-
+    },
     {
       "text": "Some more text with default settings"
     }
@@ -445,7 +444,7 @@ The UserModelInput class plays well with the JSON format and can be serialized a
 
 Notes:
 - **`moduleName`, `actorUsername`, and `segments` are always required**.  
-- **`defaultLanguage` and `defaultEmotion` are optional but highly recommended, as it gives you control over the synthesis. Otherwise the first alternatives for the chosen module are selected.**.
+- **`defaultLanguage` and `defaultEmotion` are optional but highly recommended, as it gives you control over the synthesis. Otherwise the first alternatives for the chosen module are selected.**
 - **You will get a warning in Unity console if `defaultLanguage` or `defaultEmotion` is missing. Dismiss it if you are aware of your choice!**.   
 - **`speed` and `loudness`** lists are optional with arbitrary lengths.  
 - **`segments`** must contain at least one word in `text`.  
@@ -857,8 +856,8 @@ This section outlines a set of defined emotions, including similar terms, typica
 
 ## 7. Common Questions / FAQ
 
-1. **Are `defaultEmotion` and `defaultEmotion` mandatory?**  
-   - No, but highly recommended. If not provided, you’ll see a warning in the Unity console.  
+1. **Is `defaultEmotion` mandatory?**  
+   - No, but highly recommended. If not provided, you’ll see a warning in the Unity console and a default emotion will be selected for you.  
 
 2. **What happens if I omit `speed` or `loudness`?**  
    - They will remain default and no global speed/loudness modifications will be applied.  
