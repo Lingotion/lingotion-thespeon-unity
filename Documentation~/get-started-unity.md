@@ -9,9 +9,9 @@ Here’s an updated version with fixes, improved clarity, and a table of content
   - [**Table of Contents**](#table-of-contents)
   - [**Step 1: Install the Thespeon Package from Git**](#step-1-install-the-thespeon-package-from-git)
   - [**Step 2: Add Sample Scene**](#step-2-add-sample-scene)
-  - [\*\*Step 3: Get Acquainted with the Thespeon Info Window](#step-3-get-acquainted-with-the-thespeon-info-window)
+  - [**Step 3: Get Acquainted with the Thespeon Info Window**](#step-3-get-acquainted-with-the-thespeon-info-window)
   - [**Step 4: Synth Request**](#step-4-synth-request)
-    - [\*\* Unity NPC Object \*\*](#-unity-npc-object-)
+    - [**Unity NPC Object**](#-unity-npc-object-)
 
 ---
 
@@ -160,5 +160,5 @@ public class SimpleNarrator : MonoBehaviour
 }
 
 ```
-3. See [User Model Input](https://github.com/Lingotion/unity-package/blob/sdk-ActorPack-feedback/Documentation%7E/UserModelInput.md) for alternative ways of creating the input to the model, but the above workflow is indifferent for how you create your input.
+3. See [User Model Input](./UserModelInput.md) for alternative ways of creating the input to the model, but the above workflow is indifferent for how you create your input.
 4. Look at the [Lingotion_Thespeon API documentation](./api/) for more information.
