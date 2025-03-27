@@ -1,7 +1,7 @@
-This markdown will walk you through how to get started with the Graphic User Interface (GUI) sample scene of the Lingotion Thespeon Unity package. This GUI is meant as a playground for new Thespeon users to test the Thespeon Engine in an intuitive manner and familiarize themselves with the Thespeon Engine workflow. The purpose of the Sample scene is to provide a GUI-based way of editing the [UserModelInput](usermodelinput) class to let you explore Thespeon's capacity before starting to code.
+This markdown will walk you through how to get started with the Graphic User Interface (GUI) sample scene of the Lingotion Thespeon Unity package. This GUI is meant as a playground for new Thespeon users to test the Thespeon Engine in an intuitive manner and familiarize themselves with the Thespeon Engine workflow. The purpose of the Sample scene is to provide a GUI-based way of editing the [UserModelInput](./UserModelInput.md) class to let you explore Thespeon's capacity before starting to code.
 ## Table of Contents
 - [Introduction](#introduction)
-- [Importing the GUI Sample](#import-the-gui-sample)
+- [Importing the Demo GUI Sample](#importing-the-demo-gui-sample)
 - [Editable Fields](#editable-fields)
 * [Loading Predefined Input](#loading-predefined-input)
 
@@ -9,14 +9,14 @@ This markdown will walk you through how to get started with the Graphic User Int
 ## Introduction
   ![Alt text](./data/GUI.png?raw=true "GUI")
   The screen capture above shows the GUI in its entirety. It features the following components:
-  - An editable [Text Box](#text-box) where you may enter any text you like. 
-  - An [Emotion Wheel](#emotion-wheel) of 33 clickable emotions. 
-  - [Speed and Loudness](#speed-and-loudness) adjustment curves editable through the Unity Editor Inpector window.
-  - A [Frame Time Budget Slider] for adjusting the frame budget given to the model.
-  - [Buttons](#buttons) to allow toggling of IPA, insertion of the Pause character and Synthesis of audio.
-  - [Dropdown Menus](#dropdown-menus) allowing selection of available actors, quality level, language and whether to run the model on GPU or CPU.
-  - A [JSON Visualizer](#json-visualizer) which showcases the current input and allows for [Loading Predefined Input](#loading-predefined-input)
-  - A frame counter and a constantly revolving cube with the Lingotion logo to indicate any performance impact.
+  - An editable [Text Box](#text-box) where you may enter any text you like.
+  - An [Emotion Wheel](#emotion-wheel) of 33 clickable emotions.
+  - [Speed and Loudness](#speed-and-loudness) adjustment curves editable through the Unity Editor Inpector window.
+  - A [Frame Time Budget Slider] for adjusting the frame budget given to the model.
+  - [Buttons](#buttons) to allow toggling of IPA, insertion of the Pause character and Synthesis of audio.
+  - [Dropdown Menus](#dropdown-menus) allowing selection of available actors, quality level, language and whether to run the model on GPU or CPU.
+  - A [JSON Visualizer](#json-visualizer) which showcases the current input and allows for [Loading Predefined Input](#loading-predefined-input)
+  - A frame counter and a constantly revolving cube with the Lingotion logo to indicate any performance impact.
   
 ## Importing the Demo GUI Sample
 
@@ -28,7 +28,7 @@ To start using the package you first have to have the Lingotion Thespeon package
 
 
 ## Editable Fields
-Once you have imported the GUI scene you can get started with properly exploring your Thespeon Actor. The GUI is merely a tool for creating[UserModelInput](usermodelinput) instances and testing the output they lead to. To fully understand how this works check out the documentation for the [UserModelInput](usermodelinput) class.
+Once you have imported the GUI scene you can get started with properly exploring your Thespeon Actor. The GUI is merely a tool for creating[UserModelInput](./UserModelInput.md) instances and testing the output they lead to. To fully understand how this works check out the documentation for the [UserModelInput](./UserModelInput.md) class.
 
 ##### Text Box
 The text box lets you easily edit the dialogue you which your actor to read. You will also note that it will always be underlined by some color. This color indicates what [emotion](#emotion-wheel) a certain segment of text is annotated with which in turn will determine how your Thespeon Engine will express your dialogue. A pipe character, |, has special meaning here meaning a segment break. The GUI will keep track of segments for you and will automatically merge any adjacent segments that share the same keys (ignoring its text content). 
@@ -50,7 +50,7 @@ The two buttons Mark as IPA and Insert Pause do precisely that; the first annota
 The 3 Dropdown Menus Select Actor, Select Quality and Select Language are dynamically populated such that the first lists all your available Actors, and the second and third is repopulated with the valid entries of the selected actor. Both the Select Actor and Select Quality act globally affecting the actorUsername and moduleName keys in the input respectively. The Select Language dropdown works similarly to annotation of emotion where it will annotate the latest selection of text with the selected language. Due to how the listeners on these objects work, they will only cause a change in the input on ***change*** meaning if you have annotated one part of your text with a language and then select another segment and attempt to annotate that with the same language (without the dropdown having changed value inbetween) the annotation will not happen. Instead you must reset the dropdown by either selecting another language first and then back to your desired or by resetting it to the default selection "Select Language". 
 
 ##### JSON Visualizer
-The JSON Visualizer shows you exactly what input you have generated and can be a useful tool for understanding how you can later build your input objects in your own projects. The exact structure of the visualizer can be put in a json file which in your game can be deserialized into a UserModelInput class if you want predefined input in your project. More on that can be found in the [UserModelInput Documentation](usermodelinput). 
+The JSON Visualizer shows you exactly what input you have generated and can be a useful tool for understanding how you can later build your input objects in your own projects. The exact structure of the visualizer can be put in a json file which in your game can be deserialized into a UserModelInput class if you want predefined input in your project. More on that can be found in the [UserModelInput Documentation](./UserModelInput.md). 
 ## Loading Predefined Input
 The [JSON Visualizer](#json-visualizer) also provides the option to load predefined input json files into the GUI. Do note that upon load the moduleName and actorUsername will be overwritten if the values present in your loaded input sample do not match any of your available actors and modules. No other fields will be changed however which means the loaded input might be overwritten with an actor which does not speak the language of the input, which is unchanged. Attempting to synthesize might lead to unexpected output.
 
