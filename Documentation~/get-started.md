@@ -21,7 +21,7 @@ To set up this tool in you need to download the actor and language models from t
 
 
 ### **Known Issues and Limitations**  
-**"These issues are known and are currently being addressed by the Lingotion development team. If you find any other issues, please create a new issue through the [GitHub repository](/../issues/new)."**
+**"These issues are known and are currently being addressed by the Lingotion development team. If you find any other issues, please create a new issue through the [GitHub repository](https://github.com/Lingotion/lingotion-thespeon-unity/issues/new)."**
 
 1. The first synthetization has higher latency and performance impact than subsequent synthetizations due to initializations. It is advised to make a mock synthetization once before running the intended syntheses.
 2. Multiple actor packs of the same actor in the same project are not supported by the package yet. A workaround is to delete the existing actor pack when you are done with it before adding another one.
