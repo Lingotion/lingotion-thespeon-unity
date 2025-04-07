@@ -9,7 +9,7 @@ using UnityEditor.Build.Reporting;
 public class ManifestOnBuild : IPreprocessBuildWithReport
 {
     public int callbackOrder { get { return 0; } } // Order of execution
-    private static readonly string folderPath = Path.Combine(Application.dataPath, "Samples", "Lingotion Thespeon", "1.0.0", "Demo GUI", "ModelInputSamples");
+    private static readonly string folderPath = Path.Combine(Application.dataPath, "Samples", "Lingotion Thespeon", "0.1.0", "Demo GUI", "ModelInputSamples");
     private static readonly string targetDirectory = Path.Combine(Application.streamingAssetsPath, "LingotionRuntimeFiles", "ModelInputSamples");
     private static readonly string manifestPath = Path.Combine(targetDirectory, "lingotion_model_input.manifest");
 
