@@ -1,15 +1,33 @@
 # Lingotion.Thespeon.API API Documentation
 
-## Class `LingotionData`
+## Class `PackageConfig`
 
-Fills the "quality" attributes in the given summary object by matching languages and emotions with the data from the specified module and actor.  1) Finds the actor by username in module.model_options?.recording_data_info?.actors. 2) For each item in summary.Summary, fuzzy-match the language using LanguageExtensions.FindClosestLanguage(). 3) For each emotion in that summary item, set "quality" to the matching ActorPack data (if found).
-
-
-## Class `LingotionDataPacket`
-
-A Lingotion data packet containing the type of data, metadata and the data itself.
-
-
-## Class `LingotionSynthRequest`
-
-A Lingotion synthetization request containing a unique ID, estimated quality, errors, warnings and metadata. Is used to initiate data synthesis.
+> ### Constructor `PackageConfig()`
+> 
+> Initializes a new empty instance of the PackageConfig class.
+> 
+> 
+> ### Constructor `PackageConfig(PackageConfig config)`
+> 
+> Copy constructor for PackageConfig.
+> **Parameters:**
+> 
+> - `config`: The PackageConfig instance to copy from.
+> 
+> 
+> 
+> ### Method `PackageConfig SetConfig(PackageConfig overrideConfig)`
+> 
+> Sets the configuration values from another PackageConfig instance by overwriting all non-null values in overrideConfig and returns the new instance. A validation of config values with eventual revision also takes place.
+> **Parameters:**
+> 
+> - `overrideConfig`: The PackageConfig instance to override values from.
+> 
+> **Returns:** A new PackageConfig instance with the overridden values.
+> 
+> 
+> 
+> ### Method `void ValidateAndRevise()`
+> 
+> Validates the configuration values and revises them in place if invalid.
+> 

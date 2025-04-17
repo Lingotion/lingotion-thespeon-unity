@@ -21,15 +21,15 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         private Tensor[] copy_outs;
         private Tensor<float> inference_result = null;
 
-        public ThespeonVocoder(Worker[] workers, double targetFrameTime, bool useAdaptiveScheduling, int chunk_rests_size)
+        public ThespeonVocoder(Worker[] workers, double targetFrameTime, bool useAdaptiveScheduling, int chunk_rests_size, float overshootMargin) : base(overshootMargin)
         {
-
             _workers = workers;
             UseAdaptiveScheduling = useAdaptiveScheduling;
 
             chunk_rests = new Tensor<float>[chunk_rests_size];
             copy_outs = new Tensor[chunk_rests_size];
             TargetFrameTime = targetFrameTime;
+
 
             // Initialize lists for each chunk type
             foreach (var chunkType in Enum.GetNames(typeof(ChunkType)))
@@ -39,9 +39,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
         }
 
-        public void AddCustomSkipIndices(List<int>[] customSkipIndices)
+        public void AddCustomSkipIndices(List<int>[] customSkipIndices) 
         {
-            if(customSkipIndices != null && customSkipIndices.Length == 3)
+            if(customSkipIndices != null && customSkipIndices.Length == 3) 
             {
                 foreach (int layer in customSkipIndices[0])
                 {
@@ -76,12 +76,10 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         public override IEnumerator Infer(VocoderInput vocoderInput)
         {
         
-            
+
 
 
             bool hasLayersLeft=true;
-            double frameStartTime = Time.realtimeSinceStartupAsDouble;
-            double msBudget = TargetFrameTime; 
 
             IEnumerator vocoderSchedule;
             float startTime = Time.realtimeSinceStartup;
@@ -111,9 +109,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                                counter++;
                                // have we exceeded the budget?
                                currentElapsedTime = Time.realtimeSinceStartup - startTime;
-                               if(!hasLayersLeft || currentElapsedTime > msBudget || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
+                               if(!hasLayersLeft || currentElapsedTime > TargetFrameTime || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
                                {
-                                   if (UseAdaptiveScheduling && currentElapsedTime > msBudget * OvershootMargin)
+                                   if (UseAdaptiveScheduling && currentElapsedTime > TargetFrameTime * OvershootMargin)
                                    {
                                        // If layer still is too heavy, add another before it
                                        if(HeavyLayers[(int) vocoderInput.chunkType].Contains(counter - 1))
@@ -165,9 +163,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                                 counter++;
                                 // have we exceeded the budget?
                                 currentElapsedTime = Time.realtimeSinceStartup - startTime;
-                                if(!hasLayersLeft || currentElapsedTime > msBudget || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
+                                if(!hasLayersLeft || currentElapsedTime > TargetFrameTime || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
                                 {
-                                    if (UseAdaptiveScheduling && currentElapsedTime > msBudget * OvershootMargin)
+                                    if (UseAdaptiveScheduling && currentElapsedTime > TargetFrameTime * OvershootMargin)
                                     {
                                         // If layer still is too heavy, add another before it
                                         if(HeavyLayers[(int) vocoderInput.chunkType].Contains(counter - 1))
@@ -218,9 +216,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                                counter++;
                                // have we exceeded the budget?
                                currentElapsedTime = Time.realtimeSinceStartup - startTime;
-                               if(!hasLayersLeft || currentElapsedTime > msBudget || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
+                               if(!hasLayersLeft || currentElapsedTime > TargetFrameTime || HeavyLayers[(int) vocoderInput.chunkType].Contains(counter))//|| counter == 271 || counter == 270)
                                {
-                                   if (UseAdaptiveScheduling && currentElapsedTime > msBudget * OvershootMargin)
+                                   if (UseAdaptiveScheduling && currentElapsedTime > TargetFrameTime * OvershootMargin)
                                    {
                                        // If layer still is too heavy, add another before it
                                        if(HeavyLayers[(int) vocoderInput.chunkType].Contains(counter - 1))
@@ -250,7 +248,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     break;
 
                 default:
-                    throw new System.Exception("Invalid chunk type!");
+                    throw new Exception("Invalid chunk type!");
             }
 
             yield return null;
@@ -263,7 +261,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             vocoderInput.Dispose();
             // Check if the output copying needed to wait on jobs to be completed
             float completeJobElapsedTime = Time.realtimeSinceStartup - startTime + currentElapsedTime;
-            if (UseAdaptiveScheduling && completeJobElapsedTime > msBudget * OvershootMargin)
+            if (UseAdaptiveScheduling && completeJobElapsedTime > TargetFrameTime * OvershootMargin)
             {
                 // If layer still is too heavy, add another before it
                 if(HeavyLayers[(int) vocoderInput.chunkType].Contains(counter - 1))

@@ -52,6 +52,33 @@ namespace Lingotion.Thespeon.Utils
             
         }
 
+
+
+
+        /// <summary>
+        /// Initializes a new instance of the UserModelInput class with specified actor name, match actor module with specified tags, and text segments. Will initialize moduleName defaultLanguage to the first module and language from the actor's available modules.
+        /// </summary>
+        /// <param name="actorName">The username of the actor associated with this input.</param>
+        /// <param name="actorModuleTag">The tags of the actor module to be used, comes in a key-value pair dictionary.</param>
+        /// <param name="textSegments">A list of user segments defining the input text data.</param>
+        public UserModelInput(string actorName, ActorTags desiredTags,  List<UserSegment> textSegments)         //TUNI-88  -  Remove this constructor and move its content to ThespeonAPI.Synthesize
+        {
+            actorUsername = actorName;
+            string selectedActorModuleName = ThespeonAPI.GetActorPackModuleName(actorUsername, desiredTags);
+
+            if (string.IsNullOrEmpty(selectedActorModuleName))
+            {
+                throw new ArgumentException($"No module found for actor {actorName} with the specified tags.");
+            }
+
+
+            moduleName = selectedActorModuleName;
+
+            
+            this.segments = textSegments;
+        }
+
+
         /// <summary>
         /// Initializes a new instance of the UserModelInput class with specified actor name and text segments. Will initialize moduleName defaultLanguage to the first module and language from the actor's available modules.
         /// </summary>
@@ -97,10 +124,11 @@ namespace Lingotion.Thespeon.Utils
                 errors.Add("The 'actorUsername' is required and cannot be empty.");
             } else
             {
-                if(!ThespeonAPI.GetRegisteredActorPacks().ContainsKey(actorUsername))
+               if(!ThespeonAPI.GetRegisteredActorPacks().ContainsKey(actorUsername))
                 {
                     errors.Add($"The 'actorUsername' {actorUsername} does not match any registered actor.");
                 } else {
+
                     List<ActorPackModule> actorModules = ThespeonAPI.GetModulesWithActor(actorUsername);
                     if(actorModules.FindIndex(module => module.name == moduleName) == -1)
                     {
@@ -108,7 +136,7 @@ namespace Lingotion.Thespeon.Utils
                     } else {
                         module = actorModules.Find(module => module.name == moduleName);
                     }
-                }
+                } 
             }
 
             if (string.IsNullOrEmpty(defaultEmotion))

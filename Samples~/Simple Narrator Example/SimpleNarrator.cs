@@ -33,9 +33,13 @@ public class SimpleNarrator : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             // Create an input segment with a sample text
-            UserSegment testSegment = new UserSegment("Hello! This is a sample text, and I hope you are glad to hear my voice.");
+            UserSegment testSegment = new UserSegment("Hello! This is a sample text, and I hope you are glad to hear my voice.", emotion:"Interest");
+            
             // Replace ActorName with your actor of choice from your imported actor list in the Lingotion Thespeon Info window.
-            input = new UserModelInput("ActorName", new List<UserSegment>() { testSegment });
+            // You can also choose your tags such as "quality" or leave it empty for default. Look at the Thespeon Info window for provided tags.
+            var desiredTags = new ActorTags("InsertQualityLevelHere");
+            input = new UserModelInput("InsertActorNameHere" ,desiredTags, new List<UserSegment>() { testSegment });
+            Debug.Log("Input created" + input.ToString());
             // Schedule a Thespeon job with the input, and send the OnAudioPacketReceive as a callback for the audio chunks.
             eng.Synthesize(input, OnAudioPacketReceive);
         }

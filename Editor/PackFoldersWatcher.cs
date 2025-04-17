@@ -1,5 +1,6 @@
 // This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service found at www.lingotion.com.
 
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +11,6 @@ using UnityEditor;
 using UnityEngine;
 using Lingotion.Thespeon.FileLoader;
 using System.Text;
-
 
 namespace Lingotion.Thespeon
 {
@@ -23,7 +23,6 @@ namespace Lingotion.Thespeon
         private static FileSystemWatcher actorModulesWatcher;
         private static FileSystemWatcher languagePacksWatcher;
 
-        
         private static readonly string actorModulesPath = RuntimeFileLoader.GetActorPacksPath(true);
         private static readonly string languagePacksPath = RuntimeFileLoader.GetLanguagePacksPath(true);
         private static readonly string mappingInfoJsonPath = RuntimeFileLoader.packMappingsPath;
@@ -72,8 +71,8 @@ namespace Lingotion.Thespeon
             watcher = new FileSystemWatcher(fullPath)
             {
                 NotifyFilter = NotifyFilters.FileName | 
-                            NotifyFilters.DirectoryName | 
-                            NotifyFilters.LastWrite,
+                               NotifyFilters.DirectoryName | 
+                               NotifyFilters.LastWrite,
                 Filter = "*.json",
                 IncludeSubdirectories = true,
                 EnableRaisingEvents = true
@@ -88,71 +87,89 @@ namespace Lingotion.Thespeon
 
         private static void OnFileChanged(object sender, FileSystemEventArgs e)
         {
-            // Trigger a delayed update on main thread
             EditorApplication.delayCall += UpdateActorDetailedInfo;
             EditorApplication.delayCall += UpdatePackMappings;
-
         }
 
         private static void OnFileRenamed(object sender, RenamedEventArgs e)
         {
             EditorApplication.delayCall += UpdateActorDetailedInfo;
             EditorApplication.delayCall += UpdatePackMappings;
-
         }
 
-        public static void UpdatePackMappings()
+        // --------------------------------------------------------------------
+        //  We keep the rest of your logic (loading Actor/Language data) the same
+        // --------------------------------------------------------------------
+        public static void UpdatePackMappings()             //TUNI-87
         {
+            // 1) Ensure the file exists with minimal JSON
             if (!File.Exists(mappingInfoJsonPath))
             {
                 StringBuilder sb = new StringBuilder();
                 StringWriter sw = new StringWriter(sb);
-                
+
                 using (JsonWriter writer = new JsonTextWriter(sw))
                 {
                     writer.Formatting = Formatting.Indented;
-                
+
                     writer.WriteStartObject();
                     writer.WritePropertyName("actorpacks");
                     writer.WriteValue("{}");
                     writer.WritePropertyName("languagepacks");
                     writer.WriteValue("{}");
+                    writer.WritePropertyName("tagOverview");
+                    writer.WriteValue("{}");
+                    writer.WritePropertyName("tagMapping");
+                    writer.WriteValue("{}");
                     writer.WriteEndObject();
+
                     File.WriteAllText(mappingInfoJsonPath, writer.ToString());
                 }
-
             }
+
             Dictionary<string, JObject> mappingInfoObject;
             try
             {
+                // We call UpdatePackMappingsInfo() to produce our new JSON data
                 string jsonData = UpdatePackMappingsInfo();
-                mappingInfoObject = JsonConvert.DeserializeObject<Dictionary<string, JObject>>(jsonData);
-                if(mappingInfoObject==null) Debug.LogWarning("--------------SHOULDNT BE HERE--------------");
-                if(mappingInfoObject==null) mappingInfoObject = new Dictionary<string, JObject>();
 
-            } catch (Exception ex)
+                mappingInfoObject = JsonConvert.DeserializeObject<Dictionary<string, JObject>>(jsonData);
+                if (mappingInfoObject == null)
+                {
+                    Debug.LogWarning("UpdatePackMappings: Deserialized mappingInfoObject is null.");
+                    mappingInfoObject = new Dictionary<string, JObject>();
+                }
+            }
+            catch (Exception ex)
             {
                 Debug.LogError($"Error reading or parsing JSON file: {ex.Message}");
                 mappingInfoObject = new Dictionary<string, JObject>();
             }
 
+            // Ensure the top-level keys exist
             if (!mappingInfoObject.ContainsKey("actorpacks"))
-            {
                 mappingInfoObject["actorpacks"] = new JObject();
-            }
-            JObject actorPacks = mappingInfoObject["actorpacks"] as JObject;
-
             if (!mappingInfoObject.ContainsKey("languagepacks"))
-            {
                 mappingInfoObject["languagepacks"] = new JObject();
-            }
-            JObject languagePacks = mappingInfoObject["languagepacks"] as JObject;
+            if (!mappingInfoObject.ContainsKey("tagOverview"))
+                mappingInfoObject["tagOverview"] = new JObject();
+            if (!mappingInfoObject.ContainsKey("tagMapping"))
+                mappingInfoObject["tagMapping"] = new JObject();
 
-            if (actorPacks == null || languagePacks == null)
+            JObject actorPacks    = mappingInfoObject["actorpacks"]    as JObject;
+            JObject languagePacks = mappingInfoObject["languagepacks"] as JObject;
+            JObject tagOverview   = mappingInfoObject["tagOverview"]   as JObject;
+            JObject tagMapping   = mappingInfoObject["tagMapping"]   as JObject;
+
+            if (actorPacks == null || languagePacks == null || tagOverview == null || tagMapping == null)
             {
-                Debug.LogError("Invalid JSON structure: Missing 'actorpacks' or 'languagepacks'.");
+                Debug.LogError("Invalid JSON structure: Missing 'actorpacks', 'languagepacks', 'tagOverview' or 'tagMapping'.");
                 return;
             }
+
+            // ------------------------------------------------------------------
+            //  We keep your old logic that rewrites 'actorpacks' => moduleID => languagePackName
+            // ------------------------------------------------------------------
             JObject updatedActorPacks = new JObject();
             foreach (var actorPack in actorPacks)
             {
@@ -162,59 +179,87 @@ namespace Lingotion.Thespeon
 
                 var updatedModules = new JObject();
 
-                // Iterate through each module in the actor pack
+                // For each "moduleName" or other entry in the actorpack
                 foreach (var module in modules)
                 {
-                    var updatedLanguagePackMapping = new JObject();
-                    string moduleName = module.Key;
-                    if(moduleName=="actors")
+                    // If it's "actors", we copy as is
+                    if (module.Key == "actors")
                     {
-                        updatedModules[moduleName] = module.Value;
+                        updatedModules["actors"] = module.Value;
                         continue;
                     }
+
+                    // Otherwise we expect an array of phonemizer module IDs, e.g. JArray
                     JArray languagePackIds = module.Value as JArray;
-                    if (languagePackIds == null) continue;
+                    if (languagePackIds == null) 
+                    {
+                        // Could be an empty object if something else was stored. 
+                        // We'll just copy it for safety
+                        updatedModules[module.Key] = module.Value;
+                        continue;
+                    }
 
-                    
-
-                    // Iterate through each language pack in the actor pack module and search for the corresponding language pack name. 
-                    foreach (var languagePackId in languagePackIds) 
+                    JObject updatedLanguagePackMapping = new JObject();
+                    foreach (var languagePackId in languagePackIds)
                     {
                         string id = languagePackId.ToString();
-                        // Find the corresponding language pack name.
-
+                        // find which languagepack references this ID
                         var languagePackName = languagePacks.Properties()
-                                .FirstOrDefault(lp => lp.Value.Any(arr => arr.ToString()==id))?.Name;
+                            .FirstOrDefault(lp => lp.Value.Any(arr => arr.ToString() == id))
+                            ?.Name;
+
                         if (languagePackName != null)
                         {
                             updatedLanguagePackMapping[id] = languagePackName;
                         }
                         else
                         {
-                            Debug.LogWarning($"Language pack ID '{id}' not found in 'languagepacks'. The pack has not been imported. This is ok but the actor will not support the language of the language pack."); //This should mean the language pack has not been imported. Should be ok but will reduce functionality.
+                            Debug.LogWarning($"Language pack ID '{id}' not found in 'languagepacks'. The pack not imported. It's okay but reduces functionality.");
+                            updatedLanguagePackMapping[id] = null;
                         }
                     }
-                    updatedModules[moduleName] = updatedLanguagePackMapping;
+                    updatedModules[module.Key] = updatedLanguagePackMapping;
                 }
+
                 updatedActorPacks[actorPackName] = updatedModules;
             }
 
-            // Create the final structure
+            // We keep 'tagOverview' untransformed (it’s already in the final shape we want)
+            JObject updatedTagOverview = tagOverview;
+
+            // ------------------------------------------------------------------
+            //  Write everything out: actorpacks + tagOverview
+            // ------------------------------------------------------------------
             var finalJsonObject = new JObject
             {
-                ["actorpacks"] = updatedActorPacks
+                ["actorpacks"]    = updatedActorPacks,
+                ["tagOverview"]   = updatedTagOverview,
+                ["tagMapping"]    = tagMapping, 
+                ["languagepacks"] = languagePacks // if you want to keep that as well
             };
 
-            // Serialize and write to the mapping JSON file
             File.WriteAllText(mappingInfoJsonPath, finalJsonObject.ToString(Formatting.Indented));
             AssetDatabase.Refresh();
-
-
         }
-        private static string UpdatePackMappingsInfo()
+
+        /// <summary>
+        /// This is where we produce the entire mapping info. 
+        /// We do NOT change the 'actorpacks' part from your original approach. 
+        /// We only change how we build the 'tagOverview' section so it uses 
+        /// TTS module names as the keys, storing "tags": { ... } or null.
+        /// </summary>
+        private static string UpdatePackMappingsInfo()          //TUNI-87
         {
-            // Start fresh by creating a new JObject to overwrite previous data
-            JObject mappingInfoObject = new JObject();
+            // Start fresh by creating a new JObject
+            JObject mappingInfoObject = new JObject
+            {
+                ["actorpacks"]    = new JObject(),
+                ["languagepacks"] = new JObject(),
+                ["tagOverview"]   = new JObject(),
+                ["tagMapping"]    = new JObject()
+            };
+
+            // We'll gather all relevant .json 
             List<string> jsonsToDump = new List<string>();
 
             if (Directory.Exists(actorModulesPath))
@@ -223,7 +268,8 @@ namespace Lingotion.Thespeon
                 {
                     jsonsToDump.AddRange(Directory.GetFiles(dir, "*.json"));
                 }
-            } else
+            }
+            else
             {
                 Debug.LogError($"Directory not found: {actorModulesPath}. Actor Pack Directory has been deleted.");
             }
@@ -234,17 +280,19 @@ namespace Lingotion.Thespeon
                 {
                     jsonsToDump.AddRange(Directory.GetFiles(dir, "lingotion-languagepack*.json"));
                 }
-            } else
+            }
+            else
             {
                 Debug.LogWarning($"Directory not found: {languagePacksPath}. Language pack directory has been deleted.");
             }
 
+            // Now parse each .json
             foreach (string jsonPath in jsonsToDump)
             {
                 try
                 {
-
-                    JObject config = JObject.Parse(RuntimeFileLoader.LoadFileAsString(jsonPath));
+                    string fileText = RuntimeFileLoader.LoadFileAsString(jsonPath);
+                    JObject config = JObject.Parse(fileText);
                     string packType = config["type"]?.ToString();
                     string packName = config["name"]?.ToString();
 
@@ -256,7 +304,12 @@ namespace Lingotion.Thespeon
 
                     if (packType == "ACTORPACK")
                     {
+                        // ---------------------------------------------------------
+                        // 1) Build 'actorpacks' the old way 
+                        //    (no changes from your original approach)
+                        // ---------------------------------------------------------
                         JObject actorPackMapping = new JObject();
+                        JObject tagMapping = new JObject();
                         List<string> actorUsernames = new List<string>();
 
                         if (config["modules"] is JArray modules)
@@ -264,8 +317,11 @@ namespace Lingotion.Thespeon
                             foreach (var module in modules)
                             {
                                 string moduleName = module["name"]?.ToString();
-                                if (string.IsNullOrEmpty(moduleName)) continue;
+                                if (string.IsNullOrEmpty(moduleName)) 
+                                    continue;
 
+                                // We read phonemizer IDs from:
+                                //   module["phonemizer_setup"]["modules"] => "module_id"
                                 JObject phonemizerModules = module["phonemizer_setup"]?["modules"] as JObject;
                                 List<string> moduleIds = phonemizerModules?
                                     .Properties()
@@ -273,35 +329,98 @@ namespace Lingotion.Thespeon
                                     .Where(id => !string.IsNullOrEmpty(id))
                                     .ToList() ?? new List<string>();
 
+                                // So actorPackMapping[moduleName] = JArray of phonemizer IDs
                                 actorPackMapping[moduleName] = JArray.FromObject(moduleIds);
 
-                                foreach (var actor in module["actor_options"]?["actors"] ?? new JArray())
+                                // Also gather actor usernames from "actor_options"->"actors"
+                                foreach (var actorObj in module["actor_options"]?["actors"] ?? new JArray())
                                 {
-                                    string actorUsername = actor["username"]?.ToString();
+                                    string actorUsername = actorObj["username"]?.ToString();
                                     if (!string.IsNullOrEmpty(actorUsername))
                                         actorUsernames.Add(actorUsername);
                                 }
                             }
                         }
 
-                        actorPackMapping["actors"] = JArray.FromObject(actorUsernames);
+                        // Store "actors" array
+                        actorPackMapping["actors"] = JArray.FromObject(actorUsernames.Distinct());
 
-                        if (!mappingInfoObject.ContainsKey("actorpacks"))
-                            mappingInfoObject["actorpacks"] = new JObject();
+                        // Put it into mappingInfoObject
+                        (mappingInfoObject["actorpacks"] as JObject)![packName] = actorPackMapping;
 
-                        ((JObject)mappingInfoObject["actorpacks"])[packName] = actorPackMapping;
+                        // ---------------------------------------------------------
+                        // 2) Build 'tagOverview' the *new* way
+                        // ---------------------------------------------------------
+                        JObject packTagOverview = new JObject();
+
+                        // We'll also store the same "actors" array at the top
+                        // (like you did before).
+                        // We'll fill the TTS modules by name => { "tags": {...} }
+                        List<string> tagOverviewActors = new List<string>();
+
+                        if (config["modules"] is JArray modulesForTags)
+                        {
+                            foreach (var moduleToken in modulesForTags)
+                            {
+                                JObject moduleObj = moduleToken as JObject;
+                                if (moduleObj == null) continue;
+
+                                string ttsModuleName = moduleObj["name"]?.ToString() ?? "UnknownModule";
+
+                                // Grab the "tags" object
+                                JObject tagsObj = moduleObj["tags"] as JObject;
+
+                               
+
+                                // Also gather actor names from "actor_options"->"actors"
+                                foreach (var actorObj in moduleObj["actor_options"]?["actors"] ?? new JArray())
+                                {
+                                    string actorUsername = actorObj["username"]?.ToString();
+                                    if (!string.IsNullOrEmpty(actorUsername))
+                                        tagOverviewActors.Add(actorUsername);
+                                }
+                                // We'll store them in a sub-node => { "tags": { ... } }
+                                // or null if none exist
+                                JObject moduleTagNode = new JObject         
+                                {
+                                    ["tags"] = tagsObj ?? (JToken)JValue.CreateNull(),
+                                    ["actors"] = JArray.FromObject(tagOverviewActors.Distinct())
+                                };
+
+                                // Put that under packTagOverview[ttsModuleName]
+                                packTagOverview[ttsModuleName] = moduleTagNode;
+                                tagMapping[ttsModuleName] = moduleTagNode;
+                            }
+                        }
+
+                        // store the "actors" array
+                        packTagOverview["actors"] = JArray.FromObject(tagOverviewActors.Distinct());
+                        // place that into mappingInfoObject["tagOverview"][packName]
+                        (mappingInfoObject["tagOverview"] as JObject)![packName] = packTagOverview;
+
+                        if (mappingInfoObject["tagMapping"] == null || mappingInfoObject["tagMapping"].Type != JTokenType.Object)
+                        {
+                            mappingInfoObject["tagMapping"] = new JObject();
+                        }
+
+                        JObject targetTagMapping = (JObject)mappingInfoObject["tagMapping"];
+
+                        // Merge current tagMapping JObject into the cumulative one
+                        foreach (var kvp in tagMapping)
+                        {
+                            targetTagMapping[kvp.Key] = kvp.Value; // overwrite or add
+                        }
                     }
                     else if (packType == "LANGUAGEPACK")
                     {
+                        // Same old approach for languagepacks
+                        // e.g. read "modules" => base_module_id => store in array
                         List<string> moduleIds = config["modules"]?
                             .Select(m => m["base_module_id"]?.ToString())
                             .Where(id => !string.IsNullOrEmpty(id))
                             .ToList() ?? new List<string>();
 
-                        if (!mappingInfoObject.ContainsKey("languagepacks"))
-                            mappingInfoObject["languagepacks"] = new JObject();
-
-                        ((JObject)mappingInfoObject["languagepacks"])[packName] = JArray.FromObject(moduleIds);
+                        (mappingInfoObject["languagepacks"] as JObject)![packName] = JArray.FromObject(moduleIds);
                     }
                 }
                 catch (Exception ex)
@@ -310,10 +429,9 @@ namespace Lingotion.Thespeon
                 }
             }
 
+            // Return as JSON
             return JsonConvert.SerializeObject(mappingInfoObject, Formatting.Indented);
-            // File.WriteAllText(mappingInfoJsonPath, outputJson);
         }
-
 
         // ------------------------------------------------------------------
         //   CORE UPDATE LOGIC (Actor/Language data in memory)
@@ -324,11 +442,10 @@ namespace Lingotion.Thespeon
             ActorDataCache.Clear();
             LanguageDataCache.Clear();
 
-            // 2) Load Actor Packs (NOT adding to LanguageDataCache, 
-            //    but building aggregated tags & languages)
+            // 2) Load Actor Packs
             LoadActorPacks();
 
-            // 3) Load Language Packs (only these go into LanguageDataCache)
+            // 3) Load Language Packs
             LoadLanguagePacks();
 
             // 4) Merge nameinenglish from Actor side into LanguageDataCache (iso639_2 match)
@@ -338,11 +455,6 @@ namespace Lingotion.Thespeon
             OnActorDataUpdated?.Invoke();
         }
 
-        /// <summary>
-        /// Reads .json from Actor directory, building up ActorDataCache.
-        /// Now we parse 'tags' from each module and store them 
-        /// in a Dictionary<string,string>, also aggregate them in ActorData.
-        /// </summary>
         private static void LoadActorPacks()
         {
             if (!Directory.Exists(actorModulesPath))
@@ -380,20 +492,18 @@ namespace Lingotion.Thespeon
 
                         string moduleName = (string)moduleObj["name"] ?? "UnknownModule";
 
-                        // This is the new generic tags approach:
-                        // parse "tags" object => Dictionary<string,string>
+                        // parse "tags" object => dictionary of (key->value)
                         JObject tagsObj = moduleObj["tags"] as JObject;
-                        var moduleTags = new Dictionary<string, string>();
+                        var moduleTags = new Dictionary<string,string>();
                         if (tagsObj != null)
                         {
                             foreach (var tagProp in tagsObj.Properties())
                             {
-                                moduleTags[tagProp.Name] = 
-                                    tagProp.Value?.ToString() ?? "unknown";
+                                moduleTags[tagProp.Name] = tagProp.Value?.ToString() ?? "unknown";
                             }
                         }
 
-                        // We'll parse the model_options -> recording_data_info -> actors
+                        // parse the model_options -> recording_data_info -> actors
                         JObject modelOptions = moduleObj["model_options"] as JObject;
                         JObject recordingDataInfo = modelOptions?["recording_data_info"] as JObject;
                         JObject actorsDict = recordingDataInfo?["actors"] as JObject;
@@ -405,10 +515,10 @@ namespace Lingotion.Thespeon
                             JObject actorNode = actorProperty.Value as JObject;
                             if (actorNode == null) continue;
 
-                            JObject actorObj = actorNode["actor"] as JObject;
-                            if (actorObj == null) continue;
+                            JObject actorInnerObj = actorNode["actor"] as JObject;
+                            if (actorInnerObj == null) continue;
 
-                            string username = (string)actorObj["username"] ?? "UnknownActor";
+                            string username = (string)actorInnerObj["username"] ?? "UnknownActor";
 
                             if (!ActorDataCache.TryGetValue(username, out ActorData actorData))
                             {
@@ -416,11 +526,11 @@ namespace Lingotion.Thespeon
                                 ActorDataCache[username] = actorData;
                             }
 
-                            // Build the new ModuleData
+                            // Build new ModuleData
                             ModuleData modData = new ModuleData
                             {
                                 moduleName = moduleName,
-                                tags = moduleTags, // dictionary of (key->value)
+                                tags = moduleTags,
                                 languages = new List<LanguageData>()
                             };
 
@@ -448,12 +558,10 @@ namespace Lingotion.Thespeon
                             // Add the module to the actor
                             actorData.modules.Add(modData);
 
-                            // Now "aggregate" the tags from this module 
-                            // into actorData.aggregatedTags
+                            // "aggregate" these tags into actorData.aggregatedTags
                             foreach (var kvp in moduleTags)
                             {
-                                if (!actorData.aggregatedTags.TryGetValue(kvp.Key, 
-                                    out HashSet<string> setOfValues))
+                                if (!actorData.aggregatedTags.TryGetValue(kvp.Key, out HashSet<string> setOfValues))
                                 {
                                     setOfValues = new HashSet<string>();
                                     actorData.aggregatedTags[kvp.Key] = setOfValues;
@@ -517,19 +625,17 @@ namespace Lingotion.Thespeon
                             AddOrMergeLanguage(parsedLang);
                         }
                     }
+
+                    // We call UpdatePackMappings to keep your old approach
+                    UpdatePackMappings();
                 }
                 catch (Exception ex)
                 {
                     Debug.LogError($"Error parsing language pack {filePath}:\n{ex.Message}");
                 }
-
-                UpdatePackMappings();
             }
         }
 
-        /// <summary>
-        /// We parse the JSON chunk for each language into our "LanguageData".
-        /// </summary>
         private static LanguageData ParseLanguageObject(JObject languageObj)
         {
             var langData = new LanguageData
@@ -553,11 +659,6 @@ namespace Lingotion.Thespeon
             return langData;
         }
 
-        /// <summary>
-        /// Insert or unify the given language into our global LanguageDataCache
-        /// if we already have a matching iso639_2 + iso3166_1 + customdialect, 
-        /// etc. then unify them.
-        /// </summary>
         private static void AddOrMergeLanguage(LanguageData newLang)
         {
             var existing = LanguageDataCache.FirstOrDefault(x => x.Equals(newLang));
@@ -579,11 +680,6 @@ namespace Lingotion.Thespeon
             }
         }
 
-        /// <summary>
-        /// Only merges languages in the LanguageDataCache (from Language Packs).
-        /// If an Actor's language has nameinenglish, we copy it if iso639_2 matches 
-        /// (or some other rule).
-        /// </summary>
         private static void UnifyLanguageNameInEnglish()
         {
             foreach (var langPackLang in LanguageDataCache)
@@ -608,9 +704,7 @@ namespace Lingotion.Thespeon
                         if (langPackLang.languagecode == null)
                             langPackLang.languagecode = new LanguageCode();
 
-                        langPackLang.languagecode.nameinenglish = 
-                            match.languagecode.nameinenglish;
-
+                        langPackLang.languagecode.nameinenglish = match.languagecode.nameinenglish;
                         break; // done
                     }
                 }
@@ -626,7 +720,7 @@ namespace Lingotion.Thespeon
     {
         public string username;
 
-        // Now storing aggregated tags. Key = tagName, Value = set of possible values
+        // aggregated tags. Key = tagName, Value = set of possible values
         public Dictionary<string, HashSet<string>> aggregatedTags 
             = new Dictionary<string, HashSet<string>>();
 
@@ -639,7 +733,7 @@ namespace Lingotion.Thespeon
     {
         public string moduleName;
 
-        // Instead of a single "quality" field, we now store all tags
+        // Instead of a single "quality" field, we store all tags
         public Dictionary<string, string> tags = new Dictionary<string, string>();
 
         public List<LanguageData> languages = new List<LanguageData>();

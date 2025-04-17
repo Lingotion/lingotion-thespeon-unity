@@ -80,7 +80,7 @@ public class TextStyler : MonoBehaviour
         inputField.selectionStringAnchorPosition = 0; 
         inputField.selectionStringFocusPosition = inputField.text.Length;
         StartCoroutine(DeferredDrawUnderlines());
-        List<string> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
+        List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
 
         // get the GameComponent dropdown "Select Actor" and set the options to the registered actors.
         modelSelectorHandler = GameObject.Find("Model Selector").GetComponent<DropdownHandler>();
@@ -93,11 +93,14 @@ public class TextStyler : MonoBehaviour
 
         if(availableActors.Count!=0)
         {
-            string optionText = availableActors[0];
+            string optionText = availableActors[0].Item1;
             // Debug.Log("Changing actorUsername to " + optionText);
             modelInput.actorUsername = optionText;
-            ActorPackModule actorPackModule = ThespeonAPI.GetRegisteredActorPacks().Values
-                .SelectMany(pack => pack.modules)
+        
+            Dictionary<string, List<ActorPack>> registeredActorPacks = ThespeonAPI.GetRegisteredActorPacks();
+            ActorPackModule actorPackModule = registeredActorPacks
+                .SelectMany(pack => pack.Value) // Access the Value (List<ActorPack>) of the KeyValuePair
+                .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
                 .FirstOrDefault(module => module.actor_options.actors
                     .Any(actor => actor.username == optionText));
 
@@ -766,12 +769,8 @@ public class TextStyler : MonoBehaviour
     #region Public Methods
     public void Synthesize()   
     {
-        
         // Debug.Log("Synth pressed " + Time.realtimeSinceStartup);
         Profiler.BeginSample("Synth");
-        // string jsonString = JsonConvert.SerializeObject(modelInput);
-        // Debug.Log(jsonString);
-        // UserModelInput modelInput = JsonConvert.DeserializeObject<UserModelInput>(jsonString);
         GameObject.Find("NPC Object").GetComponent<ThespeonEngine>().Synthesize(modelInput);
         Profiler.EndSample();
     }
@@ -781,7 +780,7 @@ public class TextStyler : MonoBehaviour
         // Debug.Log(jsonString);
         // UserModelInput modelInput = Newtonsoft.Json.JsonConvert.DeserializeObject<UserModelInput>(jsonString);
         //Debug.Log(Newtonsoft.Json.JsonConvert.SerializeObject(modelInput)); 
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<UserModelInput>(Newtonsoft.Json.JsonConvert.SerializeObject(modelInput));
+        return JsonConvert.DeserializeObject<UserModelInput>(JsonConvert.SerializeObject(modelInput));      //Ugly hack for deep copy. See TUNI-29
     }
     public (string, List<int>) getTextAndEmotion()
     {
@@ -841,15 +840,22 @@ public class TextStyler : MonoBehaviour
         string optionText=dropdown.options[dropdown.value].text;
         if(dropdown.name=="Model Selector"){
             modelInput.actorUsername = optionText;
-            List<ActorPackModule> actorPackModules = ThespeonAPI.GetRegisteredActorPacks().Values.Distinct()
-                .SelectMany(pack => pack.modules)
+
+
+
+            Dictionary<string, List<ActorPack>> registeredActorPacks = ThespeonAPI.GetRegisteredActorPacks();
+            List<ActorPackModule> actorPackModules = registeredActorPacks
+                .SelectMany(pack => pack.Value) // Access the List<ActorPack> from the KeyValuePair
+                .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
                 .Where(module => module.actor_options.actors
                     .Any(actor => actor.username == optionText)).ToHashSet().ToList();
+
             if(actorPackModules.Count == 0)
             {
                 Debug.LogWarning($"No actors registered with name {optionText}.");
                 return;
             }
+            List<(string, ActorTags)> nameAndTags = ThespeonAPI.GetActorsAvailabeOnDisk();
             List<string> modelIDs = actorPackModules.Select(module => module.name).ToList();
             // Debug.Log("Model IDs: " + string.Join(", ", modelIDs));
 
@@ -857,7 +863,7 @@ public class TextStyler : MonoBehaviour
             {
                 modelInput.moduleName = modelIDs[0];
             }
-            qualitySelectorHandler.SetOptions(modelIDs);
+            qualitySelectorHandler.SetOptions(nameAndTags.Where(pair => pair.Item1 == optionText).Select(x => x.Item2.quality.ToString()).ToList());
 
             //OBS assumes same language accross modules.
             List<Language> actorLanguages = actorPackModules[0].GetActorLanguages(actorPackModules[0].GetActor(optionText));
@@ -917,7 +923,9 @@ public class TextStyler : MonoBehaviour
             UpdateJsonVisualizer();
         } else if(dropdown.name=="Quality Selector"){
             // Debug.Log("Selected model id: " + optionText);
-            modelInput.moduleName = optionText;
+            modelInput.moduleName = ThespeonAPI.GetActorPackModuleName(modelInput.actorUsername, new ActorTags(optionText));
+            UpdateSegmentsFromText();       //bit of a hack to update after this change. Should be done in a better way.
+            UpdateJsonVisualizer();
         }else if(dropdown.name=="Lanugage Selector"){
             Language selectedLanguage = languageOptionValues[optionText];
             // string defaultLanguage = ((Language) modelInputJson["defaultLanguage"]).iso639_2;
@@ -963,9 +971,14 @@ public class TextStyler : MonoBehaviour
                 ThespeonAPI.UnloadActorPackModule(ActorPackModuleName);
             }
             ThespeonAPI.SetBackend(optionText == "GPU" ? BackendType.GPUCompute : BackendType.CPU);
+
+            List<(string, ActorTags)> availableActors = ThespeonAPI.GetActorsAvailabeOnDisk();
+            Dictionary<string, (string, ActorTags)> moduleToNameAndTags = availableActors.ToDictionary(x => ThespeonAPI.GetActorPackModuleName(x.Item1, x.Item2) , x => (x.Item1, x.Item2));
+
             foreach(string ActorPackModuleName in loadedModules)
             {
-                ThespeonAPI.PreloadActorPackModule(ActorPackModuleName);
+                
+                ThespeonAPI.PreloadActorPackModule(moduleToNameAndTags[ActorPackModuleName].Item1, moduleToNameAndTags[ActorPackModuleName].Item2);
             }
             // Debug.Log("Re-preloaded " + string.Join(", ", loadedModules));
         }
@@ -1038,10 +1051,16 @@ public class TextStyler : MonoBehaviour
             
             // segments = (List<Dictionary<string, object>>)modelInputJson["segments"];
             string actorName = modelSelectorHandler.GetSelectedOption();
-            string moduleID = qualitySelectorHandler.GetSelectedOption();
+            string qualityTag = qualitySelectorHandler.GetSelectedOption();            
+            string moduleID = ThespeonAPI.GetActorPackModuleName(actorName, new ActorTags(qualityTag));
             Language lang = modelInput.defaultLanguage;
-            List<ActorPackModule> actorPackModules = ThespeonAPI.GetRegisteredActorPacks().Values.Distinct()
-            .SelectMany(pack => pack.modules).ToHashSet().ToList();
+
+            Dictionary<string, List<ActorPack>> registeredActorPacks = ThespeonAPI.GetRegisteredActorPacks();
+            List<ActorPackModule> actorPackModules = registeredActorPacks
+            .SelectMany(pack => pack.Value) // Access the List<ActorPack> from the KeyValuePair
+            .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
+            .ToHashSet().ToList();
+            
             ActorPackModule module=null;
 
             if(actorName==null)

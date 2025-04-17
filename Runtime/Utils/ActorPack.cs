@@ -4,7 +4,11 @@ using UnityEngine;
 using System.Collections.Generic;
 using System;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Linq;
+using Newtonsoft.Json.Serialization;
+using JetBrains.Annotations;
+using Newtonsoft.Json.Converters;
 
 
 namespace Lingotion.Thespeon.Utils
@@ -361,7 +365,6 @@ namespace Lingotion.Thespeon.Utils
     //     public int patch { get; set; }
     // }
 
-// TODO: Handle tags in module!
     [Serializable]
     public class ActorPackModule
     {
@@ -370,6 +373,9 @@ namespace Lingotion.Thespeon.Utils
 
         [JsonProperty("name")]
         public string name { get; set; }
+
+        [JsonProperty("tags")]
+        public ActorTags module_tags { get; set; }
 
         [JsonProperty("model_options")]
         public ModelOptions model_options { get; set; }
@@ -456,6 +462,71 @@ namespace Lingotion.Thespeon.Utils
 
             return languageKeyDict;
         } */
+
+
+
+        public override string ToString()
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.AppendLine($"ActorPackModule: {name}");
+            sb.AppendLine($"  Type: {type}");
+            sb.AppendLine($"  Model Options: {(model_options != null ? "Available" : "None")}");
+            sb.AppendLine($"  Actor Options: {(actor_options != null ? $"Actors Count: {actor_options.actors?.Count ?? 0}" : "None")}");
+            sb.AppendLine($"  Language Options: {(language_options != null ? $"Languages Count: {language_options.languages?.Count ?? 0}" : "None")}");
+            sb.AppendLine($"  Emotion Options: {(emotion_options != null ? $"Emotions Count: {emotion_options.emotions?.Count ?? 0}" : "None")}");
+            sb.AppendLine($"  Phonemes Table: {(phonemes_table != null ? "Available" : "None")}");
+            sb.AppendLine($"  Phonemizer Setup: {(phonemizer_setup != null ? $"Modules Count: {phonemizer_setup.modules?.Count ?? 0}" : "None")}");
+            sb.AppendLine($"  Config: {(config != null ? "Available" : "None")}");
+            sb.AppendLine($"  Sentis Files: {(sentisfiles != null ? $"Count: {sentisfiles.Count}" : "None")}");
+            return sb.ToString();
+        }
+    }
+
+    public class ActorTags
+    {
+        #nullable enable
+        [JsonProperty("quality")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public Quality? quality { get; set; }
+        #nullable disable
+        
+        public ActorTags(){} // Default constructor for JSON deserialization
+        public ActorTags(string quality)
+        {
+            if (Enum.TryParse(typeof(Quality), quality, true, out var parsedQuality))
+            {
+                this.quality = (Quality)parsedQuality;
+            }
+            else
+            {
+                Debug.LogError($"Invalid quality value: {quality}");
+                this.quality = null; // or set to a default value
+            }
+        } 
+        public enum Quality
+        {
+            Ultralow,
+            Low,
+            Mid,
+            High,
+            Ultrahigh
+        }
+
+        public override string ToString()
+        {
+            return $"quality: {quality}";
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is ActorTags tags &&
+                   quality == tags.quality;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(quality);
+        }
     }
 
     [Serializable]

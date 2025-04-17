@@ -26,7 +26,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
     public static class ThespeonInferenceHandler
     {
         #if UNITY_ANDROID                           //this BackendType should be CONFIGURABLE. 
-            private static BackendType BACKEND_TYPE = BackendType.CPU;
+            private static BackendType BACKEND_TYPE = BackendType.CPU; 
         #else
             private static BackendType BACKEND_TYPE = BackendType.GPUCompute;
         #endif
@@ -42,25 +42,85 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         private static readonly string EOS_TOKEN = "<eos>";
         private static Dictionary<string, InferenceStep[]> runningModules = new Dictionary<string, InferenceStep[]>();
         private static Dictionary<string, Tensor> tensors = new Dictionary<string, Tensor>();
-
-        // private static ConverterFilterService converterFilterService;
-
-
-        // private Dictionary<string, int> charToIdphonemeVocab_tts;
-        // private List<double> speed;
-        // private List<double> expressionamplitude;
-
-        // private double frameStartTime;
-        public static double targetFrameTime = 0.01f;
-        const double BUFFER_TIME_TO_FRAME_END = 0.05f;
-
+        
+        private static PackageConfig globalConfig = SetDefaultConfig();
+        private static Dictionary<string, PackageConfig> localConfigs = new Dictionary<string, PackageConfig>();
         private static Dictionary<string, UserModelInput> synthIDToUserInput = new Dictionary<string, UserModelInput>(); 
         private static Dictionary<string, Config> moduleIdToConfig = new Dictionary<string, Config>();
-        public static void SetTargetFrameTime(float value)
+
+
+        private static PackageConfig SetDefaultConfig(){
+            return new PackageConfig() {
+                useAdaptiveFrameBreakScheduling = true,
+                targetFrameTime =  0.01d,
+                overshootMargin =  1.4f,
+            };
+        }
+        /// <summary>
+        /// Sets the global configuration for the package by overriding all properties in the existing global config which are not null in configOverride.
+        /// </summary>
+        /// <param name="config"></param>
+        public static void SetGlobalConfig(PackageConfig configOverride)
         {
-            targetFrameTime = value;
+            globalConfig = globalConfig.SetConfig(configOverride);
+        }
+        /// <summary>
+        /// Gets a copy of current config. If a synthid is provided it will return the local config valid for that synthid. Otherwise it will return the global config.
+        /// </summary>
+        /// <param name="synthID">The synthid to get the local config for. If null or omitted, the global config is returned.</param>
+        public static PackageConfig GetCurrentConfig(string synthID=null)
+        {
+            if (synthID == null)
+            {
+                if(!localConfigs.ContainsKey(synthID)) Debug.LogWarning("No local config found for synthID " + synthID + ". Returning global config.");
+                return new PackageConfig(globalConfig);
+            }
+            else
+            {
+                return new PackageConfig(localConfigs[synthID]);
+            }
         }
 
+        /// <summary>
+        /// Associates a synthRequestID with a PackageConfig object consisting of the global config overwritten by non-null properties in local config.
+        /// </summary>
+        /// <param name="synthRequestID">The ID of the synth request</param>
+        /// <param name="config">The PackageConfig object to overwrite global configs with in the current synthRequestID</param>
+        public static void SetLocalConfig(string synthRequestID, PackageConfig config = null)
+        {            
+            PackageConfig localConfig = new PackageConfig(globalConfig);
+            if (config != null)
+            {
+                localConfig = localConfig.SetConfig(config);
+            }
+            if (localConfigs.ContainsKey(synthRequestID))
+            {
+                Debug.LogWarning($"Config for SynthRequestID {synthRequestID} already exists. Overwriting.");
+                localConfigs[synthRequestID] = localConfig;
+            }
+            else
+            {
+                localConfigs.Add(synthRequestID, localConfig);
+            }
+        }
+        
+        /// <summary>
+        /// Associates a synthRequestID with a UserModelInput object.
+        /// </summary>
+        /// <param name="synthRequestID">The ID of the synth request</param>
+        /// <param name="annotatedInput">The UserModelInput object to associate with the synthRequestID</param>
+        public static void SetSynthInput(string synthRequestId, UserModelInput annotatedInput)
+        {
+            if (synthIDToUserInput.ContainsKey(synthRequestId))
+            {
+                Debug.LogWarning($"Input for SynthRequestID {synthRequestId} already exists. Overwriting.");
+                synthIDToUserInput[synthRequestId] = annotatedInput;
+            }
+            else
+            {
+                synthIDToUserInput.Add(synthRequestId, annotatedInput);
+            }
+        }
         static ThespeonInferenceHandler()
         {
             Application.quitting += Cleanup;
@@ -109,7 +169,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         /// <exception cref="Exception"></exception>
         public static void PreloadActorPackModule(ActorPack actorPack, ActorPackModule module, JObject packMappings, List<PhonemizerModule> phonemizerModules = null)
         {
-            if(globalLangIds.ContainsKey(actorPack.name))
+            if(globalLangIds.ContainsKey(module.name))
             {
                 Debug.LogWarning("ActorPack Module already preloaded.");
                 return;
@@ -150,8 +210,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     encoderModels.Add(fileName, model);
                 }
                 if(actorPack.GetFile(filemd5sum).StartsWith("encoder")) preloadedSynthWorkers.Add((module.name, "encoder"), new Worker(model, BackendType.CPU)); 
-                else if(actorPack.GetFile(filemd5sum).StartsWith("decoder_preprocessor")) preloadedSynthWorkers.Add((module.name, "decoder_preprocessor"), new Worker(model, BACKEND_TYPE));
+                else if(actorPack.GetFile(filemd5sum).StartsWith("decoder_preprocess")) preloadedSynthWorkers.Add((module.name, "decoder_preprocess"), new Worker(model, BACKEND_TYPE));
                 else if(actorPack.GetFile(filemd5sum).StartsWith("decoder_chunked")) preloadedSynthWorkers.Add((module.name, "decoder_chunked"), new Worker(model, BACKEND_TYPE));
+                else if(actorPack.GetFile(filemd5sum).StartsWith("decoder_postprocess")) preloadedSynthWorkers.Add((module.name, "decoder_postprocess"), new Worker(model, BACKEND_TYPE));
                 else throw new Exception("You're not supposed to be here\n" +"Unknown model type: " + fileName);                       
             }
             preloadedSynthWorkers.Add((module.name, "vocoder_first_chunk"), new Worker(encoderModels["vocoder_first_chunk"], BACKEND_TYPE));
@@ -303,16 +364,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
             
         }
-        
-        /// <summary>
-        /// Associates a synthRequestId with a UserModelInput object.
-        /// </summary>
-        /// <param name="synthRequestId">The ID of the synth request</param>
-        /// <param name="annotatedInput">The UserModelInput object to associate with the synthRequestId</param>
-        public static void AssociateIDToInput(string synthRequestId, UserModelInput annotatedInput)
-        {
-            synthIDToUserInput[synthRequestId] = annotatedInput;
-        }
+
         /// <summary>
         ///  Returns true if the given moduleId is currently loaded in memory.
         /// </summary>
@@ -337,22 +389,25 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         //     root = JsonConvert.DeserializeObject<Root>(jsonData);
         // }
 #region RunModelCoroutine
-            public static IEnumerator RunModelCoroutine(string synthRequestId, Action<LingotionDataPacket<float>> callback, List<int>[] customSkipIndices = null) {
+            public static IEnumerator RunModelCoroutine(string synthRequestID, Action<LingotionDataPacket<float>> callback, List<int>[] customSkipIndices = null) {
         
             ThespeonAPI.isRunning = true;
             // Debug.Log($"Trying to add layer {customSkipIndices} to heavylayers");
             yield return null;
             yield return new WaitForEndOfFrame();   
             Profiler.BeginSample("RunModel input");
-            UserModelInput input = synthIDToUserInput[synthRequestId];
-            ActorPackModule selectedModule = ThespeonAPI.GetRegisteredActorPacks()[input.actorUsername].GetModules().Where(m => m.name == input.moduleName).First();
+
+            UserModelInput input = synthIDToUserInput[synthRequestID];
+
+            (ActorPackModule selectedModule, _ ) = ThespeonAPI.GetActorPackModule(input);
+
 
             PopulateUserModelInput(input, selectedModule);
             
 
             // Debug.Log($"Registered ActorPacks: {string.Join(", ", ThespeonAPI.GetRegisteredActorPacks().Keys)}");
             
-            int emotionKey =  GetEmotionSetKey( selectedModule.name, input.defaultEmotion);
+            int emotionKey =  GetEmotionSetKey(selectedModule, input.defaultEmotion);
             string emotion = input.defaultEmotion;           
 
             int inputTextLength = string.Join("", input.segments.Select(s => s.text)).Length;
@@ -394,7 +449,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 Language language = kvp.Key;
                 HashSet<string> wordSet = kvp.Value;
 
-                tools[language] = GetPhonemizerTools(language, selectedModule);
+                tools[language] = GetPhonemizerTools(language, selectedModule, synthRequestID);
 
                 var langPhonemizer = tools[language].Item1;
                 var lookup = tools[language].Item2;
@@ -519,7 +574,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     List<int> delimeters = new List<int>();
 
                     List<(string Text, bool IsWord)> result = ExtractWordsAndNonWords(text);
-                    tools[lang] = GetPhonemizerTools(lang, selectedModule);
+                    tools[lang] = GetPhonemizerTools(lang, selectedModule, synthRequestID);
                     ThespeonPhonemizer langPhonemizer = tools[lang].Item1;
                     Dictionary<string,string> lookup = tools[lang].Item2;
                     Vocabularies vocabularies = tools[lang].Item3;
@@ -636,7 +691,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
 
 
-            var (encoder, decoder, vocoder) = BuildModels(synthRequestId); 
+            var (encoder, decoder, vocoder) = BuildModels(synthRequestID); 
 
             if(customSkipIndices != null)
             {
@@ -668,18 +723,21 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     tensors["loudnessTensor"]
                 };
 
-            TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
+            TaskCompletionSource<Tensor[]> tcs = new TaskCompletionSource<Tensor[]>();
             yield return encoder.Infer(new EncoderInput(inputsEncoder, tcs));
-            Tensor<float>[] encoderOutput = tcs.Task.Result;
+            Tensor[] encoderOutput = tcs.Task.Result;
 
             phonemeKeys.Clear();
             alignedEmotionKeys.Clear();
             alignedLanguageKeys.Clear();
+            // Inputs: {Tensor<float> encoderMel, Tensor<int> encoder_mel_max_length}
+            Tensor[] decoderPreprocessInput = new[]{encoderOutput[0], encoderOutput[2]};
+            // Outputs: {Tensor<float> z, Tensor<int> nbr_of_chunks, Tensor<float> decoded_mel_overlap, Tensor<int> remainder, Tensor<int> trim_length}
+            Tensor[] decoderPreprocessOutput = decoder.DecoderPreprocess(decoderPreprocessInput);
 
+            
 
-            Tensor<float>[] decoderOutput = decoder.DecoderPreprocess(encoderOutput);
-
-            yield return runDecoderChunking(decoderOutput, decoder, vocoder, moduleIdToConfig[synthIDToUserInput[synthRequestId].moduleName], synthRequestId, callback);
+            yield return RunDecoderChunking(encoderOutput, decoderPreprocessOutput, decoder, vocoder, moduleIdToConfig[synthIDToUserInput[synthRequestID].moduleName], synthRequestID, callback);
 
             foreach (var t in inputsEncoder){ t.Dispose();}
             inputsEncoder = null;
@@ -699,7 +757,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         }
         public static Vocabularies GetVocabs(Language language, ActorPackModule module)
         {
-
+            
             List <Language> candidateLanguages = globalLangIds[module.name].Keys.ToList();
 
                 
@@ -721,73 +779,89 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
 #endregion
 #region Private Helpers 
-        private static IEnumerator runDecoderChunking(Tensor<float>[] inputTensors , ThespeonDecoder decoder, ThespeonVocoder vocoder, Config config, string synthRequestID, Action<LingotionDataPacket<float>> callback){
+        // TODO: Refactor whole function, way too messy and obscure. Investigate easier way of keeping track of inputs/outputs
+        private static IEnumerator RunDecoderChunking(Tensor[] encoderOutputs, Tensor[] decoderPreprocessOutputs, ThespeonDecoder decoder, ThespeonVocoder vocoder, Config config, string synthRequestID, Action<LingotionDataPacket<float>> callback){
             int current_chunk_idx = 0;
             int chunk_idx = 0;
+
             tensors["chunk_idx"] = new Tensor<int>(new TensorShape(1), new int[]{chunk_idx});
             tensors["chunk_length"] = new Tensor<int>(new TensorShape(1), new int[]{config.decoder_chunk_length});
             tensors["boundary_clone_alpha"] = new Tensor<float>(new TensorShape(1), new []{0.0f});
             tensors["actor"] = new Tensor<int>(new TensorShape(1,1), new int[]{1});
-            Tensor[] input = new Tensor[8]
+            // Inputs DecoderChunking: {int chunk_index, int chunk_length, float z, float encoder_mel, int encoder_mel_mask, float boundary_clone_alpha, int actors, flaot prev_decoded_overlap}
+            Tensor[] decoderChunkedInput = new Tensor[8]
             {
                 tensors["chunk_idx"],
                 tensors["chunk_length"],
-                inputTensors[0],
-                inputTensors[1],
-                inputTensors[3],
+                decoderPreprocessOutputs[0],
+                encoderOutputs[0],
+                encoderOutputs[1],
                 tensors["boundary_clone_alpha"],
                 tensors["actor"],   //change later
-                inputTensors[2]
+                decoderPreprocessOutputs[2]
             };
 
+            // Read back number of chunks 
+            Tensor<int> num_chunks_tensor = decoderPreprocessOutputs[1] as Tensor<int>;
+            int nbr_of_chunks = num_chunks_tensor.DownloadToArray()[0];
+            num_chunks_tensor.Dispose();
             float[] outputAudio = null;
-            
-            while (current_chunk_idx < inputTensors[0].shape[2])
+            while (chunk_idx < nbr_of_chunks)
             {
                 
                 if (current_chunk_idx == 0)
                 {
                     TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
-                    yield return decoder.Infer(new DecoderInput(input, tcs));
-                    input[7]?.Dispose();
-                    input[7] = tcs.Task.Result[1];
+                    yield return decoder.Infer(new DecoderInput(decoderChunkedInput, tcs));
+                    decoderChunkedInput[7]?.Dispose();
+                    decoderChunkedInput[7] = tcs.Task.Result[1];
                     
                     TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
-                    yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0], inputTensors[4]}, vocoderTask, ChunkType.First));
+                    yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0], encoderOutputs[5]}, vocoderTask, ChunkType.First));
                     outputAudio = vocoderTask.Task.Result;
                     callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio));
 
                 }
                 
-                else if (Math.Abs(current_chunk_idx - inputTensors[0].shape[2]) >= config.decoder_chunk_length )
+                else if (chunk_idx == nbr_of_chunks - 1)
                 {
-                    input[0]?.Dispose();
-                    input[0] = new Tensor<int>(new TensorShape(1), new int[]{chunk_idx}); 
-                    input[5]?.Dispose();
-                    input[5] = new Tensor<float>(new TensorShape(1), new float[]{1f});
+                    // last chunk
+                    decoderChunkedInput[0]?.Dispose();
+                    decoderChunkedInput[0] = new Tensor<int>(new TensorShape(1), new int[]{chunk_idx}); 
                     TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
-                    yield return decoder.Infer(new DecoderInput(input, tcs));
-                    input[7]?.Dispose();
-                    input[7] = tcs.Task.Result[1];
+                    yield return decoder.Infer(new DecoderInput(decoderChunkedInput, tcs));
+
+                    // Make adjustments of final chunk
+                    Tensor[] decoderFinalChunkOutput = tcs.Task.Result;
+                    
+                    Tensor[] decoderPostProcessInput = new[]{decoderFinalChunkOutput[0], decoderFinalChunkOutput[1], decoderPreprocessOutputs[3], encoderOutputs[1], decoderPreprocessOutputs[4]};
+
+                    Tensor<float> finalVocoderInput = decoder.DecoderPostprocess(decoderPostProcessInput) as Tensor<float>;
+
+                    TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
+                    yield return vocoder.Infer(new VocoderInput(new Tensor[]{finalVocoderInput}, vocoderTask, ChunkType.Last));
+                    finalVocoderInput.Dispose();
+                    outputAudio = vocoderTask.Task.Result;
+                    callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", true}}, outputAudio));
+                    break;
+                    
+                }
+                else
+                {
+                    // middle chunk
+                    decoderChunkedInput[0]?.Dispose();
+                    decoderChunkedInput[0] = new Tensor<int>(new TensorShape(1), new int[]{chunk_idx}); 
+                    decoderChunkedInput[5]?.Dispose();
+                    decoderChunkedInput[5] = new Tensor<float>(new TensorShape(1), new float[]{1f});
+                    TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
+                    yield return decoder.Infer(new DecoderInput(decoderChunkedInput, tcs));
+                    decoderChunkedInput[7]?.Dispose();
+                    decoderChunkedInput[7] = tcs.Task.Result[1];
 
                     TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
                     yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0]}, vocoderTask, ChunkType.Middle));
                     outputAudio = vocoderTask.Task.Result;
                     callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio));
-                }
-                else
-                {
-                    input[0]?.Dispose();
-                    input[0] = new Tensor<int>(new TensorShape(1), new int[]{chunk_idx}); 
-                    TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
-                    yield return decoder.Infer(new DecoderInput(input, tcs));
-                    // Debug.Log("last decoder done");
-                    TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
-                    yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0]}, vocoderTask, ChunkType.Last));
-                    outputAudio = vocoderTask.Task.Result;
-                    callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", true}}, outputAudio));
-                    // Debug.Log("Last vocoder done");
-                    break;
                 }
                 // Move to the next chunk
                 int chunk_size = config.decoder_chunk_length;
@@ -797,9 +871,10 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 current_chunk_idx += chunk_hop_length;
                 chunk_idx++;
             }
-            for (int i = 0; i < input.Length; i++)
+
+            for (int i = 0; i < decoderChunkedInput.Length; i++)
             {
-                input[i]?.Dispose();
+                decoderChunkedInput[i]?.Dispose();
             }
             ThespeonAPI.isRunning = false;
         }
@@ -831,32 +906,24 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             return new Worker(wrapper_model, BackendType.CPU);
 
         }
-        private static int GetEmotionSetKey(string actorPackModuleName, string emotionSetName)
+        private static int GetEmotionSetKey(ActorPackModule actorPackModule, string emotionSetName)
         {
-
-            if (ThespeonAPI.GetRegisteredActorPacks() == null)
+            if (actorPackModule?.emotion_options?.emotions == null)
             {
-                Debug.LogError("ActorPack not registered.");
+                Debug.LogWarning($"Module '{actorPackModule.name}' or its emotion options not found.");
                 return -1;
             }
-            ActorPack actorPack = ThespeonAPI.GetRegisteredActorPacks().Values.FirstOrDefault(ap => ap.GetModules().Any(m => m.name == actorPackModuleName));      //better not be more than one match.
-
-            var module = actorPack.GetModules().FirstOrDefault(m => m.name == actorPackModuleName);
-            if (module?.emotion_options?.emotions == null)
-            {
-                Debug.LogWarning($"Module '{actorPackModuleName}' or its emotion options not found.");
-                return -1;
-            }
-            var emotion = module.emotion_options.emotions
+            var emotion = actorPackModule.emotion_options.emotions
                 .FirstOrDefault(e => e.emotionsetname.Equals(emotionSetName, StringComparison.OrdinalIgnoreCase));
 
             if (emotion == null)
             {
-                Debug.LogWarning($"Emotion set name '{emotionSetName}' not found in '{actorPackModuleName}'.");
+                Debug.LogWarning($"Emotion set name '{emotionSetName}' not found in '{actorPackModule.name}'.");
                 return -1;
             }
             return emotion.emotionsetkey;
         }
+
         private static List<int> PhonemeToKey(string phonemeText, Dictionary<string, int> symbol_to_id)
         {
             List<int> phonemeIds = new List<int>();
@@ -917,7 +984,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
             return result;
         }
-        private static (ThespeonPhonemizer, Dictionary<string, string> , Vocabularies, Dictionary<string, int>, string guid) GetPhonemizerTools(Language language, ActorPackModule module)
+        private static (ThespeonPhonemizer, Dictionary<string, string> , Vocabularies, Dictionary<string, int>, string guid) GetPhonemizerTools(Language language, ActorPackModule module, string synthRequestID)
         {
             List <Language> candidateLanguages = globalLangIds[module.name].Keys.ToList();
             var (closest, distance, _) = LanguageExtensions.FindClosestLanguage(language, candidateLanguages);      
@@ -927,11 +994,20 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             Dictionary<string, string> lookupTable = lookupTables[guidForGroup];
             Vocabularies vocabularies = vocabs[guidForGroup];
             Dictionary<string, int> symbolTable = moduleSymbolTable[module.name];
+            PackageConfig localPackageConfig = localConfigs[synthRequestID];
 
             // Create and store a phonemizer for this segment
-            var phonemizer = new ThespeonPhonemizer(ref phonemizerWorker, ref vocabularies, targetFrameTime);
+            ThespeonPhonemizer phonemizer = null;
+            if(localPackageConfig.targetFrameTime.HasValue && localPackageConfig.useAdaptiveFrameBreakScheduling.HasValue && localPackageConfig.overshootMargin.HasValue)
+            {
+                phonemizer = new ThespeonPhonemizer(ref phonemizerWorker, ref vocabularies, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, localPackageConfig.overshootMargin.Value);
+            }
+            else
+            {
+                Debug.LogError($"Local config entries for synth {synthRequestID} are null.");
+            }
             return (phonemizer, lookupTable, vocabularies, symbolTable, guidForGroup);
-        
+
 
         }
         private static List<string> FindUnknownWords(HashSet<string> words, Dictionary<string, string> lookupDictionary)
@@ -1025,15 +1101,19 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
         private static (ThespeonEncoder, ThespeonDecoder, ThespeonVocoder) BuildModels(string synthRequestID)
         {
+            PackageConfig localPackageConfig = localConfigs[synthRequestID];
+            //Due to global config having default values, no element in it should ever be null except if someone tampered with the code.
+            if(!localPackageConfig.targetFrameTime.HasValue || !localPackageConfig.useAdaptiveFrameBreakScheduling.HasValue || !localPackageConfig.overshootMargin.HasValue) Debug.LogError($"Local config entries for synth {synthRequestID} are null.");
+        
+
             string moduleId = synthIDToUserInput[synthRequestID].moduleName;
             // Find previous Inference step objects
-            if(runningModules.ContainsKey(moduleId) && runningModules[moduleId][0].GetFirstWorkerHash() == preloadedSynthWorkers[(moduleId, "encoder")].GetHashCode())
+            if(runningModules.ContainsKey(moduleId) && runningModules[moduleId][0].GetFirstWorkerHash() == preloadedSynthWorkers[(moduleId, "encoder")].GetHashCode()) 
             {
-
                 var stepsObjects = runningModules[moduleId];
                 foreach (var step in stepsObjects)
                 {
-                    step.TargetFrameTime = targetFrameTime;
+                    step.ApplyConfigChange(localPackageConfig);                                                                             //This will need revision once Backend is added to the config. See TUNI-75.
                 }
 
                 return (
@@ -1044,12 +1124,16 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
             // Debug.Log("TARGET FRAME TIME: "+targetFrameTime);
             Worker encoderWorker = preloadedSynthWorkers[(moduleId, "encoder")];
-            ThespeonEncoder encoder = new ThespeonEncoder(encoderWorker, targetFrameTime, true);
 
-            Worker[] decoderWorkers = new Worker[2];
-            decoderWorkers[0] = preloadedSynthWorkers[(moduleId, "decoder_preprocessor")];
+            ThespeonEncoder encoder = new ThespeonEncoder(encoderWorker, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, localPackageConfig.overshootMargin.Value);   
+
+            
+
+            Worker[] decoderWorkers = new Worker[3];
+            decoderWorkers[0] = preloadedSynthWorkers[(moduleId, "decoder_preprocess")];
             decoderWorkers[1] = preloadedSynthWorkers[(moduleId, "decoder_chunked")];
-            ThespeonDecoder decoder = new ThespeonDecoder(decoderWorkers, Math.Clamp(targetFrameTime, 0.006f, 1.0f), true);
+            decoderWorkers[2] = preloadedSynthWorkers[(moduleId, "decoder_postprocess")];
+            ThespeonDecoder decoder = new ThespeonDecoder(decoderWorkers, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, localPackageConfig.overshootMargin.Value); //Take true from localConfigs[synthRequestID].useAdaptiveScheduling
 
             Worker[] vocoderWorkers = new Worker[3];
             vocoderWorkers[0] = preloadedSynthWorkers[(moduleId, "vocoder_first_chunk")];
@@ -1066,7 +1150,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             int chunk_rests = 1 + 1 + 4 + resblk_rest_count + add_rest_count + 1 + 1;
             int copy_outs = 1 + 1 + 4 + resblk_rest_count + add_rest_count + 1 + 1;
 
-            ThespeonVocoder vocoder = new ThespeonVocoder(vocoderWorkers, Math.Clamp(targetFrameTime, 0.006f, 1.0f), true, chunk_rests);
+            ThespeonVocoder vocoder = new ThespeonVocoder(vocoderWorkers, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, chunk_rests, localPackageConfig.overshootMargin.Value);   //OBS! Do we want clamp?
             InferenceStep[] models = new InferenceStep[3];
             models[0] = encoder;
             models[1] = decoder;

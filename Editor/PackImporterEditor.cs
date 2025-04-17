@@ -26,7 +26,7 @@ namespace Lingotion.Thespeon
                 Directory.CreateDirectory(RuntimeFileLoader.GetActorPacksPath());
             }
 
-            string zipPath = EditorUtility.OpenFilePanel("Select Actor Pack .zip Archive", "", "zip");
+            string zipPath = EditorUtility.OpenFilePanel("Select Actor Pack Archive", "", "lingotion");
             if (string.IsNullOrEmpty(zipPath))
             {
                 EditorUtility.DisplayDialog("Invalid Archive", "The selected archive is invalid or missing.", "OK");
@@ -75,13 +75,13 @@ namespace Lingotion.Thespeon
             string configType = configTypeToken.ToString();
             if (configType == "LANGUAGEPACK")
             {
-                Debug.LogWarning($"Zip file \"{zipPath}\" is a Language Pack, not an Actor Pack. Please import it as a Language Pack instead.");
+                Debug.LogWarning($"Selected archive \"{zipPath}\" is a Language Pack, not an Actor Pack. Please import it as a Language Pack instead.");
                 Cleanup(tempExtractPath);
                 return;
             }
             else if (configType != "ACTORPACK")
             {
-                Debug.LogError($"Zip file \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
+                Debug.LogError($"Selected archive \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
                 Cleanup(tempExtractPath);
                 return;
             }
@@ -94,13 +94,20 @@ namespace Lingotion.Thespeon
                 return;
             }
 
+
             // If no collision, proceed
             if (Directory.Exists(finalFolderPath))
             {
                 Directory.Delete(finalFolderPath, true);
             }
-
-            Directory.Move(tempExtractPath, finalFolderPath);
+			
+			if (Path.GetPathRoot(tempExtractPath) == Path.GetPathRoot(finalFolderPath))
+			{
+				Directory.Move(tempExtractPath, finalFolderPath);
+			} else 
+			{
+				CopyFolder(tempExtractPath, finalFolderPath);
+			}
 
             // Cleanup the temp extraction path after moving files
             if (Directory.Exists(tempExtractPath))
@@ -124,7 +131,7 @@ namespace Lingotion.Thespeon
                 Directory.CreateDirectory(RuntimeFileLoader.GetLanguagePacksPath());
             }
 
-            string zipPath = EditorUtility.OpenFilePanel("Select Language Pack .zip Archive", "", "zip");
+            string zipPath = EditorUtility.OpenFilePanel("Select Language Pack Archive", "", "lingotion");
             if (string.IsNullOrEmpty(zipPath))
             {
                 EditorUtility.DisplayDialog("Invalid Archive", "The selected archive is invalid or missing.", "OK");
@@ -166,8 +173,14 @@ namespace Lingotion.Thespeon
             {
                 Directory.Delete(finalFolderPath, true);
             }
-
-            Directory.Move(tempExtractPath, finalFolderPath);
+			
+			if (Path.GetPathRoot(tempExtractPath) == Path.GetPathRoot(finalFolderPath))
+			{
+				Directory.Move(tempExtractPath, finalFolderPath);
+			} else 
+			{
+				CopyFolder(tempExtractPath, finalFolderPath);
+			}
 
             // Cleanup the temp extraction path after moving files
             if (Directory.Exists(tempExtractPath))
@@ -186,13 +199,13 @@ namespace Lingotion.Thespeon
             string configType = configTypeToken.ToString();
             if (configType == "ACTORPACK")
             {
-                Debug.LogWarning($"Zip file \"{zipPath}\" is an Actor Pack, not a Language Pack. Please import it as an Actor Pack instead.");
+                Debug.LogWarning($"Selected archive \"{zipPath}\" is an Actor Pack, not a Language Pack. Please import it as an Actor Pack instead.");
                 Cleanup(finalFolderPath);
                 return;
             }
             else if (configType != "LANGUAGEPACK")
             {
-                Debug.LogError($"Zip file \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
+                Debug.LogError($"Selected archive \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
                 Cleanup(finalFolderPath);
                 return;
             }
@@ -205,9 +218,12 @@ namespace Lingotion.Thespeon
 
         private static bool ActorCollisionDetected(Dictionary<string, JToken> config)
         {
-            // 1) Gather usernames from this new config
-            HashSet<string> newUsernames = new HashSet<string>();
 
+            // 1) Gather username-to-tagPairs from this new config
+            Dictionary<string, HashSet<(string, string)>> newActorTagSets =
+            new Dictionary<string, HashSet<(string, string)>>();
+
+            // Parse the "modules" array from the config
             if (config.TryGetValue("modules", out JToken modulesToken) && modulesToken is JArray modulesArray)
             {
                 foreach (var moduleToken in modulesArray)
@@ -217,45 +233,122 @@ namespace Lingotion.Thespeon
                         JObject modelOptions = moduleObj["model_options"] as JObject;
                         JObject recordingDataInfo = modelOptions?["recording_data_info"] as JObject;
                         JObject actorsDict = recordingDataInfo?["actors"] as JObject;
-                        if (actorsDict == null) continue;
+                        if (actorsDict == null)
+                        {
+                            continue;
+                        }
 
+                        // Gather this module's tags once, then apply to all actors it contains
+                        HashSet<(string, string)> moduleTagSet = new HashSet<(string, string)>();
+                        JObject moduleTags = moduleObj["tags"] as JObject;
+                        if (moduleTags != null)
+                        {
+                            foreach (var tagProperty in moduleTags.Properties())
+                            {
+                                string tagName = tagProperty.Name;
+                                string tagValue = tagProperty.Value?.ToString() ?? "";
+                                moduleTagSet.Add((tagName, tagValue));
+                            }
+                        }
+
+                        // For each actor in this module
                         foreach (var actorProperty in actorsDict.Properties())
                         {
                             JObject actorNode = actorProperty.Value as JObject;
                             JObject actorObj = actorNode?["actor"] as JObject;
-                            if (actorObj == null) continue;
+                            if (actorObj == null)
+                            {
+                                continue;
+                            }
 
                             string username = actorObj["username"]?.ToString();
-                            if (!string.IsNullOrEmpty(username))
+                            if (string.IsNullOrEmpty(username))
                             {
-                                newUsernames.Add(username);
+                                continue;
+                            }
+
+                            // Ensure we have a set for this user
+                            if (!newActorTagSets.ContainsKey(username))
+                            {
+                                newActorTagSets[username] = new HashSet<(string, string)>();
+                            }
+
+                            // Merge module-level tags into the actor’s set
+                            foreach (var t in moduleTagSet)
+                            {
+                                newActorTagSets[username].Add(t);
                             }
                         }
                     }
                 }
             }
 
-            // 2) Load watchers so we have up-to-date ActorDataCache
-            PackFoldersWatcher.UpdateActorDetailedInfo();
-            var existingActors = new HashSet<string>(PackFoldersWatcher.ActorDataCache.Keys);
 
-            // 3) Check for overlap
-            var conflicts = newUsernames.Intersect(existingActors).ToList();
-            if (conflicts.Count > 0)
+            // If no actors were found, we can skip the collision check
+            if (newActorTagSets.Count == 0)
             {
-                // Build an error message
-                string conflictMessage = 
-                    "Import blocked! The following actor(s) already have an imported pack:\n\n" 
-                    + string.Join(", ", conflicts)
-                    + "\n\nOnly one pack per actor is allowed at this time.\n"
-                    + "Please delete the existing actor pack for this actor before importing a new one.\n\n"
-                    + $"Find existing actor pack for this actor under: {RuntimeFileLoader.GetActorPacksPath(true)}";
-
-                Debug.LogError(conflictMessage);
-                EditorUtility.DisplayDialog("Actor Import Blocked", conflictMessage, "OK");
-                return true;
+                return false;
             }
 
+            // 2) Load watchers so ActorDataCache is fully up-to-date
+            PackFoldersWatcher.UpdateActorDetailedInfo();
+
+            // Build username-to-tagPairs dictionary from existing data
+            Dictionary<string, HashSet<(string, string)>> existingActorTagSets =
+            new Dictionary<string, HashSet<(string, string)>>();
+
+            foreach (var kvp in PackFoldersWatcher.ActorDataCache)
+            {
+                string existingUsername = kvp.Key;
+                ActorData actorInfo = kvp.Value;
+
+                if (!existingActorTagSets.ContainsKey(existingUsername))
+                {
+                    existingActorTagSets[existingUsername] = new HashSet<(string, string)>();
+                }
+
+                // actorInfo.aggregatedTags is a Dictionary<string, HashSet<string>>
+                // We'll flatten each (tagName, [tagValue...]) into (tagName, tagValue)
+                if (actorInfo?.aggregatedTags != null)
+                {
+                    foreach (var tagKvp in actorInfo.aggregatedTags)
+                    {
+                        string tagName = tagKvp.Key;
+                        foreach (string tagValue in tagKvp.Value)
+                        {
+                            existingActorTagSets[existingUsername].Add((tagName, tagValue));
+                        }
+                    }
+                }
+            }
+
+            // 3) Check for an exact match: same username + exact same set of tag pairs
+            foreach (var entry in newActorTagSets)
+            {
+                string username = entry.Key;
+                var newTagsForUser = entry.Value;
+                if (existingActorTagSets.TryGetValue(username, out var existingTagsForUser))
+                {
+                    // If the sets match exactly, user+tags combination is a duplicate
+                    bool isPartialDuplicate = newTagsForUser.All(t => existingTagsForUser.Contains(t));
+                    if (isPartialDuplicate)
+                    {
+                        string conflictMessage =
+                            "Import blocked! The following actor/tag combination already exists:\n\n" +
+                            $"Actor: {username}\n" +
+                            $"Tags: {string.Join(", ", newTagsForUser.Select(t => $"{t.Item1}={t.Item2}"))}\n\n" +
+                            "Only one pack with the same actor/tag combination is allowed.\n" +
+                            "Please remove or rename the existing pack before importing again.\n\n" +
+                            $"Find existing actor pack for this actor under: {RuntimeFileLoader.GetActorPacksPath(true)}";
+
+                        Debug.LogError(conflictMessage);
+                        EditorUtility.DisplayDialog("Actor Import Blocked", conflictMessage, "OK");
+                        return true;
+                    }
+                }
+            }
+
+            // No collisions found
             return false;
         }
 
@@ -278,6 +371,22 @@ namespace Lingotion.Thespeon
                 Debug.LogError($"Extraction failed: {ex.Message}");
             }
         }
+
+		private static void CopyFolder(string src, string dest)
+		{
+			Directory.CreateDirectory(dest);
+			foreach (var srcFile in Directory.GetFiles(src))
+			{
+				var destFile = Path.Combine(dest, Path.GetFileName(srcFile));
+				File.Copy(srcFile, destFile, overwrite: true);
+			}
+
+			foreach (var srcDir in Directory.GetDirectories(src))
+			{
+				var destSubdir = Path.Combine(dest, Path.GetFileName(srcDir));
+				CopyFolder(srcDir, destSubdir);
+			}
+		}
 
         private static void Cleanup(string targetPath)
         {

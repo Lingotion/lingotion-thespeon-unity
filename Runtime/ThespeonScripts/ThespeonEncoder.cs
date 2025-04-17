@@ -10,10 +10,10 @@ using System.Collections.Generic;
 
 namespace Lingotion.Thespeon.ThespeonRunscripts
 {
-    public class ThespeonEncoder: ThespeonInferenceStep<Tensor<float>[], EncoderInput>
+    public class ThespeonEncoder: ThespeonInferenceStep<Tensor[], EncoderInput>
     {
 
-        public ThespeonEncoder(Worker worker, double targetFrameTime, bool useAdaptiveScheduling)
+        public ThespeonEncoder(Worker worker, double targetFrameTime, bool useAdaptiveScheduling, float overshootMargin) : base(overshootMargin)
         {
             _workers = new[]{worker};
             // Encoder is finicky - do not let it schedule too much
@@ -91,11 +91,15 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     }
             }
 
-            Tensor<float>[] encoderOutput = new Tensor<float>[3] {
-                _workers[0].PeekOutput(0) as Tensor<float>,
-                _workers[0].PeekOutput(1) as Tensor<float>,
-                _workers[0].PeekOutput(5) as Tensor<float>,
+            Tensor[] encoderOutput = new Tensor[6] {
+                _workers[0].PeekOutput(0),
+                _workers[0].PeekOutput(1),
+                _workers[0].PeekOutput(2),
+                _workers[0].PeekOutput(3),
+                _workers[0].PeekOutput(4),
+                _workers[0].PeekOutput(5),
             };
+            
             // Check if the output copying needed to wait on jobs to be completed
             float completeJobElapsedTime = Time.realtimeSinceStartup - startTime + currentElapsedTime;
             if (UseAdaptiveScheduling && completeJobElapsedTime > TargetFrameTime * OvershootMargin)
@@ -117,9 +121,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
     }
 
-    public class EncoderInput : InferenceInputs<Tensor<float>[]>
+    public class EncoderInput : InferenceInputs<Tensor[]>
     {
-        public EncoderInput(Tensor[] inputs, TaskCompletionSource<Tensor<float>[]> tcs)
+        public EncoderInput(Tensor[] inputs, TaskCompletionSource<Tensor[]> tcs)
             : base(inputs, tcs)
         {
         }

@@ -453,12 +453,13 @@ Notes:
 
 ## 4. Examples
 
-Here are some examples of how to construct the UserInputModel class in your Unity project to later be used for synthesis.
+Here are some examples of how to construct the UserModelInput class in your Unity project to later be used for synthesis. The class itself can be found under the `Lingotion.Thespeon.Utils` namespace.
 ### 4.1. **Minimum viable constructor in Unity**
 ```csharp
 using UnityEngine;
 using Newtonsoft.Json;
 using Lingotion.Thespeon.API;
+using Lingotion.Thespeon.Utils;
 
 public class ExampleUsage : MonoBehaviour
 {
@@ -466,7 +467,7 @@ public class ExampleUsage : MonoBehaviour
     {
       string actorUsername = "actorXYZ";
       string moduleName = "myVoiceModule";
-      ThespeonAPI.RegisterActorPack(actor);
+      ThespeonAPI.RegisterActorPack(actorUsername);
       
         UserModelInput input = new UserModelInput
         {
@@ -501,6 +502,8 @@ public class ExampleUsage : MonoBehaviour
 using UnityEngine;
 using Newtonsoft.Json;
 using Lingotion.Thespeon.API;
+using Lingotion.Thespeon.Utils;
+
 
 public class ExampleUsage : MonoBehaviour
 {

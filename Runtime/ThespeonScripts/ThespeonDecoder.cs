@@ -17,30 +17,27 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
     {
         Tensor<float>[] outputs = new Tensor<float>[2];
 
-        public ThespeonDecoder(Worker[] workers, double targetFrameTime, bool useAdaptiveScheduling)
+        public ThespeonDecoder(Worker[] workers, double targetFrameTime, bool useAdaptiveScheduling, float overshootMargin) : base(overshootMargin)
         {
-
             _workers = workers;
             UseAdaptiveScheduling = useAdaptiveScheduling;
             TargetFrameTime = targetFrameTime;
+
             HeavyLayers.Add(new List<int>());
         }
 
-        // Inputs: {Tensor<float> encoderMel, Tensor<float> encoderMelMask}
-        public Tensor<float>[] DecoderPreprocess(Tensor<float>[] inputs)
+        public Tensor[] DecoderPreprocess(Tensor[] inputs)
         {
-            _workers[0].Schedule(inputs[0], inputs[1]);
-            Tensor<float>[] outputs = new Tensor<float>[5];
-            for (int i = 0; i < 4; i++)
+            _workers[0].Schedule(inputs);
+            Tensor[] outputs = new Tensor[5];
+            for (int i = 0; i < 5; i++)
             {
-                outputs[i] = _workers[0].PeekOutput(i) as Tensor<float>;
+                outputs[i] = _workers[0].PeekOutput(i);
             }
 
-            outputs[4] = inputs[2];
             return outputs;
         }
 
-        // Inputs: {Tensor<int> currentChunkIndex, Tensor<int> chunkLength, Tensor<float> z, Tensor<float> enc, Tensor<float> mask, Tensor<int> boundaryCloneAlpha, Tensor<int> actors,  Tensor<float> dec}
 
         public void AddCustomSkipIndices(List<int> customSkipIndices)
         {
@@ -51,11 +48,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
         }
 
+        // Inputs: {Tensor<int> currentChunkIndex, Tensor<int> chunkLength, Tensor<float> z, Tensor<float> enc, Tensor<float> mask, Tensor<int> boundaryCloneAlpha, Tensor<int> actors,  Tensor<float> dec}
         public override IEnumerator Infer(DecoderInput decoderInput)
         {
-
-            // List<double> speed = Enumerable.Repeat(0.5, phonemeIDs.Count).ToList();                                                 //Unused
-            // List<double> expressionamplitude = Enumerable.Repeat(0.5, phonemeIDs.Count).ToList();                                   //Unused
     
             double decoderstarTime = Time.realtimeSinceStartup;
             IEnumerator decoderSchedule = _workers[1].ScheduleIterable(decoderInput.InputTensors);
@@ -81,6 +76,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                         {
                             if (UseAdaptiveScheduling && currentElapsedTime > TargetFrameTime * OvershootMargin)
                             {
+
                                 // If layer still is too heavy, add another before it
                                 if(HeavyLayers[0].Contains(counter - 1))
                                 {
@@ -122,6 +118,18 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
             yield return null;
             yield return new WaitForEndOfFrame();
+        }
+
+        // Inputs: {Tensor<float> decoded_mel_chunk, Tensor<float> decoded_mel_overlap, Tensor<int> remainder, Tensor<int> encoder_mel_mask, Tensor<int> trim_length}
+        public Tensor DecoderPostprocess(Tensor[] inputs)
+        {
+            Profiler.BeginSample("Postprocess");
+            _workers[2].Schedule(inputs);
+            Tensor output;
+
+            output = _workers[2].PeekOutput(0);
+            Profiler.EndSample();
+            return output;
         }
 
         protected override void DestroyInstance()

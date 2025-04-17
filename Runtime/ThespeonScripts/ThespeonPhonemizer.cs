@@ -26,7 +26,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
 
 
-        public ThespeonPhonemizer(ref Worker phonemizerWorker, ref Vocabularies vocabs, double targetFrameTime)
+        public ThespeonPhonemizer(ref Worker phonemizerWorker, ref Vocabularies vocabs, double targetFrameTime, bool useAdaptiveScheduling, float overshootMargin) : base(overshootMargin)
         {
             _workers = new[]{phonemizerWorker};
             // Phonemizer adapts quickly, let it schedule a bit more
@@ -34,7 +34,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
             HeavyLayers.Add(new List<int>());
             vocabularies = vocabs;
-            UseAdaptiveScheduling = true;
+            UseAdaptiveScheduling = useAdaptiveScheduling;
             TargetFrameTime = targetFrameTime;
         }
 
@@ -158,6 +158,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                         {
                             if (UseAdaptiveScheduling && currentElapsedTime > TargetFrameTime * OvershootMargin)
                             {
+
                                 // If layer still is too heavy, add another before it
                                 if(HeavyLayers[0].Contains(counter - 1))
                                 {

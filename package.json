@@ -1,17 +1,20 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "displayName": "Lingotion Thespeon",
     "description": "This is the Lingotion Thespeon package. To get started, please see Window > Lingotion > Lingotion Thespeon Info.",
     "unity": "6.0",
     "unityRelease": "0b5",
     "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/Documentation~/get-started.md",
-    "changelogUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/",
+    "changelogUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/CHANGELOG.md",
     "licensesUrl": "https://lingotion.com/terms-of-service/",
     "dependencies": {
       "com.unity.nuget.newtonsoft-json": "3.2.1",
       "com.unity.sentis": "2.1.2"
    },
+   "_upm": {
+    "changelog": "## Added\n* It is now possible to change or override the basic configuration of the Thespeon package, enabling custom presets.\n## Changed\n* Models now need to be selected with a specific *quality* tag, see updated *Simple Narrator* sample for an example.\n* Model packs are now downloaded as *.lingotion*-files instead of *.zip*, making them easier to find during import. Please redownload your models from https://portal.lingotion.com.\n## Fixed\n* Silence in start of audio and clicks at the end of audio output is now fixed.\n* Import of packs now works when a Unity project is located on a different disk."
+    },
    "keywords": [
       "AI",
       "Lingotion",
@@ -24,7 +27,6 @@
       "email": "sales@lingotion.com",
       "url": "https://lingotion.com/"
     },
-    "icon": "package-icon.png",
     "samples": [ { "displayName": "Demo GUI", "description": "A demo GUI that showcases the flexibility of Thespeon.", "path": "Samples~/GUISampleScene" },
     { "displayName": "Simple Narrator", "description": "A script showing the simplest way to get started with Thespeon.", "path": "Samples~/Simple Narrator Example" }
     ]

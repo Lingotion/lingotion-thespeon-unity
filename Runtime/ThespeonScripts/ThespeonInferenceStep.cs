@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Lingotion.Thespeon.API;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Sentis;
 using UnityEngine;
@@ -13,15 +14,19 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
     public abstract class InferenceStep
     {
         protected Worker[] _workers;
-        protected virtual float OvershootMargin { get; set; } = 1.4f;
+        protected virtual float OvershootMargin { get; set; }  
         protected virtual int MaxSkipLayers { get; set; } = 4;
         protected bool UseAdaptiveScheduling { get; set; } = false;
         public double TargetFrameTime { get; set; }
         // Vocoder needs more than one list
         protected readonly List<List<int>> HeavyLayers = new();
 
-        protected void AddHeavyLayer(int listIndex, int layerIndex)
+        protected InferenceStep(float overshootMargin)
         {
+            OvershootMargin = overshootMargin;
+        }
+        protected void AddHeavyLayer(int listIndex, int layerIndex)
+        {       
             if (HeavyLayers.Count >= MaxSkipLayers)
             {
                 int rand = Mathf.RoundToInt(UnityEngine.Random.Range(0, MaxSkipLayers));
@@ -50,12 +55,31 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
             return _workers[0].GetHashCode();
         }
+        public void ApplyConfigChange(PackageConfig config)
+        {
+            if (config == null)
+                return;
+            if (config.overshootMargin != null)
+            {
+                OvershootMargin = config.overshootMargin.Value;
+            }
+            if (config.useAdaptiveFrameBreakScheduling != null)
+            {
+                UseAdaptiveScheduling = config.useAdaptiveFrameBreakScheduling.Value;
+            }
+            if (config.targetFrameTime != null)
+            {
+                TargetFrameTime = config.targetFrameTime.Value;
+            }
+        }
 
         protected abstract void DestroyInstance();
     }
     public abstract class ThespeonInferenceStep<T, TInput>: InferenceStep where TInput : InferenceInputs<T> 
     {
-    
+        public ThespeonInferenceStep(float overshootMargin) : base(overshootMargin)
+        {
+        }
         public abstract IEnumerator Infer(TInput inputs);
     }
 

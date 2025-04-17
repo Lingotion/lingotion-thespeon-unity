@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using UnityEngine.Profiling;
 using Lingotion.Thespeon.Utils;
+using System.Linq;
 
 namespace Lingotion.Thespeon.ThespeonRunscripts
 {
@@ -32,20 +33,17 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
         void Start()
         {
-            List<string> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
-            List<ActorPack> registeredActors = new List<ActorPack>();
-            foreach(string actor in availableActors)
+            List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
+
+            foreach((string, ActorTags) actor in availableActors)
             {
-                registeredActors.Add(ThespeonAPI.RegisterActorPack(actor));            //Switch to returning List<Actor>? => Change RegisterActorPack to take Actor object. Internally can still use Username
-            }        
-            foreach (ActorPack actor in registeredActors)
-            {
-                foreach (ActorPackModule module in actor.GetModules())
+                if(!ThespeonAPI.GetRegisteredActorPacks().ContainsKey(actor.Item1))
                 {
-                    
-                    ThespeonAPI.PreloadActorPackModule(module.name);
+                    ThespeonAPI.RegisterActorPacks(actor.Item1);
                 }
+                ThespeonAPI.PreloadActorPackModule(actor.Item1, actor.Item2);           //preloads it all now. Should change for TUNI-28
             }
+
         }
 
         /// <summary>
@@ -72,20 +70,23 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         }
 
         /// <summary>
-        /// Starts a Thespeon inference job with the specified input.
+        /// Starts a Thespeon inference job with the specified input. An Action callback can be otionally provided to receive audio data as it is synthesized. A PackageConfig object can also be optionally provided to override the global configuration.
         /// </summary>
-        public void Synthesize(UserModelInput input, Action<float[]> audioStreamCallback = null)
+        /// <param name="input">The UserModelInput object containing the actor name and text segments.</param>
+        /// <param name="audioStreamCallback">An Action callback to receive audio data as it is synthesized.</param>
+        /// <param name="config">A PackageConfig object to override the global configuration.</param>
+        /// <returns>A LingotionSynthRequest object representing the synthesis request.</returns>
+        public LingotionSynthRequest Synthesize(UserModelInput input, Action<float[]> audioStreamCallback = null, PackageConfig config = null)
         {
             if(audioStreamCallback != null)
                 userCallback = audioStreamCallback;
-            LingotionSynthRequest synthRequest = ThespeonAPI.Synthesize(input);
+            LingotionSynthRequest synthRequest = ThespeonAPI.Synthesize(input, config);
             if(synthRequest == null)
             {
-                return;
+                return null;
             }
-            ThespeonInferenceHandler.SetTargetFrameTime(targetFrameTimeMs);
             StartCoroutine(ThespeonInferenceHandler.RunModelCoroutine(synthRequest.synthRequestID, QueueSynthAudio, customSkipIndices));
-            
+            return synthRequest;
         }
         /// <summary>
         /// Enqueues a finished synthesized audio chunk.
@@ -123,20 +124,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                         userCallback?.Invoke(currentPacket.Data);
                         receivedLast = (bool) currentPacket.Metadata["finalDataPackage"];
                     }
-                    /*int currentCopyLength =  Mathf.Min(jitterPacketSize, jitterBuffer.Count);
-                    // take slice of buffer
-                    //jitterBuffer.CopyTo(0, data, 0, currentCopyLength);
-                    jitterBuffer.RemoveRange(0, currentCopyLength);
 
-                    // if not enough values in current chunk, pad with zeroes
-                    if(currentCopyLength < jitterPacketSize)
-                    {
-                        Array.Fill(data, 0f, currentCopyLength, jitterPacketSize - currentCopyLength);
-                    } 
-                    if(currentCopyLength != 0)
-                    {
-                        userCallback?.Invoke(data);
-                    }*/
                     // Cancel while loop if current chunk is the last
                     if(receivedLast)
                     {

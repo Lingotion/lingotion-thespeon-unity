@@ -14,6 +14,7 @@ using Lingotion.Thespeon.Utils;
 using Lingotion.Thespeon.Filters;
 using Lingotion.Thespeon.FileLoader;
 using Lingotion.Thespeon.ThespeonRunscripts;
+using System.Diagnostics.Tracing;
 
 //using Unity.Android.Gradle.Manifest;
 
@@ -26,13 +27,14 @@ namespace Lingotion.Thespeon.API
     /// </summary>
     public static class ThespeonAPI//: MonoBehaviour        //MonoBehaviour for easier testing but later should be an object or a static class.
     {
-        private static Dictionary<string, ActorPack> registeredActorPacks = new Dictionary<string, ActorPack>(); 
+
+        private static Dictionary<string, List<ActorPack>> registeredActorPacks = new Dictionary<string, List<ActorPack>>(); 
         public static  string MAPPINGS_PATH = RuntimeFileLoader.packMappingsPath; 
         private static JObject packMappings = Init();
         public static bool isRunning = false;
 
         
-        private static JObject Init(object config=null)
+        private static JObject Init()
         {             
             try
             {
@@ -52,37 +54,69 @@ namespace Lingotion.Thespeon.API
         }
 
 #region Public API
+
         /// <summary>
-        /// Gets a list of all Actors names in the actor packs that are on disk, registered or not.
+        /// Sets the global config variables. These are applied whenever no local config is supplied for a synthesis. Non-null properties in the argument will permanently override the default config.
         /// </summary>
-        /// <returns>A list of actorUsername strings.</returns>
-        public static List<string> GetActorsAvailabeOnDisk()
+        /// <param name="config">The config object to set. Any non-null properties will override the current global config.</param>
+        public static void SetGlobalConfig(PackageConfig config)
         {
-            List<string> actorsOnDisk = new List<string>();
-            foreach(var actorPack in (JObject) packMappings["actorpacks"])
+            ThespeonInferenceHandler.SetGlobalConfig(config);
+        }
+
+        /// <summary>
+        /// Gets a copy of current config. If a synthid is provided it will return the local config valid for that synthid. Otherwise it will return the global config.
+        /// </summary>
+        /// <param name="synthID">The synthid to get the local config for. If null or omitted, the global config is returned.</param>
+        public static PackageConfig GetConfig(string synthID=null)
+        {
+            return ThespeonInferenceHandler.GetCurrentConfig(synthID);
+        }
+
+        /// <summary>
+        /// Gets a list of all available actor name - tag pairs in the actor packs that are on disk, registered or not.
+        /// </summary>
+        /// <returns>A list of pairs actorUsername strings, ActorTags.</returns>
+        public static List<(string, ActorTags)> GetActorsAvailabeOnDisk()
+        {
+            List<(string, ActorTags)> actorsOnDisk = new List<(string, ActorTags)>();
+            foreach(var module in (JObject) packMappings["tagMapping"])
             {
-                actorPack.Value["actors"].Select(a => a.ToString()).ToList();
-                actorsOnDisk.AddRange(actorPack.Value["actors"].Select(a => a.ToString()).ToList());
+                foreach(var actor in (JArray) module.Value["actors"])
+                {
+                    actorsOnDisk.Add((actor.ToString(), JsonConvert.DeserializeObject<ActorTags>(module.Value["tags"].ToString())));
+                }
             }
             if(actorsOnDisk.Count == 0)
             {
                 Debug.LogWarning("No actors found on disk.");
             }
-            return new HashSet<string>(actorsOnDisk).ToList();
+            return new HashSet<(string, ActorTags)>(actorsOnDisk).ToList();
         }
+
         /// <summary>
-        /// Registers an ActorPack module and returns it. This does not load the module into memory.
+        /// Registers ActorPacks modules and returns it, note that it registers all actorpacks given an actorUsername This does not load the module into memory.
         /// </summary>
         /// <param name="actorUsername">The username of the actor you wish to load.</param>
         /// <returns>The registered ActorPack object</returns>
-        public static ActorPack RegisterActorPack(string actorUsername)             //Assumes actor only appears in one pack.
+        public static void RegisterActorPacks(string actorUsername)                  
+        //TUNI-87 Add optional Tags here. Now we register all packs for the actor. But we might want to register only one of them.      
         {
+
+            List<ActorPack> actorPacks = new List<ActorPack>();
             if(registeredActorPacks.ContainsKey(actorUsername))
             {
-                // Debug.Log("ActorPack already registered.");
-                return registeredActorPacks[actorUsername];
+                actorPacks = registeredActorPacks[actorUsername];
             }
-            string actorPackName = FindActorPackNameFromUsername(packMappings, actorUsername);
+            List<string> actorPackNames  = FindAllActorPackNamesFromUsername(actorUsername);
+            if (actorPackNames.Count == 0)
+            {
+            throw new ArgumentException($"No actor packs found for username {actorUsername}.");
+            }
+
+
+            foreach (string actorPackName in actorPackNames)
+            {
             string path = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), actorPackName, actorPackName + ".json");
 
             string jsonContent = RuntimeFileLoader.LoadFileAsString(path);
@@ -90,19 +124,33 @@ namespace Lingotion.Thespeon.API
             if(actorPack == null)
             {
                 Debug.LogError("Error deserializing ActorPack.");
-                return null;
+                return;
             }
 
-            // Debug.Log("Adding ActorPack to registeredActorPacks: " + actorUsername);
-            if(registeredActorPacks.Values.FirstOrDefault(ap => ap.name == actorPack.name) != null)
+            if(registeredActorPacks.Values.SelectMany(list => list).FirstOrDefault(ap => ap.name == actorPack.name) != null)
             {
-                // Debug.Log("ActorPack already registered under another user. Adding a reference to the same object.");
+                Debug.LogWarning($"ActorPack {actorPack.name} already registered under another user. Adding a reference to the same object.");
+                actorPack = registeredActorPacks.Values.SelectMany(list => list).FirstOrDefault(ap => ap.name == actorPack.name);
             }
-            registeredActorPacks[actorUsername] = registeredActorPacks.Values.FirstOrDefault(ap => ap.name == actorPack.name) ?? actorPack;
-            
 
-            return actorPack;
+            if (registeredActorPacks.ContainsKey(actorUsername))
+            {
+                if (registeredActorPacks[actorUsername].Any(ap => ap.name == actorPack.name))
+                {
+                Debug.LogWarning($"Actor pack {actorPack.name} is already registered for actor {actorUsername}. Skipping.");
+                continue;
+                }
+
+                registeredActorPacks[actorUsername].Add(actorPack);
+            }
+            else
+            {
+                registeredActorPacks[actorUsername] = new List<ActorPack> { actorPack };
+            }
+            }
         }
+
+        
 
         /// <summary>   
         /// Unregisters an ActorPack. This also unloads the module from memory if it is loaded.
@@ -110,15 +158,20 @@ namespace Lingotion.Thespeon.API
         /// <param name="actorUsername">The username of the actor you wish to unregister.</param>
         /// <returns></returns>
         public static void UnregisterActorPack(string actorUsername)
+        //TUNI-87 Add optional Tags here. Now we unregister all packs for the actor. But we might want to unregister only one of them.      
         {
             if(registeredActorPacks.ContainsKey(actorUsername))
             {
-                ActorPack actorPack = registeredActorPacks[actorUsername];
+                List<ActorPack> actorPacks = registeredActorPacks[actorUsername];
                 
-                foreach( var module in actorPack.GetModules())
+                foreach (var actorPack in actorPacks)
                 {
-                    UnloadActorPackModule(module.name);
+                    foreach( var module in actorPack.GetModules())
+                    {
+                        UnloadActorPackModule(module.name);
+                    }
                 }
+
                 registeredActorPacks.Remove(actorUsername);
             }
             else
@@ -133,11 +186,17 @@ namespace Lingotion.Thespeon.API
         /// </summary>
         /// <param name="actorUsername">The username of the actor you wish to select.</param>
         /// <returns></returns>
-        public static List<ActorPackModule> GetModulesWithActor(string actorUsername)
+        public static List<ActorPackModule> GetModulesWithActor(string actorUsername)   
+        //TUNI-88  -  This should not be part of API and not be exposed to user. Only used internally.
         {
             List<ActorPackModule> result = new List<ActorPackModule>();
-            
-            foreach (ActorPack pack in registeredActorPacks.Values)
+
+            if (!registeredActorPacks.ContainsKey(actorUsername))
+            {
+                Debug.LogError($"Actor {actorUsername} not found in registered packs.");
+                throw new ArgumentException($"Actor {actorUsername} not found in registered packs.");
+            }
+            foreach (ActorPack pack in registeredActorPacks[actorUsername])
             {
                 foreach (ActorPackModule module in pack.GetModules())
                 {
@@ -155,52 +214,93 @@ namespace Lingotion.Thespeon.API
         }
 
         /// <summary>
-        /// Gets a dictionary of all registered actor name - ActorPack pairs.
+        /// Gets a dictionary of all registered actor name - ActorPack lists.
         /// </summary>
         /// <returns></returns>
-        public static Dictionary<string, ActorPack> GetRegisteredActorPacks()
+        public static Dictionary<string, List<ActorPack>> GetRegisteredActorPacks()    
+        //TUNI-88  -  This should not be part of API and not be exposed to user. Is now used by engine and sample. Rework Later.
         {
             return registeredActorPacks;
         }
-        
+
+
+
+        /// <summary>
+        /// Retrieves an <see cref="ActorPackModule"/> from the specified actor's packs based on the provided module name. 
+        /// If the actor pack or specified module is not found, an <see cref="ArgumentException"/> is thrown.
+        /// </summary>
+        /// <param name="annotatedInput">
+        /// A <see cref="UserModelInput"/> instance containing the actor's username and the desired module name.
+        /// </param>
+        /// <returns>
+        /// The first matching <see cref="ActorPackModule"/> for the specified actor and module name.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown if the actor username does not exist in the registered packs, 
+        /// or if no module matching the requested name is found for the specified actor.
+        /// </exception>
+        public static (ActorPackModule, ActorPack) GetActorPackModule(UserModelInput annotatedInput) //TUNI-88 -  This should not be part of API and not be exposed to user. Is now used by engine and sample. Rework Later.
+        {
+
+            Dictionary<string, List<ActorPack>> registeredActorPacks = GetRegisteredActorPacks();
+
+            if (registeredActorPacks.ContainsKey(annotatedInput.actorUsername))
+            {
+                List<ActorPack> selectedPacks = registeredActorPacks[annotatedInput.actorUsername];
+
+
+                foreach (var pack in selectedPacks)
+                {
+
+                    // loop over modules for pack
+                    foreach (var module in pack.GetModules())
+                    {
+                        if (module.name == annotatedInput.moduleName)
+                        {
+                            return (module, pack); // Return immediately if found
+                        }
+                    }
+                }   
+
+                // If we reach this point, the module wasn't found in any pack
+                Debug.LogError($"Module '{annotatedInput.moduleName}' not found in ActorPack '{annotatedInput.actorUsername}'.");
+                throw new ArgumentException($"Module '{annotatedInput.moduleName}' not found in ActorPack '{annotatedInput.actorUsername}'.");
+            }
+            else
+            {
+                Debug.LogError($"ActorPack '{annotatedInput.actorUsername}' not found.");
+                throw new ArgumentException($"ActorPack '{annotatedInput.actorUsername}' not found.");
+            }
+        }
+
         /// <summary>
         /// Preloads an ActorPack module and the language modules necessary for full functionality. the parameter languages can be optionally used to filter which language modules to preload for restricted functionality.
         /// </summary>
         /// <param name="actorPackModuleName">Which Actor Pack Module to preload.</param>
         /// <param name="languages">Optional. If provided only Language Packs for given languages are preloaded. Otherwise all Language Packs necessary for full functionality are preloaded.</param>
         /// <returns></returns>
-        public static void PreloadActorPackModule(string actorPackModuleName,  List<Language> languages=null)
+        // public static void PreloadActorPackModule(ActorPackModule actorPackModule,  List<Language> languages=null)
+        public static void PreloadActorPackModule(string actorUsername, ActorTags tags,  List<Language> languages=null)         //TUNI-87
         {
-
+            string actorPackModuleName = GetActorPackModuleName(actorUsername, tags); //actorUsername and tags are used to find the module name in the packMappings. 
+            //find actorpack that contains this module
+            ActorPack actorPack = registeredActorPacks.Values.SelectMany(apList => apList).FirstOrDefault(ap => ap.GetModules().Any(m => m.name == actorPackModuleName));       //what if you have several actorPacks with the same module in it - investigate later.
             if(ThespeonInferenceHandler.IsPreloaded(actorPackModuleName))
             {
-                // Debug.Log("ActorPack Module already preloaded.");        //This method is called in synthesizer so it will be called multiple times in anyone preloads and should not really warn the user in that case.
+                //Debug.LogWarning("ActorPack Module already preloaded.");        //This method is called in synthesizer so it will be called multiple times in anyone preloads and should not really warn the user in that case.
                 return; 
             }
 
-            //try to find and return the registered actor pack with this actorpachmodule in it.
-            ActorPack actorPack = registeredActorPacks.Values.FirstOrDefault(ap => ap.GetModules().Any(m => m.name == actorPackModuleName));
-            if(actorPack == null)
-            {
-                Debug.LogError($"ActorPack {actorPackModuleName} has not been registered. Register it first.");
-                throw new ArgumentException($"ActorPack {actorPackModuleName} has not been registered. Register it first.");
-
-                // Fix so instead of error, we register the module and then preloading continues. Means we need to find the username corresponding to the actorPackModuleName and then register it ? 
-                // How the user ended up here without registring is beyond me tho. Registring is what gives them the ActorPack object which in turn gives them the modulename to preload.
-                // Only way to end up here is by manually entering the actorPackModuleName by finding it in the json file.
-            } 
-
-            ActorPackModule module = actorPack.GetModules().FirstOrDefault(m => m.name == actorPackModuleName); // actorPack from somewhere else.
+            ActorPackModule module = actorPack.GetModules().FirstOrDefault(m => m.name == actorPackModuleName); 
             if (module == null)
             {
                 Debug.LogError($"Module not found: {actorPackModuleName}");
                 throw new ArgumentException($"Module not found: {actorPackModuleName}");
             }
-
-            List<PhonemizerModule> langModules = actorPack.GetLanguageModules(actorPackModuleName); //actorPack from somewhere else.
+            
+            List<PhonemizerModule> langModules = actorPack.GetLanguageModules(actorPackModuleName);
             if (languages != null)
             {
-                // Debug.Log($"Preload language pack filter provided: {string.Join(", ", languages)}");
                 langModules = langModules.Where(langModule => 
                     langModule.languages.Any(lang => languages.Any(filterLang => 
                         MatchLanguage(filterLang, lang)
@@ -212,14 +312,12 @@ namespace Lingotion.Thespeon.API
                 Debug.LogWarning("No language modules found for actor pack module: " + actorPackModuleName);
                 throw new ArgumentException("No language modules found for actor pack module: " + actorPackModuleName);
             }
-
             if(!GetLoadedActorPackModules().Contains(module.name)){
                 ThespeonInferenceHandler.PreloadActorPackModule(actorPack, module, packMappings);
             
             }
-
-
         }
+
         /// <summary>
         /// Unloads the preloaded ActorPackModule and its associated Language Packs.
         /// </summary>
@@ -239,22 +337,17 @@ namespace Lingotion.Thespeon.API
         /// <param name="config">A synthetization instance specific config override.</param>
         /// <returns></returns>
         /// 
-        public static LingotionSynthRequest Synthesize(UserModelInput annotatedInput, object config=null) //replace object with some type
+        public static LingotionSynthRequest Synthesize(UserModelInput annotatedInput, PackageConfig config=null)
         {
             if(isRunning){
                 Debug.LogWarning("Already running a model. Please wait for the current model to finish before starting a new one.");
                 return null;
             }
-            if(config != null)
-            {
-                // Debug.Log("Config provided: " + config); 
-                // Override the default config with the provided one for this synthetization.
-                // Possibilities so far: BackendType, JitterSize, PollingInterval.
-            }
-            // QUESTION: if modules are preloaded but we have provided a new config (new backend type) should we reload them?
-                    // (will be slow and thus info must be added to the LingotionSynthRequest object)
-                    // or is there some way of changing the backend type just for this synthetization? How do we then change back for other runs? 
-            // config override will be connected to this synthRequestId.
+
+            string synthRequestID = Guid.NewGuid().ToString();
+            ThespeonInferenceHandler.SetLocalConfig(synthRequestID, config);
+
+
             var (errors, warnings) = annotatedInput.ValidateAndWarn();
 
             foreach (var error in errors)
@@ -266,22 +359,24 @@ namespace Lingotion.Thespeon.API
                 Debug.LogWarning(warning);
             }
 
-            if(!GetRegisteredActorPacks().SelectMany(pack => pack.Value.GetModules()).Select(module => module.name).Contains(annotatedInput.moduleName))
-            {
-                annotatedInput.moduleName = GetRegisteredActorPacks().SelectMany(pack => pack.Value.GetModules()).First().name;
-                if(annotatedInput.moduleName == null)
-                {
-                    throw new ArgumentException("No ActorPack Modules registered. Register an ActorPack Module first.");
-                }
-                Debug.LogWarning($"ActorPack Module {annotatedInput.moduleName} not found in registered ActorPacks. The first available module {annotatedInput.moduleName} will be registered, preloaded and used in its stead.");
-            }
-            PreloadActorPackModule(annotatedInput.moduleName); //if already loaded this will retun immediately. -> OBS we should move ValidateAndWarn() to above this and make it return languages so we can send that into this. On the other side we cannot return of not all languages are loaded.
+
+
+            (ActorPackModule selectedModule, _ )= GetActorPackModule(annotatedInput);
+
+                // TUNI-87
+            PreloadActorPackModule(packMappings["tagMapping"][annotatedInput.moduleName]["actors"][0].ToString(), JsonConvert.DeserializeObject<ActorTags>(packMappings["tagMapping"][annotatedInput.moduleName]["tags"].ToString())); //if already loaded this will retun immediately. -> OBS we should move ValidateAndWarn() to above this and make it return languages so we can send that into this. On the other side we cannot return of not all languages are loaded.
             if(!ThespeonInferenceHandler.HasAnyLoadedLanguageModules(annotatedInput.moduleName))
             {
                 throw new ArgumentException("No Language Packs on disk, aborting synthesis.");
             }
             //parse and TPP the annotated input.
-            ActorPackModule selectedModule = GetRegisteredActorPacks()[annotatedInput.actorUsername].GetModules().Where(m => m.name == annotatedInput.moduleName).First();
+
+            PopulateUserModelInput(annotatedInput, selectedModule);
+
+            NestedSummary summaryJObject = annotatedInput.MakeNestedSummary();
+            FillSummaryQualities(selectedModule, annotatedInput.actorUsername, summaryJObject);
+
+
             HashSet<Language> inputLangs = GetInputLanguages(annotatedInput);
             Dictionary<Language, Vocabularies> vocabsByLanguage = new Dictionary<Language, Vocabularies>(); 
 
@@ -295,24 +390,16 @@ namespace Lingotion.Thespeon.API
             
 
 
-
-            NestedSummary summaryJObject = annotatedInput.MakeNestedSummary();
-
-            
-            PopulateUserModelInput(annotatedInput, selectedModule);
-
-            FillSummaryQualities(selectedModule, annotatedInput.actorUsername, summaryJObject);
             
             string feedback= TPP(annotatedInput, vocabsByLanguage, moduleSymbolTable);           
             warnings.Add(feedback);
 
 
-            string synthRequestId = Guid.NewGuid().ToString();  
 
-            ThespeonInferenceHandler.AssociateIDToInput(synthRequestId, annotatedInput);
+            ThespeonInferenceHandler.SetSynthInput(synthRequestID, annotatedInput);
 
 
-            return new LingotionSynthRequest(synthRequestId, summaryJObject, errors, warnings, annotatedInput);
+            return new LingotionSynthRequest(synthRequestID, summaryJObject, errors, warnings, annotatedInput);
         }
 
         /// <summary>
@@ -320,6 +407,7 @@ namespace Lingotion.Thespeon.API
         /// </summary>
         /// <param name="backendType"></param>
         public static void SetBackend(BackendType backendType)
+        //Becomes obsolete after TUNI-75 is handled.
         {
             ThespeonInferenceHandler.SetBackend(backendType);
         }
@@ -332,32 +420,192 @@ namespace Lingotion.Thespeon.API
         {
             return ThespeonInferenceHandler.GetLoadedActorPackModules();
         }
+
+
+        
+        /// <summary>
+        /// Returns a dictionary keyed by actorUsername.
+        /// Each entry is a list of ModuleTagInfo objects describing
+        /// (packName, moduleName, moduleId, tags).
+        ///
+        /// Example usage:
+        ///   var overview = GetActorsAndTagsOverview();
+        ///   foreach (var kvp in overview)
+        ///   {
+        ///       string actor = kvp.Key;
+        ///       List<ModuleTagInfo> modulesForActor = kvp.Value;
+        ///       ...
+        ///   }
+        /// </summary>
+        public static Dictionary<string, List<ModuleTagInfo>> GetActorsAndTagsOverview()
+        {
+            var result = new Dictionary<string, List<ModuleTagInfo>>();
+
+            JObject tagOverview = packMappings["tagOverview"] as JObject;
+            if (tagOverview == null)
+            {
+                Debug.LogWarning("No 'tagOverview' in packMappings.");
+                return result;
+            }
+
+            // For each actorpack
+            foreach (var packKvp in tagOverview)
+            {
+                string packName = packKvp.Key;
+                JObject packObj = packKvp.Value as JObject;
+                if (packObj == null) 
+                    continue;
+
+                // find "actors"
+                JArray actorArr = packObj["actors"] as JArray;
+                if (actorArr == null) 
+                    continue;
+
+                // For each actor in that array
+                foreach (var actorToken in actorArr)
+                {
+                    string actorName = actorToken.ToString();
+                    if (!result.ContainsKey(actorName))
+                        result[actorName] = new List<ModuleTagInfo>();
+
+                    // Now look at each moduleName
+                    foreach (var moduleKvp in packObj)
+                    {
+                        if (moduleKvp.Key == "actors")
+                            continue;
+
+                        string moduleName = moduleKvp.Key;
+                        JObject moduleNode = moduleKvp.Value as JObject;
+                        if (moduleNode == null)
+                            continue;
+
+                        JObject tagsObj = moduleNode["tags"] as JObject;
+                        Dictionary<string,string> tagsDict = null;
+                        if (tagsObj != null)
+                        {
+                            tagsDict = tagsObj.Properties()
+                                .ToDictionary(p => p.Name, p => p.Value.ToString());
+                        }
+                        // We treat "moduleName" as the unique ID
+                        var info = new ModuleTagInfo
+                        {
+                            PackName   = packName,
+                            ModuleName = moduleName,
+                            // We'll just store moduleName in ModuleId if we want
+                            ModuleId   = moduleName,
+                            Tags       = tagsDict
+                        };
+                        result[actorName].Add(info);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+
+        /// <summary>
+        /// Find the modulename in packMappings which has the the actorUsername and tags.
+        /// </summary>
+        /// <param name="actorUsername"></param>
+        /// <param name="tags"></param>
+        /// <returns></returns>
+        public static string GetActorPackModuleName(string actorUsername, ActorTags tags)          
+        //TUNI-87 - function headder somewhat correct, content might need revision. Also make this private when doing TUNI-88.
+        {
+            List<string> moduleNames = new List<string>();
+            JObject modules = (JObject) packMappings["tagMapping"];
+            foreach (var module in modules.Properties())
+            {
+                JObject moduleObj = (JObject) module.Value;
+                JArray actorsArray = (JArray) moduleObj["actors"];
+
+                if (actorsArray != null && actorsArray.Any(a => a.ToString() == actorUsername))
+                {
+                    // Check if the tags match
+                    ActorTags tagsObj = JsonConvert.DeserializeObject<ActorTags>(moduleObj["tags"].ToString());
+                    if (tagsObj != null && tagsObj.Equals(tags))
+                    {
+                        moduleNames.Add(module.Name); // Return the module name
+                    }
+                }
+            }
+            if(moduleNames.Count==0) throw new ArgumentException($"Module not found for actor {actorUsername} with tags {tags}.");
+            if(moduleNames.Count > 1){
+                Debug.LogWarning("Found multiple modules for actor " + actorUsername + " with tags " + tags + ". Returning the first one found.");
+            }
+            return moduleNames[0]; // Return the first module name found if several
+        }
+
+        public static void PrintActorsAndTagsOverview(Dictionary<string, List<ModuleTagInfo> >  overview) {
+
+            // Debug.Log how many actors we found
+            Debug.Log($"Found {overview.Count} actor(s) in 'tagOverview' data.");
+
+            // Let's dump out each actor's modules
+            foreach (var kvp in overview)
+            {
+                string actorName = kvp.Key;
+                List<ModuleTagInfo> modules = kvp.Value;
+
+                Debug.Log($"Actor: {actorName} has {modules.Count} modules total.");
+
+                // For each module, print some info
+                foreach (var modInfo in modules)
+                {
+                    // If modInfo.Tags is null, it means no tags
+                    string tagText = (modInfo.Tags == null)
+                        ? "No Tags"
+                        : string.Join(", ", modInfo.Tags.Select(x => $"{x.Key}={x.Value}"));
+
+                    Debug.Log($"  -> Pack: {modInfo.PackName}, ModuleName: {modInfo.ModuleName}, " +
+                            $"ModuleID: {modInfo.ModuleId}, Tags: {tagText}");
+                }
+            }
+
+        }
     
 #endregion
 
 #region Private helpers
-        /// <summary>
-        /// Helper method which finds the actor pack name corresponding to the username from the packMappings JSON object.
-        /// </summary>
-        /// <param name="packMappings"></param>
-        /// <param name="actorUsername"></param>
-        /// <returns></returns>
-        private static string FindActorPackNameFromUsername(JObject packMappings, string actorUsername)
+        private static List<string> FindAllActorPackNamesFromUsername(
+            string actorUsername, 
+            bool useTagOverview = false
+        )
         {
-            JObject actorPacks = (JObject) packMappings["actorpacks"];
-            foreach (var actorPack in actorPacks.Properties()) // Iterate through actor pack names
+            // Decide which top-level field to search in: "actorpacks" or "tagOverview"
+            var lookupField = useTagOverview ? "tagOverview" : "actorpacks";            //remove in the future - unnecessary. Only need actorpacks. See TUNI-87
+            
+            // Grab the chosen object from the input JSON
+            JObject actorPacks = (JObject)packMappings[lookupField];
+            
+            List<string> foundPackNames = new List<string>();
+            
+            // Iterate through each actorpack (or tagOverview) entry
+            foreach (var actorPack in actorPacks.Properties())
             {
                 JToken actorPackValue = actorPack.Value;
 
-                if (actorPackValue["actors"] is JArray actorsArray) // Check if actors array exists
+                // If we have an array of "actors", check if our username is among them
+                if (actorPackValue["actors"] is JArray actorsArray)
                 {
-                    if (actorsArray.Any(a => a.ToString() == actorUsername)) // Check if actorUsername exists
+                    if (actorsArray.Any(a => a.ToString() == actorUsername))
                     {
-                        return actorPack.Name; // Return the actor pack name  OBS the first encountered one so assumes no duplicates of actorUsername across packs.
+                        foundPackNames.Add(actorPack.Name);
                     }
                 }
             }
-            throw new ArgumentException("Username not found in packMappings.");
+
+            // If no matches were found, throw the same error as before
+            if (!foundPackNames.Any())
+            {
+                Debug.LogError($"Username [{actorUsername}] not found in {lookupField} of packMappings.");
+                throw new ArgumentException(
+                    $"Username [{actorUsername}] not found in {lookupField} of packMappings."
+                );
+            }
+
+            return foundPackNames;
         }
 
         
@@ -393,6 +641,14 @@ namespace Lingotion.Thespeon.API
         
 
         private static string TPP(UserModelInput userInput, Dictionary<Language, Vocabularies> langVocabularies, Dictionary<string, int> moduleSymbolTable ){
+            
+
+            // Print every detail of langVocabularies
+            if (langVocabularies == null || langVocabularies.Count == 0)
+            {
+                Debug.LogError("No vocabularies found.");
+                return "No vocabularies found.";
+            }
 
             ConverterFilterService converterFilterService = new ConverterFilterService();
 
@@ -409,6 +665,13 @@ namespace Lingotion.Thespeon.API
 
                     // Get the vocab for the segment's language, if it exists othherwise get the default language's vocab.
                     Vocabularies segmentVocabularies = langVocabularies.FirstOrDefault(lv => MatchLanguage(segment.languageObj, lv.Key)).Value ?? langVocabularies.FirstOrDefault(lv => MatchLanguage(userInput.defaultLanguage, lv.Key)).Value;
+
+
+                    // check if segmentVocabularies is null
+                    if (segmentVocabularies == null)
+                    {
+                        Debug.LogError($"No vocabularies found for segment {segment.text}.");
+                    }
 
 
                     string graphmemeFeedback = converterFilterService.ApplyAllFiltersOnSegmentPrePhonemize(segment, segmentVocabularies.grapheme_vocab, userInput.defaultLanguage.iso639_2);
@@ -443,6 +706,7 @@ namespace Lingotion.Thespeon.API
         private static HashSet<Language> GetInputLanguages(UserModelInput modelInput)
         {
 
+
             var result = new HashSet<Language>();
 
             if (modelInput == null)
@@ -462,6 +726,7 @@ namespace Lingotion.Thespeon.API
                     result.Add(segment.languageObj);
                 }
             }
+
 
             return result;
 
@@ -736,20 +1001,52 @@ namespace Lingotion.Thespeon.API
         public NestedSummary estimatedQuality { get; private set; }
         public List<string> errors { get; private set; }
         public List<string> warnings { get; private set; }
-        public UserModelInput metaData { get; private set; }
+        public UserModelInput usedInput { get; private set; }
 
         // public ThespeonInferenceHandler handler;
-        public LingotionSynthRequest(string synthRequestID, NestedSummary estimatedQuality, List<string> errors, List<string> warnings, UserModelInput metaData)
+        public LingotionSynthRequest(string synthRequestID, NestedSummary estimatedQuality, List<string> errors, List<string> warnings, UserModelInput usedInput)
         {
             this.synthRequestID = synthRequestID;
             this.estimatedQuality = estimatedQuality;
             this.errors = errors;
             this.warnings = warnings;
-            this.metaData = metaData;
+            this.usedInput = usedInput;
             // this.handler = handler;
         }
 
+        public string GetSynthId()
+        {
+            return synthRequestID;
+        }
+        public NestedSummary GetEstimatedQuality()
+        {
+            return estimatedQuality;
+        }
+        public List<string> GetErrorsAndWarnings()
+        {
+            return errors.Concat(warnings).ToList();
+        }
+        public UserModelInput GetUsedInput()
+        {
+            return usedInput;
+        }
 
+
+    }
+
+    /// <summary>
+    /// Simple container for (packName, moduleName, moduleId, tags).
+    /// You can adapt it or remove it if you prefer just raw dictionary structures.
+    /// </summary>
+    public class ModuleTagInfo
+    {
+        public string PackName   { get; set; }
+        public string ModuleName { get; set; }
+        public string ModuleId   { get; set; }
+
+        // If the module had a non-null "tags" object, these go here
+        // e.g. { "quality of sound": "ultra ultra high", "style": "pirate" }
+        public Dictionary<string,string> Tags { get; set; }
     }
 
 }
