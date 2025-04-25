@@ -354,12 +354,6 @@ namespace Lingotion.Thespeon.API
             {
                 Debug.LogError(error);
             }
-            foreach (var warning in warnings)
-            {
-                Debug.LogWarning(warning);
-            }
-
-
 
             (ActorPackModule selectedModule, _ )= GetActorPackModule(annotatedInput);
 
@@ -895,7 +889,7 @@ namespace Lingotion.Thespeon.API
             }
             if (input.defaultEmotion == null)
             {
-                string emotionsetname= "Emotionless";
+                string emotionsetname= "Interest";          // hard coded here for now but should later be selected from Config or if it does not exist: from module.
                 input.defaultEmotion = emotionsetname;
 
                 Debug.LogWarning($"Default emotion not set. Using first emotion '{emotionsetname}' from module '{module.name}'.");

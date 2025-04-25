@@ -61,4 +61,5 @@ Lingotion Thespeon is a Unity package, and thus easily integrated into a Unity P
          - *(way/path)* – /veːk/  
          - *(away)* – /vɛk/  
 4. Build to web is not yet supported, but will be supported.
-
+5. A known audio problem which sometimes produces a click in the audio is actively being worked on.
+6. The engine's phonemizer sometimes produces strange results for some non-letter characters such as the single quotation mark ' and sometimes interprets some short words as abbreviations when it should not. This will be resolved in an upcoming release. As a workaround you may utilize the custom phonemization functionality to bypass the phonemizer.

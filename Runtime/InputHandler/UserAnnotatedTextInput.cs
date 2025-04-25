@@ -95,7 +95,33 @@ namespace Lingotion.Thespeon.Utils
             this.segments = textSegments;
         }
 
-        // TODO: Add constructor 
+        /// <summary>
+        /// Copy constructor for UserModelInput. This is a deep copy except for reference copy of extraData.
+        /// </summary>
+        /// <param name="other">The UserModelInput instance to copy from.</param>
+        /// <exception cref="ArgumentNullException">Thrown when the provided instance is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the provided instance has an empty module name, actor username or segments list.</exception>
+        public UserModelInput(UserModelInput other)
+        {
+            if (other == null)
+            {
+                throw new ArgumentNullException(nameof(other), "The provided UserModelInput instance is null.");
+            }
+
+            moduleName = other.moduleName ?? throw new InvalidOperationException("The provided UserModelInput instance has an empty module name.");
+            actorUsername = other.actorUsername ?? throw new InvalidOperationException("The provided UserModelInput instance has an empty actor username.");
+            if(other.defaultLanguage == null)
+            {
+                defaultLanguage = null;
+            } else {
+                defaultLanguage = new Language(other.defaultLanguage);
+            }
+            defaultEmotion = other.defaultEmotion;
+            speed = new List<double>(other.speed);
+            loudness = new List<double>(other.loudness);
+            segments = new List<UserSegment>(other.segments.Select(segment => new UserSegment(segment)));
+            extraData = other.extraData;    //reference copy for now. Revisit for TUNI-110
+        }
 
         /// <summary>
         /// Validates the UserModelInput object and returns a tuple of lists containing errors and warnings.
@@ -356,20 +382,33 @@ namespace Lingotion.Thespeon.Utils
         {
         }
         /// <summary>
-        /// Initializes a new instance of the UserSegment class by copying properties from another instance. This is a shallow copy.
+        /// Initializes a new instance of the UserSegment class by copying properties from another instance. This is a deep copy except for reference copy of extraData.
         /// </summary>
-        /// /// <param name="other">The UserSegment instance to copy from.</param>
+        /// <param name="other">The UserSegment instance to copy from.</param>
+        /// <exception cref="ArgumentNullException">Thrown when the provided instance is null or has null or empty text.</exception>
         public UserSegment(UserSegment other)
         {
+            if(other == null || string.IsNullOrEmpty(other?.text))
+            {
+                throw new ArgumentException("The provided UserSegment instance is null or has empty text.", nameof(other));
+            }
             text = other.text;
-            languageObj = other.languageObj; // Language is a reference type, so this is a shallow copy
-            // languageObj = new Language(other.languageObj); // Change to this at some point for proper copying. OBS Untested but the copy constructor exists.
+            if(other.languageObj == null)
+            {
+                languageObj = null;
+            } else {
+                languageObj = new Language(other.languageObj);
+            }
             emotion = other.emotion;
             style = other.style;
             isCustomPhonemized = other.isCustomPhonemized;
-            heteronymDescription = other.heteronymDescription; // Heteronym description is a reference type, so this is a shallow copy
-            // heteronymDescription = new Dictionary<string, string>(other.heteronymDescription); // Change to this at some point for proper copying. OBS Untested.
-            extraData = other.extraData; // Extra data is not used in the synth request
+            if(other.heteronymDescription == null ||other.heteronymDescription.Count == 0)
+            {
+                heteronymDescription = null;
+            } else {
+                heteronymDescription = new Dictionary<string, string>(other.heteronymDescription); 
+            }
+            extraData = other.extraData;    //reference copy for now. Revisit for TUNI-110
         }
 
         /// <summary>

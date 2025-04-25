@@ -87,50 +87,6 @@ namespace Lingotion.Thespeon.Utils
         public Dictionary<int, string> phoneme_ivocab { get; set; }
     }
 
-    /* [Serializable]
-    public class Language
-    {
-        [JsonProperty("iso639_2")]
-        public string iso639_2 { get; set; }
-
-        [JsonProperty("iso639_3")]
-        public string iso639_3 { get; set; }
-
-        [JsonProperty("glottocode")]
-        public string glottocode { get; set; }
-
-        [JsonProperty("iso3166_1")]
-        public string iso3166_1 { get; set; }
-
-        [JsonProperty("iso3166_2")]
-        public string iso3166_2 { get; set; }
-
-        [JsonProperty("customdialect")]
-        public string customdialect { get; set; }
-
-        public List<string> GetValues()
-        {
-            return new List<string> { iso639_2, iso639_3, glottocode, iso3166_1, iso3166_2, customdialect };
-        }
-        public Dictionary<string,string> GetItems()
-        {
-            return new Dictionary<string, string>
-            {
-                {"iso639_2", iso639_2},
-                {"iso639_3", iso639_3},
-                {"glottocode", glottocode},
-                {"iso3166_1", iso3166_1},
-                {"iso3166_2", iso3166_2},
-                {"customdialect", customdialect}
-            };
-        } 
-
-        public string toString()
-        {
-            return "iso639_2: " + iso639_2 + " iso639_3: " + iso639_3 + " glottocode: " + glottocode + " iso3166_1: " + iso3166_1 + " iso3166_2: " + iso3166_2 + " customdialect: " + customdialect;
-        }
-    }*/
-
     [Serializable]
     public class ModuleFiles
     {

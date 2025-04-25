@@ -236,7 +236,6 @@ namespace Lingotion.Thespeon.Utils
                         module.model_options.recording_data_info.actors.TryGetValue(actor.actorkey.ToString(), out var actorData))
                     {
                         string languageKeyString = language.languageKey.ToString(); // Convert to match dictionary key
-                        // Debug.Log($"Checking if Actor '{actor.firstname} {actor.lastname}' speaks '{language.iso639_2}' (Key: {languageKeyString})");
 
                         if (actorData.languages.ContainsKey(languageKeyString))
                         {
@@ -493,6 +492,11 @@ namespace Lingotion.Thespeon.Utils
         public ActorTags(){} // Default constructor for JSON deserialization
         public ActorTags(string quality)
         {
+            if(quality == null)
+            {
+                this.quality = null; // or set to a default value
+                return;
+            }
             if (Enum.TryParse(typeof(Quality), quality, true, out var parsedQuality))
             {
                 this.quality = (Quality)parsedQuality;
@@ -649,75 +653,6 @@ namespace Lingotion.Thespeon.Utils
         [JsonProperty("emotions")]
         public Dictionary<string, EmotionData> emotions { get; set; }
     }
-
-    /* [Serializable]
-    public class Language       
-    {
-        [JsonProperty("iso639_2")]
-        public string iso639_2 { get; set; }
-
-        [JsonProperty("iso639_3")]
-        public string iso639_3 { get; set; }
-
-        [JsonProperty("glottocode")]
-        public string glottocode { get; set; }
-
-        [JsonProperty("iso3166_1")]
-        public string iso3166_1 { get; set; }
-
-        [JsonProperty("iso3166_2")]
-        public string iso3166_2 { get; set; }
-
-        [JsonProperty("customdialect")]
-        public string customdialect { get; set; }
-
-        [JsonProperty("languagekey")]
-        public int languagekey { get; set; }
-
-        public List<string> GetValues()
-        {
-            return new List<string> { iso639_2, iso639_3, glottocode, iso3166_1, iso3166_2, customdialect };
-        }
-        public Dictionary<string,string> GetItems()
-        {
-            return new Dictionary<string, string>
-            {
-                {"iso639_2", iso639_2},
-                {"iso639_3", iso639_3},
-                {"glottocode", glottocode},
-                {"iso3166_1", iso3166_1},
-                {"iso3166_2", iso3166_2},
-                {"customdialect", customdialect}
-            };
-        }
-
-        public override string ToString()
-        {
-            string res = $"{iso639_2}";
-            if(iso3166_1 != null && customdialect!=null)
-            {
-                res += $" ({iso3166_1} - {customdialect})";
-            }
-            else if(iso3166_1!=null)
-            {
-                res += $" ({iso3166_1})";
-            }
-            else if(customdialect!=null)
-            {
-                res += $" ({customdialect})";
-            }
-            return res;
-        }
-        public string toString()        //Eyo dont be removing my methods man. This guy be acting kinda sus ngl frfr.
-        {
-            return "iso639_2: " + iso639_2 + " iso639_3: " + iso639_3 + " glottocode: " + glottocode + " iso3166_1: " + iso3166_1 + " iso3166_2: " + iso3166_2 + " customdialect: " + customdialect;
-        }
-        public override int GetHashCode()
-        {
-            return toString().GetHashCode();
-        }
-
-    } */
 
 
     [Serializable]

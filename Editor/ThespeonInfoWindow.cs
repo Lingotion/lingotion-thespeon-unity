@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Lingotion.Thespeon
 {
-    public class ExampleWindow : EditorWindow
+    public class LingotionThespeonInfoWindow : EditorWindow
     {
         // Local caches from PackFoldersWatcher
         private Dictionary<string, ActorData> actorCache 
@@ -28,10 +28,15 @@ namespace Lingotion.Thespeon
         private string requirementStatusMessage = "";
         // If missing languages exist, we display a warning; otherwise show success or hide
 
+        private Vector2 scrollPosition;
+        int selectedToolbar = 0;
+        string[] toolbarNames = {"Imported Actors", "Imported Languages"};
+
+
         [MenuItem("Window/Lingotion/Lingotion Thespeon Info")]
         public static void ShowWindow()
         {
-            var window = GetWindow<ExampleWindow>("Lingotion Thespeon");
+            var window = GetWindow<LingotionThespeonInfoWindow>("Lingotion Thespeon");
             window.Show();
         }
 
@@ -156,10 +161,26 @@ namespace Lingotion.Thespeon
             DrawRequirementStatus();
 
             EditorGUILayout.Space();
-            DrawActorOverview();
 
-            EditorGUILayout.Space();
-            DrawLanguageOverview();
+            EditorGUILayout.LabelField("Imported Pack Overview", EditorStyles.boldLabel);
+
+            selectedToolbar = GUILayout.Toolbar(selectedToolbar, toolbarNames);
+                // Begin scroll view
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+
+            if (selectedToolbar == 0)
+            {
+                // Imported Actors
+                DrawActorOverview();
+            }
+            else
+            {
+                // Imported Languages
+                DrawLanguageOverview();
+            }
+            // End scroll view
+            EditorGUILayout.EndScrollView();
+
         }
 
         /// <summary>
@@ -192,7 +213,6 @@ namespace Lingotion.Thespeon
         // -------------------------------------------
         private void DrawActorOverview()
         {
-            EditorGUILayout.LabelField("Imported Actors Overview", EditorStyles.boldLabel);
 
             if (actorCache.Count == 0)
             {
@@ -302,7 +322,6 @@ namespace Lingotion.Thespeon
         // --------------------------------------
         private void DrawLanguageOverview()
         {
-            EditorGUILayout.LabelField("Imported Languages Overview", EditorStyles.boldLabel);
 
             if (groupedLanguages.Count == 0)
             {

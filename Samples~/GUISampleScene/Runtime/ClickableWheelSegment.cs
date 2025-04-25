@@ -76,7 +76,7 @@ public class ClickableWheelSegment : MonoBehaviour
         {
             // Debug.Log("Clicked on: " + hitCollider.gameObject.name);
 
-            TextStyler.Instance.buttonClicked(hitCollider.gameObject.name);
+            TextStyler.Instance.ButtonClicked(hitCollider.gameObject.name);
         }
     }
     private bool IsPointerOverDropdown(Vector2 screenPosition)
@@ -100,7 +100,6 @@ public class ClickableWheelSegment : MonoBehaviour
         return false;
     }
 
-
     private Vector3 ScreenToWorldPoint(Vector2 screenPoint)
     {
         // 🔥 Make sure to get the UI Camera (since Canvas is in "Screen Space - Camera")
@@ -117,27 +116,4 @@ public class ClickableWheelSegment : MonoBehaviour
 
         return worldPoint;
     }
-    private Vector2 OldScreenToWorldPoint(Vector2 screenPoint)
-    {
-        Vector2 localPoint;
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, null, out localPoint))
-        {
-            return canvasRect.TransformPoint(localPoint); // Convert to world position
-        }
-        return Vector2.zero;
-    }
-    // public void OnPointerDown(PointerEventData eventData)
-    // {
-        
-    //     if (TextStyler.Instance != null)
-    //     {
-    //         Debug.Log("-----------Button clicked: " + gameObject.name + "-----------");
-    //         TextStyler.Instance.buttonClicked(gameObject.name);
-    //     }
-    //     else
-    //     {
-    //         Debug.LogWarning("TextStyler instance not found!");
-    //     } 
-
-    // }
 }

@@ -31,18 +31,21 @@ namespace Lingotion.Thespeon.Utils
 
         [JsonProperty("languagekey", NullValueHandling = NullValueHandling.Ignore)]
         public int? languageKey { get; set; }
-        
+        #nullable disable
+
         /// <summary>
         /// Initializes a new instance of the Language class.
         /// </summary>
         public Language() { }
+
         /// <summary>
         /// Initializes a new instance of the Language class by copying properties from another instance.
         /// </summary>
-        /// /// <param name="other">The Language instance to copy from.</param>
-
+        /// <param name="other">The Language instance to copy from.</param>
+        /// <exception cref="ArgumentNullException">Thrown when the provided Language instance is null or lacks an iso639-2 code.</exception>
         public Language(Language lang)
         {
+            if(lang == null || string.IsNullOrEmpty(lang.iso639_2)) throw new ArgumentNullException(nameof(lang), "Language cannot be null or lack an iso639-2 code.");
             iso639_2 = lang.iso639_2;
             iso639_3 = lang.iso639_3;
             glottoCode = lang.glottoCode;
@@ -51,6 +54,9 @@ namespace Lingotion.Thespeon.Utils
             customDialect = lang.customDialect;
             languageKey = lang.languageKey;
         }
+
+        #nullable enable
+
         /// <summary>
         /// Retrieves a dictionary representation of the language properties.
         /// </summary>

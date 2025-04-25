@@ -47,7 +47,7 @@ or if you use SSH:
      ```
 
 
-Clicking Import will create a local instance of the Sample directory in your Assets directory and be automatically opened. Navigate to the Scenes directory in the sample to open the sample scene. The two samples have different uses with [DemoGUI](./get-started-webportal.md) serving as an experimental playground and SimpleNarrator serving as a simple example of how to use the package in your own scene. 
+Clicking Import will create a local instance of the Sample directory in your Assets directory and be automatically opened. Navigate to the Scenes directory in the sample to open the sample scene. The two samples have different uses with [DemoGUI](./using-the-demogui-sample.md) serving as an experimental playground and SimpleNarrator serving as a simple example of how to use the package in your own scene. 
 
 ---
 
@@ -58,20 +58,23 @@ Clicking Import will create a local instance of the Sample directory in your Ass
 3. Click on **"Import Actor Pack"** or **"Import Language Pack"** to import your downloaded packs into your project.  
    - ![Editor Screenshot](./data/editor1.png?raw=true "Editor Screenshot")  
 
-4. Once you have imported your packs, you can view an overview of imported Actor Packs in **"Imported Actors Overview"** and monitor the imported language packs in **"Imported Languages Overview."**  
-   - Example showing imported Actor Packs for `"DetynOliver"` and `"EliasGranhammar"`, and an English language pack (while missing the Swedish language pack):  
+4. Once you have imported your packs, you can view an overview of imported Packs in **"Imported Pack Overview"**. You will find information about your imported Actor and Language Packs under the **"Imported Actors"** and **"Imported Languages"** tabs respectively.
+   - Example showing imported Actor Packs for `"denel.honeyball"` and `"EliasGranhammar"`, and an English language pack (while missing the Swedish language pack):  
    - ![Editor Screenshot](./data/editor2.png?raw=true "Editor Screenshot")  
 
 5. Always check if you have imported the necessary language packs for the synth request.  
-   - Example after importing the Swedish language pack:  
+   - Above example after importing the Swedish language pack:  
    - ![Editor Screenshot](./data/editor3.png?raw=true "Editor Screenshot")  
+
+6. To remove an imported Actor or Language Pack, navigate to your project **StreamingAssets** directory where you will find the **LingotionRuntimeFiles > ActorModules** and **LingotionRuntimeFiles > LanguagePacks** folders. Each of these contains all your imported Actor and Language Packs respectively. When in the correct directory, simply delete the folder of the Pack you wish to remove.
 
 ---
 
 ## **Step 4: Synth Request**
 
 
-To get started with using the package can either use the [DemoGUI sample scene](./get-started-webportal.md) or follow the example of the SimpleNarrator. An explanation of how to replicate this behavior follows.
+
+To start using the package, you can either use the [DemoGUI sample scene](./using-the-demogui-sample.md) or follow the SimpleNarrator example. An explanation of how to replicate this behavior follows.
 
 
 ---

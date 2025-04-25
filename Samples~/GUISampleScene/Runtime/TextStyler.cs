@@ -25,10 +25,8 @@ public class TextStyler : MonoBehaviour
     //The text will be 1 character and inputField.characterCount will correctly be 1 but LineInfo will contain info for the old text. Maybe the same goes for TextInfo, I haven't checked.
     public TMP_InputField inputField;               
     public RectTransform underlinePrefab;
-    public TMP_Text jsonVizualizer;
-    // private List<Dictionary<string, object>> segments;
+    public TMP_Text jsonVisualizer;
     private List<UserSegment> segments;
-    // private Dictionary<string, object> modelInputJson;
     private UserModelInput modelInput;
     private List<RectTransform> activeUnderlines = new List<RectTransform>();
     private DropdownHandler modelSelectorHandler;
@@ -37,12 +35,10 @@ public class TextStyler : MonoBehaviour
     private DropdownHandler LoadPredefinedInputHandler;
 
     private Dictionary<string, Language> languageOptionValues;
-    // private Dictionary<string, string> qualityOptionValues; //Not used yet. Can be used if we want to display something other than the module name.
-    // private List<int> emotionAnnotation;
-    // private List<int> loudnessAnnotation;
 
     private CurvesToUI curvesToUI;
-    
+    private UnityEngine.Events.UnityAction<string> onTextChangedListener;
+
 
 
 
@@ -61,6 +57,8 @@ public class TextStyler : MonoBehaviour
     }
     private void Start()
     {
+        onTextChangedListener = (text) => { StartCoroutine(OnTextChanged(text)); };
+
         curvesToUI = GetComponent<CurvesToUI>();
         if (curvesToUI == null)
         {
@@ -68,48 +66,40 @@ public class TextStyler : MonoBehaviour
         }
         curvesToUI.OnCurvesChanged += () => UpdateJsonVisualizer();
 
-        
-
         InitializeJsonStructure();
-        
-        
-        // emotionAnnotation = new List<int>(Enumerable.Repeat((int)Emotions.Emotionless, inputField.text.Length));
-        // loudnessAnnotation = new List<int>(Enumerable.Repeat(1, inputField.text.Length));
-        inputField.onValueChanged.AddListener(OnTextChanged);
+
+        inputField.onValueChanged.AddListener(onTextChangedListener);
+
         inputField.Select();  
         inputField.selectionStringAnchorPosition = 0; 
         inputField.selectionStringFocusPosition = inputField.text.Length;
         StartCoroutine(DeferredDrawUnderlines());
-        List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
+        List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();
 
-        // get the GameComponent dropdown "Select Actor" and set the options to the registered actors.
         modelSelectorHandler = GameObject.Find("Model Selector").GetComponent<DropdownHandler>();
 
         qualitySelectorHandler = GameObject.Find("Quality Selector").GetComponent<DropdownHandler>();
 
-        languageSelectorHandler = GameObject.Find("Lanugage Selector").GetComponent<DropdownHandler>();
+        languageSelectorHandler = GameObject.Find("Language Selector").GetComponent<DropdownHandler>();
 
         LoadPredefinedInputHandler = GameObject.Find("Input Selector").GetComponent<DropdownHandler>();
 
         if(availableActors.Count!=0)
         {
             string optionText = availableActors[0].Item1;
-            // Debug.Log("Changing actorUsername to " + optionText);
             modelInput.actorUsername = optionText;
         
             Dictionary<string, List<ActorPack>> registeredActorPacks = ThespeonAPI.GetRegisteredActorPacks();
             ActorPackModule actorPackModule = registeredActorPacks
-                .SelectMany(pack => pack.Value) // Access the Value (List<ActorPack>) of the KeyValuePair
-                .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
+                .SelectMany(pack => pack.Value)
+                .SelectMany(actorPack => actorPack.modules)
                 .FirstOrDefault(module => module.actor_options.actors
                     .Any(actor => actor.username == optionText));
 
             string moduleName = actorPackModule.name;
             modelInput.moduleName = moduleName;
-            // Debug.Log(actorPackModule.GetActorLanguages(actorPackModule.GetActor(optionText))[0].ToString());
             Language initLang = actorPackModule.GetActorLanguages(actorPackModule.GetActor(optionText))[0];
             if(initLang.languageKey != null) initLang.languageKey=null;
-            // modelInputJson["defaultLanguage"] = initLang; HERE
             modelInput.defaultLanguage = initLang;
             UpdateJsonVisualizer();
         } else{
@@ -128,14 +118,12 @@ public class TextStyler : MonoBehaviour
             List<string> registeredUsernames = ThespeonAPI.GetRegisteredActorPacks().Select(item => item.Key).ToList();
             if (!registeredUsernames.SequenceEqual(modelSelectorHandler.GetNonDefaultOptions()))
             {
-                // Debug.Log("Changes made to registration: " + string.Join(",", registeredUsernames));
                 modelSelectorHandler.SetOptions(registeredUsernames);
             }
         }
     }
     private void InitializeJsonStructure()
     {
-        // Debug.Log("Initializing JSON structure");
         modelInput = new UserModelInput() {
                 moduleName = "",
                 actorUsername = "",
@@ -146,7 +134,6 @@ public class TextStyler : MonoBehaviour
         segments = modelInput.segments;
         UpdateSegmentsFromText();
         SampleCurves();
-        // AnnotateSegments(new Dictionary<string, object> {});
 
     }
     #endregion
@@ -154,22 +141,15 @@ public class TextStyler : MonoBehaviour
     private void UpdateJsonVisualizer()
     {
         SampleCurves();
-        jsonVizualizer.text = FormatJson(modelInput); //HERE
+        jsonVisualizer.text = FormatJson(modelInput);
     }
     private void UpdateSegmentsFromText(){
-        // Debug.Log("Start of UpdateSegmentsFromText");
         inputField.textComponent.ForceMeshUpdate();
         string visualText = inputField.text;
         List<string> newTextSegments = visualText.Split('|').ToList();
         List<UserSegment> updatedSegments = new List<UserSegment>();
-        // string defaultEmotion = modelInputJson["defaultEmotion"].ToString();   HERE
-        string defaultEmotion = modelInput.defaultEmotion;
-        // string defaultLanguage = ((Language) modelInputJson["defaultLanguage"]).iso639_2; HERE
-        string defaultLanguage = modelInput.defaultLanguage.iso639_2;
-        //loop through segments and insert each one into updatedSegments only changing their text to the corresponding text in newTextSegments
-        if(segments.Count == 0){        //initialization. Check what happens if text is empty.
+        if(segments.Count == 0){
             if(newTextSegments.Count != 1) Debug.LogError("Assertion failed in Initialization Update");
-            // updatedSegments.Add(new Dictionary<string, object> { { "text", newTextSegments[0] } });
             updatedSegments.Add(new UserSegment(newTextSegments[0]));
         }
         else
@@ -178,21 +158,16 @@ public class TextStyler : MonoBehaviour
             // Pipe manually inserted or removed by user 
             if(pipeDelta != 0) 
             {
-                // if (Math.Abs(newTextSegments.Count-segments.Count) != 1) Debug.LogError("Assertion failed in UpdateSegmentsFromText. Not only 1 pipe inserted.");
-                //go through segments and see its text is the same as the segmentText at that index. If not, split that segment in two. (should be a concat of the current and next newTextSegments)
                 int j=0;
                 bool pipeDiffFound = false;
                 if(pipeDelta > 0)   //segments added
                 {
-                    // Debug.Log("Pasted some shite: " +pipeDelta + "\nStrings: " + string.Join("|", newTextSegments) + "\n" + string.Join('|', segments.Select(seg => seg.text)));
                     for(int i = 0; i < newTextSegments.Count; i++)
                     {
                         string currentOldSegmentText = segments[j].text;
 
-                        // if (string.IsNullOrWhiteSpace(currentOldSegmentText)) continue;
                         if(pipeDiffFound)   //mark as ready to move to next segment. Means we are at the leftover of the old segment
                         {
-                            // Debug.Log("INSERTED SEGMENTS: Ready to move to next segment. Adding new segment with text: " + newTextSegments[i] + "old segment: " + currentOldSegmentText);
                             string newText = newTextSegments[i];
                             UserSegment newSegment = new UserSegment(segments[j]);
                             newSegment.text = newText;
@@ -203,7 +178,6 @@ public class TextStyler : MonoBehaviour
                         }
                         else if(currentOldSegmentText != newTextSegments[i])    //Found segment where something was inserted.
                         {
-                            // Debug.Log("INSERTED SEGMENTS: Where? " + currentOldSegmentText + "   inserted: " + newTextSegments[j]);
                             string newText = newTextSegments[i];
                             UserSegment newSegment = new UserSegment(segments[j]);
                             newSegment.text = newText;
@@ -222,15 +196,15 @@ public class TextStyler : MonoBehaviour
                     for(int i = 0; i < segments.Count; i++)
                     {
                         string currentOldSegmentText = segments[i].text;
-                        if(currentOldSegmentText != newTextSegments[j])     //found problem
+                        if(j >= newTextSegments.Count) break; // Last segment was removed.
+                        if(currentOldSegmentText != newTextSegments[j])     //found segments where removal happened
                         {
-                            // Debug.Log("REMOVED SEGMENTS: Found where removal happened:" + newTextSegments[j]);
-                            // if (string.IsNullOrWhiteSpace(segmentText)) continue;
                             UserSegment newSegment = new UserSegment(segments[i]);
                             newSegment.text = newTextSegments[j];
                             RemoveDefaultKeys(ref newSegment);
                             updatedSegments.Add(newSegment);
                             i+=Math.Abs(pipeDelta);
+                            j++;
                         }
                         else
                         {
@@ -242,14 +216,12 @@ public class TextStyler : MonoBehaviour
                 }
             }
             else{
-
                 for(int i = 0; i < newTextSegments.Count; i++)
                 {
                     string segmentText = newTextSegments[i];
                     if (string.IsNullOrWhiteSpace(segmentText)) continue;
                     UserSegment newSegment = new UserSegment(segments[i]);
                     newSegment.text = segmentText;
-                    //if segment keys emotion or language are equal to any of the default values, remove them.
                     RemoveDefaultKeys(ref newSegment);
                     updatedSegments.Add(newSegment);
                 }
@@ -261,8 +233,6 @@ public class TextStyler : MonoBehaviour
             string currentText = updatedSegments[i].text;
             string prevText = updatedSegments[i - 1].text.ToString();
 
-            // bool areEqual = updatedSegments[i].Where(kv => kv.Key != "text").OrderBy(kv => kv.Key)   HERE
-                    // .SequenceEqual(updatedSegments[i - 1].Where(kv => kv.Key != "text").OrderBy(kv => kv.Key));
             bool areEqual = updatedSegments[i].EqualsIgnoringText(updatedSegments[i - 1]);
 
             if (string.IsNullOrWhiteSpace(currentText) || areEqual || currentText.All(c => IsWordDelimiter(c)))
@@ -270,21 +240,16 @@ public class TextStyler : MonoBehaviour
                 updatedSegments[i - 1].text += currentText;
                 updatedSegments.RemoveAt(i);
             }
-        }
-        
+        }        
         //turn of OnTextChanged Listener, set text and reenable it.
-        inputField.onValueChanged.RemoveListener(OnTextChanged);
+        inputField.onValueChanged.RemoveListener(onTextChangedListener);
         inputField.text = string.Join("|", updatedSegments.Select(seg => seg.text));
-        inputField.onValueChanged.AddListener(OnTextChanged);
+        inputField.onValueChanged.AddListener(onTextChangedListener);
         segments = updatedSegments;
-        modelInput.segments = segments; // Update JSON structure
-        UpdateJsonVisualizer(); // Ensure JSON updates dynamically
-
-        // Debug.Log("End of UpdateSegmentsFromText");
-
+        modelInput.segments = segments;
+        UpdateJsonVisualizer();
     }
     
-    //Check if it works as it should with PIPEs and also this no longer checks for if defaults are inserted, make sure to either filter for that after or before.
     private void AnnotateSegments(Dictionary<string, object> newKeys)
     {
         if (inputField == null || string.IsNullOrEmpty(inputField.text)) return;
@@ -306,7 +271,6 @@ public class TextStyler : MonoBehaviour
         (int expandedStart, int expandedEnd) = ExpandToWordBoundaries(pureText, pureSelectionStart, pureSelectionEnd);
   
         if(expandedStart == 0 && newKeys.ContainsKey("emotion")){       //Change default emotion if annotating the start of the text.
-            //set all segments without an emotion key to the old default then set default to the new one.
             for(int i = 0; i < segments.Count; i++)
             {
                 if(segments[i].emotion==null)
@@ -319,26 +283,16 @@ public class TextStyler : MonoBehaviour
         
         int visualInsertStart = ConvertPureToVisualIndex(expandedStart);
         int visualInsertEnd = ConvertPureToVisualIndex(expandedEnd);
-        // Insert segment breaks at expanded start and end
         bool startIsBreak = text[visualInsertStart]=='|' || expandedStart == 0;
         bool endIsBreak = expandedEnd == pureText.Length || text[visualInsertEnd]=='|';
         text = text.Insert(visualInsertStart, "|");
         text = text.Insert(visualInsertEnd + 1, "|");
-        // Regenerate segment break indices
         List<int> segmentBreaks = new List<int>() {0};
         for (int i = 0; i < text.Length; i++)
             if (text[i] == '|') segmentBreaks.Add(i);
         segmentBreaks.Add(text.Length);
-        // Find the break indices for the inserted segment boundaries
         int insertStartBreakIndex = segmentBreaks.IndexOf(visualInsertStart) + (startIsBreak ? 1 : 0);
         int insertEndBreakIndex = segmentBreaks.IndexOf(visualInsertEnd+1);
-        // if(segmentBreaks[insertEndBreakIndex] != segmentBreaks.Count-1)
-        // {
-        //     if(segmentBreaks[insertEndBreakIndex+1] == segmentBreaks[insertEndBreakIndex]+1)
-        //     {
-        //         insertEndBreakIndex++;
-        //     }
-        // }
 
         if(insertStartBreakIndex == -1 + (startIsBreak ? 1 : 0) || insertEndBreakIndex == -1) Debug.LogError("Failed to find segment break indices.");
         
@@ -347,9 +301,7 @@ public class TextStyler : MonoBehaviour
         List<string> newTextSegments = text.Split('|').ToList();
 
         if(newTextSegments.Count != segmentBreaks.Count-1) Debug.LogError("Texts and segmentBreaks are out of sync.");
-        // Debug.Log("segmentBreaks: " + string.Join(",", segmentBreaks) + " Insert breaks: " + insertStartBreakIndex + " " + insertEndBreakIndex);
 
-        //loop through newTextSegments and enumerating them to get the index
         bool inSelection=false;
         int j=0;
         for(int i = 0; i < newTextSegments.Count; i++)
@@ -357,7 +309,6 @@ public class TextStyler : MonoBehaviour
             string segmentText = newTextSegments[i];
             int segmentStart = segmentBreaks[i];
             int segmentEnd = segmentBreaks[i + 1];
-            // if (string.IsNullOrWhiteSpace(segmentText)) continue;
 
             if(i == insertStartBreakIndex)
             {
@@ -371,7 +322,6 @@ public class TextStyler : MonoBehaviour
             }
             if(inSelection)
             {
-                //add to newSegments the old segments[j] but update or add all the keys in newKeys and change the text to segmentText
                 UserSegment newSegment = new UserSegment(segments[j]);
                 foreach (var key in newKeys)
 
@@ -388,14 +338,12 @@ public class TextStyler : MonoBehaviour
                     {
                         newSegment[key.Key] = key.Value;        //string indexing is ok. Only to be used here though.
                     }
-                    // Debug.Log("Added key: " + key.Key + " with value: " + key.Value + " to segment: " + newSegment.text + "so its new value is: " + newSegment[key.Key]);
                 }
                 newSegment.text = segmentText;
                 RemoveDefaultKeys(ref newSegment);
                 newSegments.Add(newSegment);
             } else
             {
-                //add the keys from segment segments[j] to newSegments but change the text to segmentText
                 if(j == segments.Count) Debug.LogError($"j: {j} segments.Count: {segments.Count}, segment text: {segmentText}");
                 UserSegment newSegment = new UserSegment (segments[j]);
                 newSegment.text = segmentText;
@@ -406,11 +354,8 @@ public class TextStyler : MonoBehaviour
         }
 
 
-        //DO TWO LOOPS, once for whitespaces and another time for equal keys.
-        // Merge segments where necessary
-        for (int i = newSegments.Count - 1; i > 0; i--)
+        for (int i = newSegments.Count - 1; i > 0; i--)//merge whitespace and empty segments
         {
-            //Debug print all the key value pairs of prev and current
             string currentText = newSegments[i].text;
             if (string.IsNullOrWhiteSpace(currentText))
             {
@@ -422,9 +367,8 @@ public class TextStyler : MonoBehaviour
         {
             newSegments.RemoveAt(0);
         }
-        for (int i = newSegments.Count - 1; i > 0; i--)
+        for (int i = newSegments.Count - 1; i > 0; i--)//merge segments with same keys
         {
-            // Debug.Log(newSegments[i].text + " " + newSegments[i-1].text);
             string currentText = newSegments[i].text;
             string prevText = newSegments[i - 1].text;
 
@@ -438,12 +382,12 @@ public class TextStyler : MonoBehaviour
 
         // Apply changes
         segments = newSegments;
-        // modelInputJson["segments"] = segments;
         modelInput.segments=segments;
         inputField.text = string.Join("|", segments.Select(seg => seg.text));
         UpdateJsonVisualizer();
         StartCoroutine(DeferredDrawUnderlines());
     }
+
     private void SampleCurves(){
         if (curvesToUI == null || string.IsNullOrEmpty(inputField.text))
             return;
@@ -479,10 +423,6 @@ public class TextStyler : MonoBehaviour
     {
         yield return null; // Wait for the next frame to allow TMP to update textInfo
         inputField.textComponent.ForceMeshUpdate(); // Ensure the mesh is updated
-        // emotionAnnotation = new List<int>(Enumerable.Repeat((int)Emotions.Emotionless, inputField.text.Length));
-        // loudnessAnnotation = new List<int>(Enumerable.Repeat(1, inputField.text.Length));
-
-        // Now call your underline drawing logic
         DrawUnderlines();
     }
     private void CleanText()
@@ -490,13 +430,12 @@ public class TextStyler : MonoBehaviour
         // Get the current text from the input field
         string originalText = inputField.text;
         int originalCaretPosition = inputField.caretPosition;
-
         // Remove double delimiters (e.g., "..", ",,", "!!")
         string cleanedText = System.Text.RegularExpressions.Regex.Replace(originalText, @"([.,!?])\1+", "$1");
 
-        // Replace multiple spaces or tabs with a single space
+        // Replace multiple spaces, tabs or newlines with a single space
         int lengthBefore = cleanedText.Length;
-        cleanedText = System.Text.RegularExpressions.Regex.Replace(cleanedText, @"[ \t]+", " ");
+        cleanedText = System.Text.RegularExpressions.Regex.Replace(cleanedText, @"[\s\u2028\u2029]+", " ");
         int spaceDiff= lengthBefore - cleanedText.Length;
         /// Remove any leading or trailing | characters
         cleanedText = cleanedText.Trim('|');
@@ -534,7 +473,6 @@ public class TextStyler : MonoBehaviour
     }
     private void DrawUnderlines()
     {
-        // Debug.Log("Drawing underlines");
         ClearUnderlines();
         TMP_Text textComponent = inputField.textComponent;
         TMP_TextInfo textInfo = textComponent.textInfo;
@@ -544,7 +482,6 @@ public class TextStyler : MonoBehaviour
             return;
         }
 
-        // int defaultEmotionKey = (int)Enum.Parse(typeof(Emotions), modelInputJson["defaultEmotion"].ToString());
         int defaultEmotionKey = (int)Enum.Parse(typeof(Emotions), modelInput.defaultEmotion);
 
         int pureTextIndex = 0;
@@ -555,7 +492,6 @@ public class TextStyler : MonoBehaviour
             int emotionKey = segment.emotion != null 
                 ? (int)Enum.Parse(typeof(Emotions), segment.emotion) 
                 : defaultEmotionKey;
-            // Debug.Log($"Drawing underline for segment: {segmentText} with emotion name {Enum.GetName(typeof(Emotions), emotionKey)}");
             int visualStartCharIndex = ConvertPureToVisualIndex(pureTextIndex);
             int visualEndCharIndex = ConvertPureToVisualIndex(pureTextIndex + segmentLength - 1);
 
@@ -572,7 +508,6 @@ public class TextStyler : MonoBehaviour
                 
                 if (charInfo.lineNumber != currentLine)
                 {
-                    // Debug.Log("New line: " + charInfo.lineNumber);
                     // Create underline for the previous line
                     CreateUnderline(start, end, emotionKey, textInfo.lineInfo[currentLine]);
                     
@@ -591,16 +526,16 @@ public class TextStyler : MonoBehaviour
     }
     private void CreateUnderline(Vector3 start, Vector3 end, int emotionKey, TMP_LineInfo lineInfo)
     {
-        float wierdOffset = 25f;
+        float constOffset = 30f;
         float textWidth = Mathf.Abs(end.x - start.x);
         float anchorX = (start.x + end.x) / 2;
         float height = 1f;
 
         RectTransform underline1 = Instantiate(underlinePrefab, inputField.transform);
-        underline1.anchoredPosition = new Vector2(anchorX, lineInfo.descender+wierdOffset);
+        underline1.anchoredPosition = new Vector2(anchorX, lineInfo.descender+constOffset);
         underline1.sizeDelta = new Vector2(textWidth, 1f);
         RectTransform underline2 = Instantiate(underlinePrefab, inputField.transform);
-        underline2.anchoredPosition = new Vector2(anchorX, lineInfo.descender+wierdOffset-height);
+        underline2.anchoredPosition = new Vector2(anchorX, lineInfo.descender+constOffset-height);
         underline2.sizeDelta = new Vector2(textWidth, 1f);
 
         var (c1,c2) = colors[emotionKey];
@@ -677,7 +612,6 @@ public class TextStyler : MonoBehaviour
     {
         string defaultEmotion = modelInput.defaultEmotion;
         Language defaultLanguage = modelInput.defaultLanguage;
-        if(segment.languageObj!=null) //Debug.Log($"Language key: {segment.languageObj.ToDisplay()}, default language: {defaultLanguage}");
         if(segment.emotion!=null && segment.emotion == defaultEmotion)
         {
             segment.emotion=null;
@@ -769,25 +703,19 @@ public class TextStyler : MonoBehaviour
     #region Public Methods
     public void Synthesize()   
     {
-        // Debug.Log("Synth pressed " + Time.realtimeSinceStartup);
         Profiler.BeginSample("Synth");
-        GameObject.Find("NPC Object").GetComponent<ThespeonEngine>().Synthesize(modelInput);
+        GameObject.Find("NPC Object").GetComponent<ThespeonEngine>().Synthesize(new UserModelInput(modelInput));
         Profiler.EndSample();
     }
     public UserModelInput GetModelInput()
     {
-        // string jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(modelInputJson);
-        // Debug.Log(jsonString);
-        // UserModelInput modelInput = Newtonsoft.Json.JsonConvert.DeserializeObject<UserModelInput>(jsonString);
-        //Debug.Log(Newtonsoft.Json.JsonConvert.SerializeObject(modelInput)); 
-        return JsonConvert.DeserializeObject<UserModelInput>(JsonConvert.SerializeObject(modelInput));      //Ugly hack for deep copy. See TUNI-29
+        return new UserModelInput(modelInput);
     }
     public (string, List<int>) getTextAndEmotion()
     {
         string text = string.Join("", segments.Select(seg => seg.text));
         if(GetPureText() != text) Debug.LogError("Assertion failed in getTextAndEmotion");
         List<int> emotionValues = new List<int>();
-        // int defaultEmotionKey = (int)Enum.Parse(typeof(Emotions), modelInputJson["defaultEmotion"].ToString());
         int defaultEmotionKey = (int)Enum.Parse(typeof(Emotions), modelInput.defaultEmotion);
 
         foreach (var segment in segments)
@@ -795,7 +723,6 @@ public class TextStyler : MonoBehaviour
             string segmentText = segment.text;
             int segmentLength = segmentText.Length;
 
-            // Fetch the emotion key from the segment (default to Emotionless if not found)
             int emotionKey = segment.emotion != null
                 ? (int)Enum.Parse(typeof(Emotions), segment.emotion) 
                 : defaultEmotionKey;
@@ -804,29 +731,29 @@ public class TextStyler : MonoBehaviour
             emotionValues.AddRange(Enumerable.Repeat(emotionKey, segmentLength));
         }
         if(text.Length != emotionValues.Count) Debug.LogError("Assertion failed in getTextAndEmotion");
-        // Debug.Log("Text: " + text);
-        // Debug.Log("Emotion: " + string.Join(",", emotionValues));
 
         return (text, emotionValues);
     }
     //Used as a listener on the inputField component. 
-    public void OnTextChanged(string newText)
+
+    public IEnumerator OnTextChanged(string newText)
     {
-        //Force all text to the set font size set in the inspector
+        yield return null;
+        inputField.onValueChanged.RemoveListener(onTextChangedListener);
         inputField.textComponent.fontSize = 8;
         CleanText();
         UpdateSegmentsFromText();
-        StartCoroutine(DeferredDrawUnderlines());
+        inputField.onValueChanged.AddListener(onTextChangedListener);
+        yield return DeferredDrawUnderlines();
         UpdateJsonVisualizer();
 
 
     }
     //Emotion klicked in EmotionWheel.
-    public void buttonClicked(string emotionName)
+    public void ButtonClicked(string emotionName)
     {
         if (Enum.TryParse<Emotions>(emotionName, out Emotions emotion))
         {
-            // UpdateSegmentsFromText();
             AnnotateSegments(new Dictionary<string, object> { { "emotion", Enum.GetName(typeof(Emotions), emotion) } });
         }
         else
@@ -857,7 +784,6 @@ public class TextStyler : MonoBehaviour
             }
             List<(string, ActorTags)> nameAndTags = ThespeonAPI.GetActorsAvailabeOnDisk();
             List<string> modelIDs = actorPackModules.Select(module => module.name).ToList();
-            // Debug.Log("Model IDs: " + string.Join(", ", modelIDs));
 
             if(modelInput.moduleName != null && !modelIDs.Contains(modelInput.moduleName))
             {
@@ -890,9 +816,6 @@ public class TextStyler : MonoBehaviour
             {
                 string currentText = segments[i].text;
                 string prevText = segments[i - 1].text;
-
-                // bool areEqual = segments[i].Where(kv => kv.Key != "text").OrderBy(kv => kv.Key)
-                //         .SequenceEqual(segments[i - 1].Where(kv => kv.Key != "text").OrderBy(kv => kv.Key));
                 bool areEqual = segments[i].EqualsIgnoringText(segments[i - 1]);
 
                 if (areEqual || currentText.All(c => IsWordDelimiter(c)))
@@ -901,18 +824,12 @@ public class TextStyler : MonoBehaviour
                     segments.RemoveAt(i);
                 }
             }
-            //if is one of the removed, change it to the first new available language
-            // if(removedLanguages.Contains((Language) modelInputJson["defaultLanguage"]))
-            // {
-            //     modelInputJson["defaultLanguage"] = actorLanguages[0];
-            // } 
+
             if(removedLanguages.Contains((Language) modelInput.defaultLanguage))
             {
                 modelInput.defaultLanguage = actorLanguages[0];
             }
 
-            // Apply changes
-            // modelInputJson["segments"] = segments;
             modelInput.segments = segments;
             inputField.text = string.Join("|", segments.Select(seg => seg.text));
 
@@ -922,13 +839,11 @@ public class TextStyler : MonoBehaviour
             UpdateSegmentsFromText();       //bit of a hack to update after this change. Should be done in a better way.
             UpdateJsonVisualizer();
         } else if(dropdown.name=="Quality Selector"){
-            // Debug.Log("Selected model id: " + optionText);
             modelInput.moduleName = ThespeonAPI.GetActorPackModuleName(modelInput.actorUsername, new ActorTags(optionText));
             UpdateSegmentsFromText();       //bit of a hack to update after this change. Should be done in a better way.
             UpdateJsonVisualizer();
-        }else if(dropdown.name=="Lanugage Selector"){
+        }else if(dropdown.name=="Language Selector"){
             Language selectedLanguage = languageOptionValues[optionText];
-            // string defaultLanguage = ((Language) modelInputJson["defaultLanguage"]).iso639_2;
             string defaultLanguage = modelInput.defaultLanguage.iso639_2;
             int selectionStart = inputField.selectionAnchorPosition;
             int selectionEnd = inputField.selectionFocusPosition;
@@ -948,10 +863,6 @@ public class TextStyler : MonoBehaviour
 
             if (entireTextSelected)
             {
-                // Debug.Log("Changing default language");
-                // If all text is selected, update default language
-
-                // modelInputJson["defaultLanguage"] = selectedLanguage;
                 modelInput.defaultLanguage = selectedLanguage;
                 UpdateSegmentsFromText();
                 inputField.text = string.Join("|", segments.Select(seg => seg.text));
@@ -959,8 +870,6 @@ public class TextStyler : MonoBehaviour
             }
             else
             {
-                // Debug.Log("Annotating segments with language");
-                // If part of the text is selected, annotate that part with the new language
                 AnnotateSegments(new Dictionary<string, object> { { "language", selectedLanguage } });
 
             }
@@ -980,9 +889,7 @@ public class TextStyler : MonoBehaviour
                 
                 ThespeonAPI.PreloadActorPackModule(moduleToNameAndTags[ActorPackModuleName].Item1, moduleToNameAndTags[ActorPackModuleName].Item2);
             }
-            // Debug.Log("Re-preloaded " + string.Join(", ", loadedModules));
         }
-        // dropdown.value = 0;              This or no? If not and one wants to mark several disjopint segments with the same language one has to deselect and reselect the language again for onDropdownValueChanged to fire. But if yes then after selection it automatically goes back to the default option, not letting the user see what they just selected unless looking at the json.
     }
 
 
@@ -990,7 +897,6 @@ public class TextStyler : MonoBehaviour
     public void OnInsertIPAButton()
     {
         int caretPosition = inputField.caretPosition;
-        //find in which segment the caret is located
         int pureCaretPosition = ConvertVisualToPureIndex(caretPosition);
         int segmentStart = 0;
         int segmentEnd = 0;
@@ -1006,8 +912,7 @@ public class TextStyler : MonoBehaviour
             segmentStart = segmentEnd;
             segmentIndex++;
         }
-        // if the key "IsCustomPhonemized" is present, remove it, otherwise add it.
-        if (segments[segmentIndex].isCustomPhonemized != null)           //Vill gärna själv ha "ipa" här.
+        if (segments[segmentIndex].isCustomPhonemized != null)
         {
             segments[segmentIndex].isCustomPhonemized = null;
         }
@@ -1015,10 +920,8 @@ public class TextStyler : MonoBehaviour
         {
             segments[segmentIndex].isCustomPhonemized = true;
         }
-        // modelInputJson["segments"] = segments;
         modelInput.segments = segments;
         UpdateJsonVisualizer();
-        // segments.Insert(segmentIndex, new Dictionary<string, object> { { "text", ipa } });
     }
 
     public void OnInsertPauseButton()
@@ -1028,7 +931,6 @@ public class TextStyler : MonoBehaviour
         {
             inputField.text = inputField.text.Insert(caretPosition, "⏸");
         }
-        // UpdateSegmentsFromText();
     }
 
     public void OnLoadInput(string filename){ 
@@ -1049,16 +951,24 @@ public class TextStyler : MonoBehaviour
                 curvesToUI.SetAnimationCurve(new List<double>(){1.0}, "loudness");
             }
             
-            // segments = (List<Dictionary<string, object>>)modelInputJson["segments"];
             string actorName = modelSelectorHandler.GetSelectedOption();
-            string qualityTag = qualitySelectorHandler.GetSelectedOption();            
-            string moduleID = ThespeonAPI.GetActorPackModuleName(actorName, new ActorTags(qualityTag));
+            string qualityTag = qualitySelectorHandler.GetSelectedOption();
+            string moduleID="";
+            try{
+                moduleID = ThespeonAPI.GetActorPackModuleName(actorName, new ActorTags(qualityTag));
+            }
+            catch (ArgumentException)
+            {
+                Debug.LogWarning($"Module ID {moduleID} not found in registered actor packs. Using first available module and actor.");
+                actorName = ThespeonAPI.GetRegisteredActorPacks().First().Key;
+                moduleID = ThespeonAPI.GetRegisteredActorPacks().First().Value[0].modules[0].name;
+            }
             Language lang = modelInput.defaultLanguage;
 
             Dictionary<string, List<ActorPack>> registeredActorPacks = ThespeonAPI.GetRegisteredActorPacks();
             List<ActorPackModule> actorPackModules = registeredActorPacks
-            .SelectMany(pack => pack.Value) // Access the List<ActorPack> from the KeyValuePair
-            .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
+            .SelectMany(pack => pack.Value) 
+            .SelectMany(actorPack => actorPack.modules) 
             .ToHashSet().ToList();
             
             ActorPackModule module=null;
@@ -1118,7 +1028,8 @@ public class TextStyler : MonoBehaviour
             } else {
                 modelInput.defaultLanguage = module.language_options.languages[0];
             }
-            if(modelInput.defaultEmotion != null && !Enum.IsDefined(typeof(Emotions), modelInput.defaultEmotion)) modelInput.defaultEmotion = "Emotionless";
+            modelInput.defaultLanguage.languageKey = null;
+            if(modelInput.defaultEmotion != null && !Enum.IsDefined(typeof(Emotions), modelInput.defaultEmotion)) modelInput.defaultEmotion = Emotions.Interest.ToString();
             foreach (var segment in modelInput.segments)
             {
                 if(segment.emotion != null && !Enum.IsDefined(typeof(Emotions), segment.emotion))
@@ -1146,6 +1057,12 @@ public class TextStyler : MonoBehaviour
             Debug.LogError("Error reading file: " + filename + "Error: " + ex.Message);
         }
     
+    }
+
+    public void CopyTextToClipboard()
+    {
+        GUIUtility.systemCopyBuffer = jsonVisualizer.text;
+        Debug.Log("Text copied to clipboard: \n" + jsonVisualizer.text);
     }
     
 

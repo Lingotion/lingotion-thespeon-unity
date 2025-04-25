@@ -33,7 +33,7 @@ public class SimpleNarrator : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             // Create an input segment with a sample text
-            UserSegment testSegment = new UserSegment("Hello! This is a sample text, and I hope you are glad to hear my voice.", emotion:"Interest");
+            UserSegment testSegment = new UserSegment("Greetings! This is a sample text, and I hope you are glad to hear my voice.", emotion:"Interest");
             
             // Replace ActorName with your actor of choice from your imported actor list in the Lingotion Thespeon Info window.
             // You can also choose your tags such as "quality" or leave it empty for default. Look at the Thespeon Info window for provided tags.
