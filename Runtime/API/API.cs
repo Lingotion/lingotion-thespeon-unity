@@ -14,7 +14,6 @@ using Lingotion.Thespeon.Utils;
 using Lingotion.Thespeon.Filters;
 using Lingotion.Thespeon.FileLoader;
 using Lingotion.Thespeon.ThespeonRunscripts;
-using System.Diagnostics.Tracing;
 
 //using Unity.Android.Gradle.Manifest;
 
@@ -31,7 +30,6 @@ namespace Lingotion.Thespeon.API
         private static Dictionary<string, List<ActorPack>> registeredActorPacks = new Dictionary<string, List<ActorPack>>(); 
         public static  string MAPPINGS_PATH = RuntimeFileLoader.packMappingsPath; 
         private static JObject packMappings = Init();
-        public static bool isRunning = false;
 
         
         private static JObject Init()
@@ -334,16 +332,12 @@ namespace Lingotion.Thespeon.API
         /// Warnings and metadata can be empty or contain information about the synthetization.    
         /// </summary>
         /// <param name="annotatedInput">Model input. See Annotated Input Format Guide for details.</param>
+        /// <param name="dataStreamCallback">An Action callback to receive synthesized data as a stream.</param>
         /// <param name="config">A synthetization instance specific config override.</param>
         /// <returns></returns>
         /// 
-        public static LingotionSynthRequest Synthesize(UserModelInput annotatedInput, PackageConfig config=null)
+        public static LingotionSynthRequest Synthesize(UserModelInput annotatedInput, Action<float[]> dataStreamCallback = null, PackageConfig config=null)
         {
-            if(isRunning){
-                Debug.LogWarning("Already running a model. Please wait for the current model to finish before starting a new one.");
-                return null;
-            }
-
             string synthRequestID = Guid.NewGuid().ToString();
             ThespeonInferenceHandler.SetLocalConfig(synthRequestID, config);
 
@@ -361,7 +355,7 @@ namespace Lingotion.Thespeon.API
             PreloadActorPackModule(packMappings["tagMapping"][annotatedInput.moduleName]["actors"][0].ToString(), JsonConvert.DeserializeObject<ActorTags>(packMappings["tagMapping"][annotatedInput.moduleName]["tags"].ToString())); //if already loaded this will retun immediately. -> OBS we should move ValidateAndWarn() to above this and make it return languages so we can send that into this. On the other side we cannot return of not all languages are loaded.
             if(!ThespeonInferenceHandler.HasAnyLoadedLanguageModules(annotatedInput.moduleName))
             {
-                throw new ArgumentException("No Language Packs on disk, aborting synthesis.");
+                throw new ArgumentException("No suitable Language Packs imported, aborting synthesis.");
             }
             //parse and TPP the annotated input.
 
@@ -393,7 +387,7 @@ namespace Lingotion.Thespeon.API
             ThespeonInferenceHandler.SetSynthInput(synthRequestID, annotatedInput);
 
 
-            return new LingotionSynthRequest(synthRequestID, summaryJObject, errors, warnings, annotatedInput);
+            return new LingotionSynthRequest(synthRequestID, summaryJObject, errors, warnings, annotatedInput, dataStreamCallback);
         }
 
         /// <summary>
@@ -973,7 +967,7 @@ namespace Lingotion.Thespeon.API
     public class LingotionDataPacket<T>
     {
 
-        public string Type { get; private set; }
+        public string Type { get; private set; }            //Make an Enum of this instead of string
         public Dictionary<string, object> Metadata { get; private set; }
         public T[] Data { get; private set; } //or float? depends on if we ever want to return something else.
 
@@ -996,16 +990,15 @@ namespace Lingotion.Thespeon.API
         public List<string> errors { get; private set; }
         public List<string> warnings { get; private set; }
         public UserModelInput usedInput { get; private set; }
-
-        // public ThespeonInferenceHandler handler;
-        public LingotionSynthRequest(string synthRequestID, NestedSummary estimatedQuality, List<string> errors, List<string> warnings, UserModelInput usedInput)
+        public Action<float[]> onDataCallback { get; private set; }
+        public LingotionSynthRequest(string synthRequestID, NestedSummary estimatedQuality, List<string> errors, List<string> warnings, UserModelInput usedInput, Action<float[]> onDataCallback = null) 
         {
             this.synthRequestID = synthRequestID;
             this.estimatedQuality = estimatedQuality;
             this.errors = errors;
             this.warnings = warnings;
             this.usedInput = usedInput;
-            // this.handler = handler;
+            this.onDataCallback = onDataCallback;
         }
 
         public string GetSynthId()

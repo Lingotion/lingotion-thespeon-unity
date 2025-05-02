@@ -3,12 +3,10 @@
 using Lingotion.Thespeon.API;
 using UnityEngine;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System;
 using System.Collections;
 using UnityEngine.Profiling;
 using Lingotion.Thespeon.Utils;
-using System.Linq;
 
 namespace Lingotion.Thespeon.ThespeonRunscripts
 {
@@ -17,23 +15,24 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
     /// </summary>
     public class ThespeonEngine : MonoBehaviour
     {
-        
         public float targetFrameTimeMs{ get; set; } = 0.005f;
-        public Action<float[]> userCallback;
+        public Action<float[]> defaultCallback;
         
-        private ConcurrentQueue<LingotionDataPacket<float>> outputPackets = new ConcurrentQueue<LingotionDataPacket<float>>();
+        private Queue<LingotionDataPacket<float>> outputPackets = new Queue<LingotionDataPacket<float>>();
         public int jitterPacketSize = 1024;
         public int jitterDataLimit = 2;
         public float jitterSecondsWaitTime = 0.5f;
         bool start = false;
         private int currentDataLength = 0;
-        List<float> jitterBuffer = new List<float>();
         List<int>[] customSkipIndices;
         // Assumes first packet has been returned
+        private Queue<LingotionSynthRequest> synthQueue = new Queue<LingotionSynthRequest>();
+        private bool isRunningSynth = false;
+
 
         void Start()
         {
-            List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();       //Switch to returning List<Actor>?
+            List<(string, ActorTags)> availableActors=ThespeonAPI.GetActorsAvailabeOnDisk();
 
             foreach((string, ActorTags) actor in availableActors)
             {
@@ -41,9 +40,18 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 {
                     ThespeonAPI.RegisterActorPacks(actor.Item1);
                 }
-                ThespeonAPI.PreloadActorPackModule(actor.Item1, actor.Item2);           //preloads it all now. Should change for TUNI-28
+                ThespeonAPI.PreloadActorPackModule(actor.Item1, actor.Item2);           //preloads it all now. Should change for TUNI-28 to instead let the user select which modules to load.
             }
 
+        }
+
+        void Update()
+        {
+            if(!isRunningSynth && synthQueue.Count > 0)
+            {
+                LingotionSynthRequest nextRequest = synthQueue.Dequeue();
+                StartCoroutine(RunSynthCoroutine(nextRequest));
+            }
         }
 
         /// <summary>
@@ -79,65 +87,65 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         public LingotionSynthRequest Synthesize(UserModelInput input, Action<float[]> audioStreamCallback = null, PackageConfig config = null)
         {
             if(audioStreamCallback != null)
-                userCallback = audioStreamCallback;
-            LingotionSynthRequest synthRequest = ThespeonAPI.Synthesize(input, config);
+                defaultCallback = audioStreamCallback;
+            LingotionSynthRequest synthRequest = ThespeonAPI.Synthesize(input, defaultCallback, config);
             if(synthRequest == null)
             {
                 return null;
             }
-            StartCoroutine(ThespeonInferenceHandler.RunModelCoroutine(synthRequest.synthRequestID, QueueSynthAudio, customSkipIndices));
+            if(isRunningSynth){
+                synthQueue.Enqueue(synthRequest);
+            } else 
+            {
+                StartCoroutine(RunSynthCoroutine(synthRequest));
+            }
             return synthRequest;
         }
         /// <summary>
         /// Enqueues a finished synthesized audio chunk.
         /// </summary>
         /// <param name="dataPacket"></param>
-        private void QueueSynthAudio(LingotionDataPacket<float> dataPacket)
+        private void QueueSynthAudio(LingotionDataPacket<float> dataPacket, string synthID, Action<float[]> userCallback)
         {
             Profiler.BeginSample("QueueSynth");
+            if(dataPacket.Type == "Error")       //make data type enum in TUNI-123
+            {
+                Debug.LogError("Error in synthesis with ID: " + synthID);
+                isRunningSynth = false;
+            }
             if(dataPacket.Type != "Audio") Debug.LogError("Wrong packet type for audio queue");
             outputPackets.Enqueue(dataPacket);
             
             currentDataLength += dataPacket.Data.Length;
-            if(!start)
-                StartCoroutine(JitterBuffer(userCallback));
+
+            if(currentDataLength >= jitterSecondsWaitTime * 44100)
+            {
+                LingotionDataPacket<float> currentPacket = null;
+                bool receivedLast = false;
+
+                while(outputPackets.TryDequeue(out currentPacket))
+                {
+
+                    userCallback?.Invoke(currentPacket.Data);
+                    receivedLast = (bool) currentPacket.Metadata["finalDataPackage"];
+                }
+                if(receivedLast)
+                {
+                    currentDataLength = 0;
+                }
+            }
+
+
             Profiler.EndSample();
         }
 
-        private IEnumerator JitterBuffer(Action<float[]> userCallback)
+
+        private IEnumerator RunSynthCoroutine(LingotionSynthRequest request)
         {
-
-            LingotionDataPacket<float> currentPacket = null;
-            float[] data = new float[jitterPacketSize];
-            bool receivedLast = false;
-            // Listen for upcoming packets
-            while (true)
-            {
-                
-                // check starting condition
-                if(start || currentDataLength >= jitterSecondsWaitTime * 44100)
-                {
-                    if(!start)
-                    start = true;
-                    if (outputPackets.TryDequeue(out currentPacket))
-                    {
-                        userCallback?.Invoke(currentPacket.Data);
-                        receivedLast = (bool) currentPacket.Metadata["finalDataPackage"];
-                    }
-
-                    // Cancel while loop if current chunk is the last
-                    if(receivedLast)
-                    {
-                        currentDataLength = 0;
-                        break;
-                    }
-
-                }   
-                
-                yield return null;
-            }
-            start = false;
-            currentDataLength = 0;
+            isRunningSynth = true;
+            yield return StartCoroutine(ThespeonInferenceHandler.RunModelCoroutine(request, QueueSynthAudio, customSkipIndices));      
+            isRunningSynth = false;
         }
+
     }
 }

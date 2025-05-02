@@ -4,6 +4,15 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [0.2.2] - 2025-05-02
+## Added
+* Added delete buttons for imported packs.
+## Changed
+* It is now possible to queue synthesize tasks - if a synthetization is underway, any subsequent calls to Synthesize will wait until it is done.
+* User will now be notified properly if an incompatible pack is imported.
+## Fixed
+* Fixed numerous issues related to audio quality.
+
 # [0.2.1] - 2025-04-25
 ## Added
 * The DemoGUI sample scene now offers the ability to copy the generated JSON structure to your system clipboard to paste into your own input_sample.json files.

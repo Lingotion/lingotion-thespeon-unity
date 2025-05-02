@@ -59,14 +59,16 @@ Clicking Import will create a local instance of the Sample directory in your Ass
    - ![Editor Screenshot](./data/editor1.png?raw=true "Editor Screenshot")  
 
 4. Once you have imported your packs, you can view an overview of imported Packs in **"Imported Pack Overview"**. You will find information about your imported Actor and Language Packs under the **"Imported Actors"** and **"Imported Languages"** tabs respectively.
-   - Example showing imported Actor Packs for `"denel.honeyball"` and `"EliasGranhammar"`, and an English language pack (while missing the Swedish language pack):  
+   - Example showing imported Actor Packs for `"EliasGranhammar"` and `"VladyslavSkuibida"` under "Imported Actor Packs" (not visible here, but in the next picture), and an English language pack (while missing the Swedish language pack):  
    - ![Editor Screenshot](./data/editor2.png?raw=true "Editor Screenshot")  
 
 5. Always check if you have imported the necessary language packs for the synth request.  
    - Above example after importing the Swedish language pack:  
    - ![Editor Screenshot](./data/editor3.png?raw=true "Editor Screenshot")  
 
-6. To remove an imported Actor or Language Pack, navigate to your project **StreamingAssets** directory where you will find the **LingotionRuntimeFiles > ActorModules** and **LingotionRuntimeFiles > LanguagePacks** folders. Each of these contains all your imported Actor and Language Packs respectively. When in the correct directory, simply delete the folder of the Pack you wish to remove.
+6. To remove an imported Actor Pack or Language Pack, use the delete buttons as shown below and select the packs you want to delete:
+   - ![Editor Screenshot](./data/editor4.png?raw=true "Editor Screenshot")
+   - You can also do that manually by navigating to your project's **StreamingAssets** directory where you will find the **LingotionRuntimeFiles > ActorModules** and **LingotionRuntimeFiles > LanguagePacks** folders. Each of these contains all your imported Actor and Language Packs respectively. When in the correct directory, simply delete the folder of the Pack you wish to remove.
 
 ---
 

@@ -48,6 +48,11 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         private static Dictionary<string, UserModelInput> synthIDToUserInput = new Dictionary<string, UserModelInput>(); 
         private static Dictionary<string, Config> moduleIdToConfig = new Dictionary<string, Config>();
 
+        private static bool isRunning = false;
+        // If this can be avoided in the future it should be. Right now the functionality of isRunning is in the non static ThespeonEngine - meaning it blocks running several inferences in parallell. 
+        // But if the user so desires they could have several instances of the Engine and run inferences in parallell.
+        // We probably don't want to block that so we should remove this static version which does block. Means having a look at the if(isRunning && runningModules[moduleName] != null ... ) line in the PreloadActorPackModule method and reworking it.
+
 
         private static PackageConfig SetDefaultConfig(){
             return new PackageConfig() {
@@ -326,7 +331,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 }
                 return;
             } 
-            if(ThespeonAPI.isRunning && runningModules[actorPackModuleName] != null && runningModules[actorPackModuleName].Length > 0)
+            if(isRunning && runningModules[actorPackModuleName] != null && runningModules[actorPackModuleName].Length > 0)
             {    
                 Debug.LogWarning($"Cannot unload module {actorPackModuleName} while it is running. Unloading of this module will be skipped.");
                 return;
@@ -389,15 +394,16 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         //     root = JsonConvert.DeserializeObject<Root>(jsonData);
         // }
 #region RunModelCoroutine
-            public static IEnumerator RunModelCoroutine(string synthRequestID, Action<LingotionDataPacket<float>> callback, List<int>[] customSkipIndices = null) {
+        public static IEnumerator RunModelCoroutine(LingotionSynthRequest synthRequest, Action<LingotionDataPacket<float>, string, Action<float[]>> queueDataCallback, List<int>[] customSkipIndices = null) {
         
-            ThespeonAPI.isRunning = true;
+            isRunning = true;
             // Debug.Log($"Trying to add layer {customSkipIndices} to heavylayers");
             yield return null;
             yield return new WaitForEndOfFrame();   
             Profiler.BeginSample("RunModel input");
 
-            UserModelInput input = synthIDToUserInput[synthRequestID];
+            UserModelInput input = synthRequest.usedInput;
+            string synthRequestID = synthRequest.synthRequestID;
 
             (ActorPackModule selectedModule, _ ) = ThespeonAPI.GetActorPackModule(input);
 
@@ -509,7 +515,6 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 var segmentEmotion = segment.emotion ?? input.defaultEmotion;
                 var isCustomPhonemized = segment.isCustomPhonemized;
                 var text = segment.text;
-                // Debug.Log($"Segment: {text} - {lang} - {segmentEmotion} - {isCustomPhonemized}");
                 List<Language> candidateLanguages = selectedModule.language_options.languages;
                 var (closest, distance, _) = LanguageExtensions.FindClosestLanguage(lang, candidateLanguages);
                 var languageKey = closest.languageKey;
@@ -531,9 +536,6 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     alignedEmotionKeys.AddRange(Enumerable.Repeat(emotionKey, segmentLength));
                     alignedLanguageKeys.AddRange(Enumerable.Repeat(languageKey ?? 1, segmentLength));
 
-                    //Debug.Log($"Member Language keys:   "+ string.Join("-",Enumerable.Repeat(languageKey ?? 1, segmentLength)));
-                    //Debug.Log($"Member Emotion keys:  "+ string.Join("-",Enumerable.Repeat(emotionKey, segmentLength)));
-
 
                     var textLength= text.Length;
 
@@ -546,13 +548,6 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     alignedSpeed.AddRange(editedSpeed);
                     alignedLoudness.AddRange(editedLoudness);
 
-
-                    //Make some logs here for speed and loudness and their counts
-                    //Debug.Log($"piece Speed: {string.Join(", ", pieceSpeed)} - {pieceSpeed.Count}");
-                    //Debug.Log($"piece Loudness: {string.Join(", ", pieceLoudness)} - {pieceLoudness.Count}");
-                    //Debug.Log($"edited Speed: {string.Join(", ", editedSpeed)} - {editedSpeed.Count}");
-                    //Debug.Log($"edited Loudness: {string.Join(", ", editedLoudness)} - {editedLoudness.Count}");
-                    //Debug.Log($"number of chars counter: {charsCounter}");
                     charsCounter+=textLength;
 
 
@@ -737,7 +732,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
             
 
-            yield return RunDecoderChunking(encoderOutput, decoderPreprocessOutput, decoder, vocoder, moduleIdToConfig[synthIDToUserInput[synthRequestID].moduleName], synthRequestID, callback);
+            yield return RunDecoderChunking(encoderOutput, decoderPreprocessOutput, decoder, vocoder, moduleIdToConfig[input.moduleName], synthRequestID, queueDataCallback, synthRequest.onDataCallback);
 
             foreach (var t in inputsEncoder){ t.Dispose();}
             inputsEncoder = null;
@@ -779,8 +774,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
 #endregion
 #region Private Helpers 
-        // TODO: Refactor whole function, way too messy and obscure. Investigate easier way of keeping track of inputs/outputs
-        private static IEnumerator RunDecoderChunking(Tensor[] encoderOutputs, Tensor[] decoderPreprocessOutputs, ThespeonDecoder decoder, ThespeonVocoder vocoder, Config config, string synthRequestID, Action<LingotionDataPacket<float>> callback){
+        // TODO: Refactor whole function, way too messy and obscure. Investigate easier way of keeping track of inputs/outputs and the rest. TUNI-45
+        private static IEnumerator RunDecoderChunking(Tensor[] encoderOutputs, Tensor[] decoderPreprocessOutputs, ThespeonDecoder decoder, ThespeonVocoder vocoder, Config config, string synthRequestID, Action<LingotionDataPacket<float>,string,Action<float[]>> queueDataCallback, Action<float[]> userCallback){
+
             int current_chunk_idx = 0;
             int chunk_idx = 0;
 
@@ -819,7 +815,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
                     yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0], encoderOutputs[5]}, vocoderTask, ChunkType.First));
                     outputAudio = vocoderTask.Task.Result;
-                    callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio));
+                    queueDataCallback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio), synthRequestID, userCallback);
 
                 }
                 
@@ -842,7 +838,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     yield return vocoder.Infer(new VocoderInput(new Tensor[]{finalVocoderInput}, vocoderTask, ChunkType.Last));
                     finalVocoderInput.Dispose();
                     outputAudio = vocoderTask.Task.Result;
-                    callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", true}}, outputAudio));
+                    queueDataCallback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", true}}, outputAudio), synthRequestID, userCallback);
                     break;
                     
                 }
@@ -861,7 +857,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                     TaskCompletionSource<float[]> vocoderTask = new TaskCompletionSource<float[]>();
                     yield return vocoder.Infer(new VocoderInput(new Tensor[]{tcs.Task.Result[0]}, vocoderTask, ChunkType.Middle));
                     outputAudio = vocoderTask.Task.Result;
-                    callback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio));
+                    queueDataCallback?.Invoke(new LingotionDataPacket<float>("Audio", new Dictionary<string, object> {{"length", outputAudio.Length}, {"sample rate", 44100}, {"finalDataPackage", false}}, outputAudio), synthRequestID, userCallback);
                 }
                 // Move to the next chunk
                 int chunk_size = config.decoder_chunk_length;
@@ -876,7 +872,9 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             {
                 decoderChunkedInput[i]?.Dispose();
             }
-            ThespeonAPI.isRunning = false;
+            isRunning = false;
+
+            //Signal back for synth complete for cleanup (TUNI-55)from here  
         }
         private static Worker CreatePhonemizerWorker(Model phonemizerModel, Dictionary<string, int> phonemeVocab)
         {

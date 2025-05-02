@@ -382,6 +382,23 @@ namespace Lingotion.Thespeon
                 PackImporterEditor.ImportLanguagePack();
                 PackFoldersWatcher.UpdatePackMappings();
             }
+
+            EditorGUILayout.Space();   // ← visual separator
+
+            EditorGUILayout.Space();   // ← visual separator
+
+            EditorGUILayout.LabelField("Delete Tools", EditorStyles.boldLabel);
+
+
+            if (GUILayout.Button("Delete Actor Pack", GUILayout.Width(200)))
+            {
+                PackImporterEditor.DeleteActorPack();
+            }
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Delete Language Pack", GUILayout.Width(200)))
+            {
+                PackImporterEditor.DeleteLanguagePack();
+            }
         }
 
         /// <summary>
@@ -406,5 +423,9 @@ namespace Lingotion.Thespeon
             Rect rect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight);
             EditorGUI.SelectableLabel(rect, text);
         }
+
+     
     }
+
+
 }

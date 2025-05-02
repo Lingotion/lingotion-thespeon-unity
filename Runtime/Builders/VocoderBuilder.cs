@@ -18,6 +18,7 @@ namespace Lingotion.Thespeon
     {
         // Input folder containing ONNX files
         static int[] upsample_paddings;
+        static int[] upsample_overlaps;
         static int[] resblock_kernel_sizes;
         static int[] upsample_kernel_sizes;
         static int[] upsample_rates;
@@ -64,10 +65,12 @@ namespace Lingotion.Thespeon
 
             upsample_paddings = new int[upsample_kernel_sizes.Length];
             upsample_channels = new int[upsample_kernel_sizes.Length + 1];
+            upsample_overlaps = new int[upsample_kernel_sizes.Length];
 
             for (int i = 0; i < upsample_kernel_sizes.Length; i++)
             {
                 upsample_paddings[i] = (upsample_kernel_sizes[i] - upsample_rates[i]) / 2;
+                upsample_overlaps[i] = (upsample_kernel_sizes[i] - upsample_rates[i]) / upsample_rates[i];
 
                 upsample_channels[i] = (int)(initial_channel / Math.Pow(2, i + 1));
             }
@@ -107,7 +110,7 @@ namespace Lingotion.Thespeon
 
                 //// REST 2: upsample overlap value
                 var lrelu = Functional.LeakyRelu(ups_in, 0.1f);
-                outputs[2 + u] = lrelu[.., .., ^1..];
+                outputs[2 + u] = lrelu[.., .., ^upsample_overlaps[u]..];
 
                 // Upsample input
                 var upsampled = Functional.ForwardWithCopy(inputModels[$"vocoder_upsampler_{u}"], lrelu);
@@ -234,7 +237,7 @@ namespace Lingotion.Thespeon
                     lrelu = Functional.Concat(new[] { inputs[2 + u], lrelu }, 2);
                 }
 
-                outputs[2 + u] = lrelu[.., .., ^1..];
+                outputs[2 + u] = lrelu[.., .., ^upsample_overlaps[u]..];
                 // Upsample input
                 var upsampled = Functional.ForwardWithCopy(inputModels[$"vocoder_upsampler_{u}"], lrelu);
                 FunctionalTensor upsampled_trimmed = null;
@@ -446,9 +449,9 @@ namespace Lingotion.Thespeon
             var final_zero_pad = Functional.Concat(new[] { inputs[86], Functional.Pad(Functional.LeakyRelu(ups_in), pads, 0) }, 2);
 
 
-            var loudness =inputs[87];
+            var loudness = inputs[87];
 
-            var final_outputs= Functional.ForwardWithCopy(inputModels["vocoder_postconv"], new [] {final_zero_pad,loudness } );
+            var final_outputs= Functional.ForwardWithCopy(inputModels["vocoder_postconv"], new [] {final_zero_pad, loudness});
 
             output = final_outputs[0];
 

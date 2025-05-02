@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "displayName": "Lingotion Thespeon",
     "description": "This is the Lingotion Thespeon package. To get started, please see Window > Lingotion > Lingotion Thespeon Info.",
     "unity": "6.0",
@@ -13,7 +13,7 @@
       "com.unity.sentis": "2.1.2"
    },
    "_upm": {
-    "changelog": "## Added\n* The DemoGUI sample scene now offers the ability to copy the generated JSON structure to your system clipboard to paste into your own input_sample.json files.\n## Changed\n* The Thespeon Info Window now has a clearer layout with a scrollbar to more easily view imported Actor and Language Packs.\n* The Documentation has been updated to be easier to follow with more information and improved links.\n## Fixed\nVarious minor Demo GUI Sample bugs are fixed for smoother use."
+    "changelog": "# [0.2.2] - 2025-05-02\n## Added\n* Added delete buttons for imported packs.\n## Changed\n* It is now possible to queue synthesize tasks - if a synthetization is underway, any subsequent calls to Synthesize will wait until it is done.\n* User will now be notified properly if an incompatible pack is imported.\n## Fixed\n* Fixed numerous issues related to audio quality\n"
     },
    "keywords": [
       "AI",

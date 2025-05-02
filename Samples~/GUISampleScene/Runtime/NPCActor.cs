@@ -20,7 +20,7 @@ public class NPCActor : MonoBehaviour
     void Start()
     {
         thespeonEngine = GetComponent<ThespeonEngine>();
-        thespeonEngine.userCallback = OnAudioPacketReceive;
+        thespeonEngine.defaultCallback = OnAudioPacketReceive;
         thespeonEngine.jitterPacketSize = packetSize;
         thespeonEngine.jitterSecondsWaitTime = jitterDataLimit;
         audioData = new List<float>();

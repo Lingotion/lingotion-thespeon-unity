@@ -29,7 +29,6 @@ namespace Lingotion.Thespeon
             string zipPath = EditorUtility.OpenFilePanel("Select Actor Pack Archive", "", "lingotion");
             if (string.IsNullOrEmpty(zipPath))
             {
-                EditorUtility.DisplayDialog("Invalid Archive", "The selected archive is invalid or missing.", "OK");
                 return;
             }
 
@@ -65,6 +64,18 @@ namespace Lingotion.Thespeon
             string finalFolderName = configNameToken.ToString();
             string finalFolderPath = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), finalFolderName);
 
+            if (!config.TryGetValue("platform", out JToken platformTok) || !string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
+            {
+                EditorUtility.DisplayDialog(
+                    "Unsupported Platform",
+                    "This pack was built for another platform and can’t be imported.\n\n" +
+                    "Required:  platform = \"sentis\"",
+                    "OK");
+                Cleanup(tempExtractPath);   // or Cleanup(finalFolderPath) inside ImportLanguagePack
+                return;
+            }
+
+
             if (!config.TryGetValue("type", out JToken configTypeToken))
             {
                 Debug.LogError($"Config file at '{configFilePath}' is missing a 'type' field.");
@@ -72,10 +83,15 @@ namespace Lingotion.Thespeon
                 return;
             }
 
+
             string configType = configTypeToken.ToString();
             if (configType == "LANGUAGEPACK")
             {
-                Debug.LogWarning($"Selected archive \"{zipPath}\" is a Language Pack, not an Actor Pack. Please import it as a Language Pack instead.");
+                EditorUtility.DisplayDialog(
+                    "Wrong Pack Type",
+                    "You selected a *Language* Pack but clicked “Import Actor Pack”.\n" +
+                    "Please use the correct import button.",
+                    "OK");
                 Cleanup(tempExtractPath);
                 return;
             }
@@ -94,6 +110,13 @@ namespace Lingotion.Thespeon
                 return;
             }
 
+            JObject configAsJObject = JObject.FromObject(config);
+            if (!VerifyPackFiles(configAsJObject, tempExtractPath, out string fileError))
+            {
+                EditorUtility.DisplayDialog("Incomplete Actor Pack", fileError, "OK");
+                Cleanup(tempExtractPath);          // wipe the half-import
+                return;
+            }
 
             // If no collision, proceed
             if (Directory.Exists(finalFolderPath))
@@ -134,7 +157,6 @@ namespace Lingotion.Thespeon
             string zipPath = EditorUtility.OpenFilePanel("Select Language Pack Archive", "", "lingotion");
             if (string.IsNullOrEmpty(zipPath))
             {
-                EditorUtility.DisplayDialog("Invalid Archive", "The selected archive is invalid or missing.", "OK");
                 return;
             }
 
@@ -159,6 +181,17 @@ namespace Lingotion.Thespeon
             string configFilePath = configFiles[0];
             var config = ExtractJSONConfig(configFilePath);
 
+            if (!config.TryGetValue("platform", out JToken platformTok) || !string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
+            {
+                EditorUtility.DisplayDialog(
+                    "Unsupported Platform",
+                    "This pack was built for another platform and can’t be imported.\n\n" +
+                    "Required:  platform = \"sentis\"",
+                    "OK");
+                Cleanup(tempExtractPath);   // or Cleanup(finalFolderPath) inside ImportLanguagePack
+                return;
+            }
+
             if (!config.TryGetValue("name", out JToken configNameToken))
             {
                 Debug.LogError($"Config file at '{configFilePath}' is missing a 'name' field.");
@@ -168,6 +201,16 @@ namespace Lingotion.Thespeon
 
             string finalFolderName = configNameToken.ToString();
             string finalFolderPath = Path.Combine(RuntimeFileLoader.GetLanguagePacksPath(), finalFolderName);
+
+
+            JObject configAsJObject = JObject.FromObject(config);
+            if (!VerifyPackFiles(configAsJObject, tempExtractPath, out string fileError))
+            {
+                EditorUtility.DisplayDialog("Incomplete Actor Pack", fileError, "OK");
+                Cleanup(tempExtractPath);          // wipe the half-import
+                return;
+            }
+
 
             if (Directory.Exists(finalFolderPath))
             {
@@ -199,7 +242,11 @@ namespace Lingotion.Thespeon
             string configType = configTypeToken.ToString();
             if (configType == "ACTORPACK")
             {
-                Debug.LogWarning($"Selected archive \"{zipPath}\" is an Actor Pack, not a Language Pack. Please import it as an Actor Pack instead.");
+                EditorUtility.DisplayDialog(
+                    "Wrong Pack Type",
+                    "You selected an *Actor* Pack but clicked “Import Language Pack”.\n" +
+                    "Please use the correct import button.",
+                    "OK");                
                 Cleanup(finalFolderPath);
                 return;
             }
@@ -388,6 +435,11 @@ namespace Lingotion.Thespeon
 			}
 		}
 
+
+        /// <summary>
+        /// Deletes <paramref name="targetPath"/> (folder or file) plus its
+        /// <c>.meta</c> file if present, then refreshes the <see cref="AssetDatabase"/>.
+        /// </summary>
         private static void Cleanup(string targetPath)
         {
             if (Directory.Exists(targetPath))
@@ -401,6 +453,171 @@ namespace Lingotion.Thespeon
             }
             AssetDatabase.Refresh();
         }
+
+        /// <summary>
+        /// Lets the user pick an Actor-Pack folder (limited to the Actor-Packs root)
+        /// and—after confirmation—permanently deletes it together with its meta file.
+        /// Also refreshes the <see cref="AssetDatabase"/> and updates pack mappings.
+        /// </summary>
+        public static void DeleteActorPack()
+        {
+            string root = RuntimeFileLoader.GetActorPacksPath();
+            if (!Directory.Exists(root))
+            {
+                EditorUtility.DisplayDialog("No Actor Packs",
+                    "The actor-packs folder does not exist.", "OK");
+                return;
+            }
+
+            string folder = EditorUtility.OpenFolderPanel(
+                "Select Actor Pack to DELETE", root, "");
+            if (string.IsNullOrEmpty(folder)) return;     // user cancelled
+
+            if (!IsInside(folder, root))
+            {
+                EditorUtility.DisplayDialog("Wrong location",
+                    $"Please pick a folder that lives under:\n{root}", "OK");
+                return;
+            }
+
+            string packName = Path.GetFileName(folder);
+
+            if (!EditorUtility.DisplayDialog(
+                    "Delete Actor Pack?",
+                    $"Are you sure you want to permanently delete “{packName}”?\n\n"
+                + "This cannot be undone without reimport.",
+                    "Delete", "Cancel"))
+                return;
+
+            Cleanup(folder);
+            PackFoldersWatcher.UpdatePackMappings();
+
+            Debug.Log($"Deleted Actor Pack: {packName}");
+        }
+
+
+
+        /// <summary>
+        /// Same workflow as <see cref="DeleteActorPack"/> but for Language Packs.
+        /// </summary>
+        public static void DeleteLanguagePack()
+        {
+            string root = RuntimeFileLoader.GetLanguagePacksPath();
+            if (!Directory.Exists(root))
+            {
+                EditorUtility.DisplayDialog("No Language Packs",
+                    "The language-packs folder does not exist.", "OK");
+                return;
+            }
+
+            string folder = EditorUtility.OpenFolderPanel(
+                "Select Language Pack to DELETE", root, "");
+            if (string.IsNullOrEmpty(folder)) return;     // user cancelled
+
+            // safety-guard: allow only folders that live *inside* the packs root
+            if (!IsInside(folder, root))
+            {
+                EditorUtility.DisplayDialog("Wrong location",
+                    $"Please pick a folder that lives under:\n{root}", "OK");
+                return;
+            }
+
+            string packName = Path.GetFileName(folder);
+
+            if (!EditorUtility.DisplayDialog(
+                    "Delete Language Pack?",
+                    $"Are you sure you want to permanently delete “{packName}”?\n\n"
+                + "This cannot be undone without reimport.",
+                    "Delete", "Cancel"))
+                return;
+
+            Cleanup(folder);
+            PackFoldersWatcher.UpdatePackMappings();
+
+            Debug.Log($"Deleted Language Pack: {packName}");
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="folder"/> is physically located
+        /// inside <paramref name="root"/> (after both paths are normalised and
+        /// slashes unified).
+        /// </summary>
+        private static bool IsInside(string folder, string root)
+        {
+            folder = Path.GetFullPath(folder).Replace('\\', '/');
+            root   = Path.GetFullPath(root  ).Replace('\\', '/')
+                        .TrimEnd('/');                 // no trailing “/”
+
+            return folder.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+
+
+        /// <summary>
+        /// Ensures every <c>files.*.filename</c> entry in the pack config
+        /// was actually extracted to <paramref name="extractRoot"/>.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when all files are found; <c>false</c> otherwise and
+        /// <paramref name="error"/> contains a user-friendly message.
+        /// </returns>
+        private static bool VerifyPackFiles(
+            JObject configRoot,            // parsed config json
+            string  extractRoot,           // temp extraction folder
+            out string error)
+        {
+            error = "";
+
+            // 1) Gather expected filenames from "files" dictionary.
+            if (!(configRoot["files"] is JObject filesObj))
+            {
+            error = "Config has no \"files\" section.";
+            Debug.LogError(error);
+            return false;
+            }
+
+            HashSet<string> expectedNames = new HashSet<string>();
+            foreach (var kv in filesObj.Properties())
+            {
+            string fname = kv.Value?["filename"]?.ToString();
+            if (!string.IsNullOrEmpty(fname))
+            {
+                expectedNames.Add(fname);
+            }
+            }
+
+            if (expectedNames.Count == 0)
+            {
+            error = "\"files\" section contains no filenames.";
+            Debug.LogError(error);
+            return false;
+            }
+
+            // 2) Scan the extracted folder for actual file names (leaf only).
+            HashSet<string> actualNames =
+            Directory.GetFiles(extractRoot, "*", SearchOption.AllDirectories)
+                .Select(Path.GetFileName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+
+
+            // 3) Compute missing.
+            var missing = expectedNames.Where(n => !actualNames.Contains(n)).ToList();
+            if (missing.Count == 0)
+            {
+            return true;
+            }
+
+            // Build readable message (truncate if huge).
+            const int PREVIEW = 10;
+            string preview = string.Join("\n• ", missing.Take(PREVIEW));
+            if (missing.Count > PREVIEW) preview += $"\n… and {missing.Count - PREVIEW} more";
+
+            error = "Error! The pack is unvalid due files missing, contact Lingotion support";
+            Debug.LogError(error);
+            return false;
+        }
+
     }
 
 }
