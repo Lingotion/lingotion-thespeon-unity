@@ -1,15 +1,18 @@
 {
-  "moduleName": "deryn-eng-m01-high-v02",
-  "actorUsername": "Derynoliver",
+  "moduleName": "",
+  "actorUsername": "",
   "defaultLanguage": {
     "iso639_2": "eng",
-    "iso3166_1": "GB",
-    "iso3166_2": "GB-ENG"
+    "iso3166_1": "RU"
   },
   "defaultEmotion": "Interest",
   "segments": [
     {
-      "text": "Hi! This is my voice generated in real time."
+      "text": "Hi! This is my voice generated in real time. "
+    },
+    {
+      "text": "I can even get sad.",
+      "emotion": "Grief"
     }
   ],
   "speed": [
@@ -56,9 +59,49 @@
     1.0,
     1.0,
     1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
     1.0
   ],
   "loudness": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
     1.0,
     1.0,
     1.0,
