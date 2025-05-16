@@ -3,7 +3,18 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
-
+# [0.3.0] - 2025-05-15
+## Added
+* Added a new guide in the documentation for controlling actor speech.
+* Added limit for extremely short inputs.
+* Added new input samples to the GUI Sample.
+## Changed
+* Documentation on how to get started in Unity is now more detailed.
+* API documentation is now more comprehensive.
+## Fixed
+* Fixed a click occurring at the end of audio output.
+* Fixed a missing folders warning on package install.
+* Very short inputs will now output audio correctly.
 # [0.2.2] - 2025-05-02
 ## Added
 * Added delete buttons for imported packs.
@@ -12,7 +23,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * User will now be notified properly if an incompatible pack is imported.
 ## Fixed
 * Fixed numerous issues related to audio quality.
-
 # [0.2.1] - 2025-04-25
 ## Added
 * The DemoGUI sample scene now offers the ability to copy the generated JSON structure to your system clipboard to paste into your own input_sample.json files.

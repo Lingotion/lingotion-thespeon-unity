@@ -1,11 +1,11 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "0.2.2",
+    "version": "0.3.0",
     "displayName": "Lingotion Thespeon",
     "description": "This is the Lingotion Thespeon package. To get started, please see Window > Lingotion > Lingotion Thespeon Info.",
     "unity": "6.0",
     "unityRelease": "0b5",
-    "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/Documentation~/get-started.md",
+    "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/Documentation~/get-started-unity.md",
     "changelogUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/CHANGELOG.md",
     "licensesUrl": "https://lingotion.com/terms-of-service/",
     "dependencies": {
@@ -13,7 +13,7 @@
       "com.unity.sentis": "2.1.2"
    },
    "_upm": {
-    "changelog": "# [0.2.2] - 2025-05-02\n## Added\n* Added delete buttons for imported packs.\n## Changed\n* It is now possible to queue synthesize tasks - if a synthetization is underway, any subsequent calls to Synthesize will wait until it is done.\n* User will now be notified properly if an incompatible pack is imported.\n## Fixed\n* Fixed numerous issues related to audio quality\n"
+    "changelog": "# [0.3.0] - 2025-05-15\n## Added\n* Added a new guide in the documentation for controlling actor speech.\n* Added limit for extremely short inputs.\n* Added new input samples to the GUI Sample.\n## Changed\n* Documentation on how to get started in Unity is now more detailed.\n* API documentation is now more comprehensive.\n## Fixed\n* Fixed a click occurring at the end of audio output.\n* Fixed a missing folders warning on package install.\n* Very short inputs will now output audio correctly."
     },
    "keywords": [
       "AI",

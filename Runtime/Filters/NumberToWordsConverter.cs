@@ -7,6 +7,10 @@ using System.Collections.Generic;
 namespace Lingotion.Thespeon.Filters
 {
 
+
+    /// <summary>
+    /// Converts numbers in a string to their English word representation.
+    /// </summary>
     public class NumberToWordsConverter : INumberToWordsConverter
     {
         private const long MAX_SAFE_INTEGER = 9007199254740991;
@@ -96,7 +100,7 @@ namespace Lingotion.Thespeon.Filters
         ///   - If asOrdinal = true, the spelled-out words are made ordinal ("first", "second", "third", etc.).
         ///   - Supports integers (including large ones) and decimals (e.g., "3.14" -> "three point one four").
         /// </summary>
-        public static string ToWords(string number, bool asOrdinal = false)
+        private static string ToWords(string number, bool asOrdinal = false)
         {
             // Validate numeric input
             if (!decimal.TryParse(number, out decimal numDecimal))
@@ -244,7 +248,7 @@ namespace Lingotion.Thespeon.Filters
         /// <summary>
         /// Converts a spelled-out cardinal word (e.g. "twenty") into its ordinal ("twentieth").
         /// </summary>
-        public static string MakeOrdinal(string words)
+        private static string MakeOrdinal(string words)
         {
             // If the spelled-out word is in our known dictionary for < 13
             if (OrdinalLessThanThirteen.ContainsKey(words))
@@ -265,7 +269,7 @@ namespace Lingotion.Thespeon.Filters
         /// Converts a numeric string to ordinal with a suffix (1 => 1st, 2 => 2nd, 3 => 3rd, etc.).
         /// Unlike MakeOrdinal(), this is for numeric digits directly (e.g. "123" => "123rd").
         /// </summary>
-        public static string ToOrdinal(string number)
+        private static string ToOrdinal(string number)
         {
             if (!long.TryParse(number, out long num))
             {
@@ -308,7 +312,7 @@ namespace Lingotion.Thespeon.Filters
             return absValue <= MAX_SAFE_INTEGER;
         }
 
-        public string InsertSpaceBetweenNumbersAndLetters(string input)
+        private string InsertSpaceBetweenNumbersAndLetters(string input)
         {
             // This pattern uses lookbehind and lookahead to find a boundary:
             //  - (?<=[0-9])(?=[A-Za-z]) means "right after a digit, right before a letter"

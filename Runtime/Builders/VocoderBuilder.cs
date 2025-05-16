@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 using System.Linq;
 using Lingotion.Thespeon.Utils;
 
-namespace Lingotion.Thespeon
+namespace Lingotion.Thespeon.ThespeonRunscripts
 {
 
     public static class VocoderBuilder
@@ -352,10 +352,11 @@ namespace Lingotion.Thespeon
             {
                 inputs[i] = graph.AddInput<float>(target_shape);
             }
-            // output, x_rest, ups_rests, resblk_rests, add_rests, out_rest
+            
             FunctionalTensor output;
+            
             int[] pads = { 0, preconv_padding, 0, 0, 0, 0 };
-            inputs[0] = inputs[0][.., .., ..^3];
+            
             var padded = Functional.Concat(new[] { inputs[1], Functional.Pad(inputs[0], pads, 2) }, 2);
 
             var preconv = Functional.ForwardWithCopy(inputModels["vocoder_preconv"], padded);
@@ -365,7 +366,6 @@ namespace Lingotion.Thespeon
 
             for (int u = 0; u < 4; u++)
             {
-
                 var lrelu = Functional.LeakyRelu(ups_in, 0.1f);
                 // If the transpose convolution has padding, append overlap value
                 if (upsample_paddings[u] != 0)
@@ -400,28 +400,29 @@ namespace Lingotion.Thespeon
 
                         int[] resblk_pad = { 0, pad_1, 0, 0, 0, 0 };
                         var resblk_input_padded = Functional.Concat(new[] { inputs[6 + resblk_index], Functional.Pad(resblk_input, resblk_pad, 0) }, 2);
-
+                        
                         resblk_index++;
 
                         // conv1
                         var c1 = Functional.ForwardWithCopy(inputModels[$"vocoder_ups_{u}_kernel_{k}_dilation_{d}_convs1"], resblk_input_padded)[0];
-
+                        
                         pad_2 = (resblock_kernel_sizes[k] - 1) / 2;
-
+                        resblk_pad[1] = pad_2;
                         var padded_c1 = Functional.Concat(new[] { inputs[6 + resblk_index], Functional.Pad(c1, resblk_pad, 0) }, 2);
 
                         resblk_index++;
 
                         // conv2
                         var c2 = Functional.ForwardWithCopy(inputModels[$"vocoder_ups_{u}_kernel_{k}_dilation_{d}_convs2"], padded_c1)[0];
-                        // Slice off padding portion of input head
+                        
+                        // Slice off rest padding portion of input head
                         int offset = pad_1 - (resblock_kernel_sizes[k] - 1) / 2;
-                        var input_sliced_head = resblk_input_padded[.., .., offset..];
+                        // ^(pad_1) to compensate for the zero-padding
+                        var input_sliced = resblk_input_padded[.., .., offset..^(pad_1)];
 
-                        // Align input to c2, rest handled in next chunk
-                        var input_sliced = input_sliced_head[.., .., ..^(pad_1 - offset)];
+                        // Align input to c2
                         resblk_input = Functional.Clone(c2 + input_sliced);
-
+                        
                     }
 
                     // Save rest amount to align next kernel result
@@ -432,12 +433,10 @@ namespace Lingotion.Thespeon
                     }
                     else
                     {
-
+                        
                         var appended_xs = Functional.Concat(new[] { inputs[78 + u * (resblock_kernel_sizes.Length - 1) + (k - 1)], xs }, 2);
 
-                        xs = resblk_input[.., .., ..^(12 * k)] + appended_xs;
-                        rest_amount = (pad_1 + pad_2) * 2;
-
+                        xs = resblk_input + appended_xs;
                     }
 
                 }
@@ -447,14 +446,11 @@ namespace Lingotion.Thespeon
 
             pads[1] = postconv_padding;
             var final_zero_pad = Functional.Concat(new[] { inputs[86], Functional.Pad(Functional.LeakyRelu(ups_in), pads, 0) }, 2);
-
-
             var loudness = inputs[87];
 
             var final_outputs= Functional.ForwardWithCopy(inputModels["vocoder_postconv"], new [] {final_zero_pad, loudness});
 
             output = final_outputs[0];
-
 
 
             var output_model = graph.Compile(output);

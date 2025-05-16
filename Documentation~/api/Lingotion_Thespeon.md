@@ -1,14 +1,25 @@
 # Lingotion.Thespeon API Documentation
 
-## Class `ActorData`
+> ## Class `PackImporterEditor`
+> ### Methods
+>
+> #### `void DeleteActorPack()`
+>
+> Lets the user pick an Actor-Pack folder (limited to the Actor-Packs root) and—after confirmation—permanently deletes it together with its meta file.
+> #### `void DeleteLanguagePack()`
+>
+> Same workflow as `DeleteActorPack` but for Language Packs.
 
-This is where we produce the entire mapping info. We do NOT change the 'actorpacks' part from your original approach. We only change how we build the 'tagOverview' section so it uses TTS module names as the keys, storing "tags": { ... } or null.
-
-
-## Class `ModuleData`
-
-
-## Class `LanguageData`
-
-
-## Class `LanguageCode`
+> ## Class `StreamingAssetsExtension`
+> ### Methods
+>
+> #### `List<string> GetPathsRecursively(string path, ref List<string> paths)`
+>
+> Recursively traverses each folder under `path` and returns the list of file paths. It will only work in Editor mode.
+>
+> **Parameters:**
+>
+> - `path`: Relative to Application.streamingAssetsPath.
+> - `paths`: List of file path strings.
+>
+> **Returns:** List of file path strings.

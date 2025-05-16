@@ -4,28 +4,50 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System;
+using Lingotion.Thespeon.API;
 
-namespace Lingotion.Thespeon.Utils
+namespace Lingotion.Thespeon.API
 {
+    /// <summary>
+    /// Represents a language with various properties such as ISO codes, glottocode, and custom dialect.
+    /// </summary>
     public class Language
     {
 
+        /// <summary>
+        /// The <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes">ISO 639-2</a> code for the language. This is a required property.
+        /// </summary>
         [JsonProperty("iso639_2", Required = Required.Always)]
         public string iso639_2 { get; set; } = "";
         #nullable enable
 
+        /// <summary>
+        /// The <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-3_codes">ISO 639-3</a> code for the language for more specific identification. This property is currently unused.
+        /// </summary>
         [JsonProperty("iso639_3", NullValueHandling = NullValueHandling.Ignore)]
         public string? iso639_3 { get; set; }
 
+        /// <summary>
+        /// The <a href="https://glottolog.org/glottolog/language">Glottocode</a> for the language, which is a unique high resolution identifier for languages. This property is currently unused.
+        /// </summary>
         [JsonProperty("glottocode", NullValueHandling = NullValueHandling.Ignore)]
         public string? glottoCode { get; set; }
 
+        /// <summary>
+        /// The <a href="https://en.wikipedia.org/wiki/ISO_3166-1#Codes">ISO 3166-1</a> code for the country associated with the language. This property is optional and specifies country based dialects.
+        /// </summary>
         [JsonProperty("iso3166_1", NullValueHandling = NullValueHandling.Ignore)]
         public string? iso3166_1 { get; set; }
 
+        /// <summary>
+        /// The <a href="https://en.wikipedia.org/wiki/ISO_3166-2#Current_codes">ISO 3166-2</a> code for the region associated with the language. This property is optional and specifies region based dialects.
+        /// </summary>
         [JsonProperty("iso3166_2", NullValueHandling = NullValueHandling.Ignore)]
         public string? iso3166_2 { get; set; }
 
+        /// <summary>
+        /// A custom dialect name separate from other standards. This property is currently unused.
+        /// </summary>
         [JsonProperty("customdialect", NullValueHandling = NullValueHandling.Ignore)]
         public string? customDialect { get; set; }
 
@@ -57,10 +79,7 @@ namespace Lingotion.Thespeon.Utils
 
         #nullable enable
 
-        /// <summary>
         /// Retrieves a dictionary representation of the language properties.
-        /// </summary>
-        /// <returns>A dictionary where the keys are property names and values are their corresponding values.</returns>
         public Dictionary<string,string?> GetItems()
         {
             return new Dictionary<string, string?>()
@@ -110,7 +129,6 @@ namespace Lingotion.Thespeon.Utils
         }
         /// <summary>
         /// Determines whether the specified object is equal to the current Language instance.
-        /// Ignores 'languageKey' property in comparisons.
         /// </summary>
         /// <param name="obj">The object to compare with this instance.</param>
         /// <returns>True if the specified object properties are equal to this instance's; otherwise, false.</returns>
@@ -129,8 +147,8 @@ namespace Lingotion.Thespeon.Utils
 
         /// <summary>
         /// Returns a hash code for this instance.
-        /// Ignores 'languageKey' property in hash generation.
         /// </summary>
+        /// <returns>A hash code based on the properties of this instance.</returns>
         public override int GetHashCode()
         {
             return HashCode.Combine(iso639_2, iso639_3, glottoCode, iso3166_1, iso3166_2, customDialect);
@@ -169,25 +187,25 @@ namespace Lingotion.Thespeon.Utils
         }
         #nullable disable
     }
-
+}
+namespace Lingotion.Thespeon.Utils
+{
     public static class LanguageExtensions
     {
-        /// <summary>
-        /// Compares two Language objects in a "hierarchical" manner.
-        /// Certain properties are considered higher-level. If they mismatch, we may add a large penalty or skip the rest.
-        /// Returns the total "distance" plus a list of differences that explain how we arrived there.
-        /// 
-        /// Example logic:
-        /// 1) iso639_2 mismatch => big penalty (50) + short-circuit (stop comparing).
-        /// 2) iso639_3 mismatch => smaller penalty (5), continue.
-        /// 3) glottoCode mismatch => big penalty (15), continue.
-        /// 4) iso3166_1 mismatch => penalty (5), skip iso3166_2.
-        /// 5) iso3166_2 mismatch => penalty (2), if iso3166_1 matched.
-        /// 6) customDialect mismatch => penalty (2).
-        /// 7) languageKey mismatch => penalty (1).
-        /// 
-        /// Customize as you wish.
-        /// </summary>
+        // Compares two Language objects in a "hierarchical" manner.
+        // Certain properties are considered higher-level. If they mismatch, we may add a large penalty or skip the rest.
+        // Returns the total "distance" plus a list of differences that explain how we arrived there.
+        // 
+        // Example logic:
+        // 1) iso639_2 mismatch => big penalty (50) + short-circuit (stop comparing).
+        // 2) iso639_3 mismatch => smaller penalty (5), continue.
+        // 3) glottoCode mismatch => big penalty (15), continue.
+        // 4) iso3166_1 mismatch => penalty (5), skip iso3166_2.
+        // 5) iso3166_2 mismatch => penalty (2), if iso3166_1 matched.
+        // 6) customDialect mismatch => penalty (2).
+        // 7) languageKey mismatch => penalty (1).
+        // 
+        // Customize as you wish.
         public static (int Distance, List<string> Differences) 
             HierarchicalCompareAndComputeDistance(Language lang1, Language lang2)
         {
@@ -269,10 +287,8 @@ namespace Lingotion.Thespeon.Utils
             return (distance, differences);
         }
 
-        /// <summary>
-        /// Iterates over the candidate Languages, uses HierarchicalCompareAndComputeDistance,
-        /// and returns the single closest match plus a user-friendly feedback string.
-        /// </summary>
+        // Iterates over the candidate Languages, uses HierarchicalCompareAndComputeDistance,
+        // and returns the single closest match plus a user-friendly feedback string.
         public static (Language Closest, int Distance, string Feedback) FindClosestLanguage(Language input, IEnumerable<Language> candidates)
         {
             Language bestMatch = null;

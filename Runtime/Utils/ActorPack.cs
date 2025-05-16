@@ -4,11 +4,11 @@ using UnityEngine;
 using System.Collections.Generic;
 using System;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Linq;
 using Newtonsoft.Json.Serialization;
-using JetBrains.Annotations;
 using Newtonsoft.Json.Converters;
+using Lingotion.Thespeon.API;
+
 
 
 namespace Lingotion.Thespeon.Utils
@@ -41,6 +41,7 @@ namespace Lingotion.Thespeon.Utils
         /// <summary>
         /// Retrieves the list of modules in the actor pack
         /// </summary>
+        /// <returns>A list of ActorPackModule objects.</returns>
         public List<ActorPackModule> GetModules() 
         {
             return modules;
@@ -49,6 +50,8 @@ namespace Lingotion.Thespeon.Utils
         /// <summary>
         /// Retrieves the list of LanguageModules in the actor pack or optionally in a specific module.
         /// </summary>
+        /// <param name="moduleName">The name of the module to filter by (optional).</param>
+        /// <returns>A list of PhonemizerModule objects.</returns>
         public List<PhonemizerModule> GetLanguageModules(string moduleName = null)
         {
             List<PhonemizerModule> phonemizerModules = new List<PhonemizerModule>();
@@ -91,7 +94,9 @@ namespace Lingotion.Thespeon.Utils
         /// <summary>
         /// Retrieves a list of all available actors in the ActorPack or optionally all actors in a specific module.
         /// </summary>
-        public List<Actor> GetActors(string moduleName=null)        //QUESTION name or object?  object is large but name only works if it is unique. 
+        /// <param name="moduleName">The name of the module to filter by (optional).</param>
+        /// <returns>A list of Actor objects.</returns>
+        public List<Actor> GetActors(string moduleName=null)
         {
             List<Actor> actors = new List<Actor>();
 
@@ -128,7 +133,9 @@ namespace Lingotion.Thespeon.Utils
         /// <summary>
         /// Retrieves a list of languages for the given actor, or all languages in the ActorPack if no actor is specified.
         /// </summary>
-        public List<Language> GetLanguages(Actor actor = null)      // moduleName=null ska in här också
+        /// <param name="actor">The actor for which to retrieve languages (optional).</param>
+        /// <returns>A list of Language objects.</returns>
+        public List<Language> GetLanguages(Actor actor = null)
         {
             HashSet<Language> languages = new HashSet<Language>();
 
@@ -169,7 +176,10 @@ namespace Lingotion.Thespeon.Utils
         /// If only Language is specified, returns all emotions available for that language.
         /// If both are specified, returns the emotions available for that specific Actor-Language combination.
         /// </summary>
-        public List<Emotion> GetEmotions(Actor actor = null, Language language = null) // moduleName=null ska in här också
+        /// <param name="actor">The actor for which to retrieve emotions (optional).</param>
+        /// <param name="language">The language for which to retrieve emotions (optional).</param>
+        /// <returns>A list of Emotion objects.</returns>
+        public List<Emotion> GetEmotions(Actor actor = null, Language language = null)
         {
             HashSet<Emotion> emotions = new HashSet<Emotion>();
 
@@ -282,12 +292,9 @@ namespace Lingotion.Thespeon.Utils
         }
 
 
-        /// <summary>
         /// Given a Language object, return associated integer language key from LanguageOptions for the closes language match.
         /// Logs an error if the provided Language is null.
-        /// </summary>
         /// <param name="language">The Language object from which to retrieve the language key.</param>
-        /// <returns>An integer representing the language key.</returns>
         public int GetLanguageKey(Language language)
         {
             if (language == null)
@@ -310,12 +317,10 @@ namespace Lingotion.Thespeon.Utils
             return language.languageKey ?? -1; // Provide a default value if null
         }
 
-        /// <summary>
         /// Given an Emotion setname, return its associated integer emotion key from EmotionOptions
         /// Logs an error if the provided Emotion setname is null.
-        /// </summary>
         /// <param name="emotionSetName">The setname of the Emotion object from which to retrieve the emotion key.</param>
-        /// <returns>An integer representing the emotion key.</returns>
+        /// returns An integer representing the emotion key. returns
         public int GetEmotionKey(string emotionSetName)
         {
             if (emotionSetName == null)
@@ -350,19 +355,6 @@ namespace Lingotion.Thespeon.Utils
         [JsonProperty("source_base_name")]
         public string SourceBaseName { get; set; }
     }
-
-    // [Serializable]
-    // public class Version
-    // {
-    //     [JsonProperty("major")]
-    //     public int major { get; set; }
-        
-    //     [JsonProperty("minor")]
-    //     public int minor { get; set; }
-        
-    //     [JsonProperty("patch")]
-    //     public int patch { get; set; }
-    // }
 
     [Serializable]
     public class ActorPackModule
@@ -426,9 +418,7 @@ namespace Lingotion.Thespeon.Utils
             }
         }
 
-        /// <summary>
         /// Retrieves the a dictionary of emotion setnames and their associated emotion keys.
-        /// </summary>
         public Dictionary<string, int> GetEmotionKeyDictionary()
         {
             Dictionary<string, int> emotionKeyDict = new Dictionary<string, int>();
@@ -444,9 +434,9 @@ namespace Lingotion.Thespeon.Utils
             return emotionKeyDict;
         }
 
-        /// <summary>
-        /// Retrieves the a dictionary of language codes and their associated language keys.    
-        /// </summary>
+
+
+
         /* public Dictionary<Language, int> GetLanguageKeyDictionary()
         {
             Dictionary<string, int> languageKeyDict = new Dictionary<string, int>();
@@ -481,57 +471,7 @@ namespace Lingotion.Thespeon.Utils
         }
     }
 
-    public class ActorTags
-    {
-        #nullable enable
-        [JsonProperty("quality")]
-        [JsonConverter(typeof(StringEnumConverter))]
-        public Quality? quality { get; set; }
-        #nullable disable
-        
-        public ActorTags(){} // Default constructor for JSON deserialization
-        public ActorTags(string quality)
-        {
-            if(quality == null)
-            {
-                this.quality = null; // or set to a default value
-                return;
-            }
-            if (Enum.TryParse(typeof(Quality), quality, true, out var parsedQuality))
-            {
-                this.quality = (Quality)parsedQuality;
-            }
-            else
-            {
-                Debug.LogError($"Invalid quality value: {quality}");
-                this.quality = null; // or set to a default value
-            }
-        } 
-        public enum Quality
-        {
-            Ultralow,
-            Low,
-            Mid,
-            High,
-            Ultrahigh
-        }
 
-        public override string ToString()
-        {
-            return $"quality: {quality}";
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is ActorTags tags &&
-                   quality == tags.quality;
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(quality);
-        }
-    }
 
     [Serializable]
     public class ModelOptions
@@ -887,3 +827,4 @@ namespace Lingotion.Thespeon.Utils
 
 
 }
+

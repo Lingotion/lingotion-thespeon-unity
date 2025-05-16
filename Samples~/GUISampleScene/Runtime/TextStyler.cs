@@ -9,7 +9,6 @@ using System.Collections;
 using Lingotion.Thespeon.API;
 using Lingotion.Thespeon.Utils;
 using Newtonsoft.Json;
-using Lingotion.Thespeon.ThespeonRunscripts;
 using Unity.Sentis;
 using UnityEditor;
 using UnityEngine.Profiling; 
@@ -169,6 +168,7 @@ public class TextStyler : MonoBehaviour
                         if(pipeDiffFound)   //mark as ready to move to next segment. Means we are at the leftover of the old segment
                         {
                             string newText = newTextSegments[i];
+                            if (string.IsNullOrWhiteSpace(segments[j].text)) segments[j].text=" ";
                             UserSegment newSegment = new UserSegment(segments[j]);
                             newSegment.text = newText;
                             RemoveDefaultKeys(ref newSegment);
@@ -179,6 +179,7 @@ public class TextStyler : MonoBehaviour
                         else if(currentOldSegmentText != newTextSegments[i])    //Found segment where something was inserted.
                         {
                             string newText = newTextSegments[i];
+                            if (string.IsNullOrWhiteSpace(segments[j].text)) segments[j].text=" ";
                             UserSegment newSegment = new UserSegment(segments[j]);
                             newSegment.text = newText;
                             RemoveDefaultKeys(ref newSegment);
@@ -199,6 +200,7 @@ public class TextStyler : MonoBehaviour
                         if(j >= newTextSegments.Count) break; // Last segment was removed.
                         if(currentOldSegmentText != newTextSegments[j])     //found segments where removal happened
                         {
+                            if (string.IsNullOrWhiteSpace(segments[j].text)) segments[j].text=" ";
                             UserSegment newSegment = new UserSegment(segments[i]);
                             newSegment.text = newTextSegments[j];
                             RemoveDefaultKeys(ref newSegment);
@@ -220,6 +222,7 @@ public class TextStyler : MonoBehaviour
                 {
                     string segmentText = newTextSegments[i];
                     if (string.IsNullOrWhiteSpace(segmentText)) continue;
+                    if (string.IsNullOrWhiteSpace(segments[i].text)) segments[i].text=" ";
                     UserSegment newSegment = new UserSegment(segments[i]);
                     newSegment.text = segmentText;
                     RemoveDefaultKeys(ref newSegment);
@@ -399,7 +402,7 @@ public class TextStyler : MonoBehaviour
         // Sample the curves evenly based on the number of characters
         for (int i = 0; i < charCount; i++)
         {
-            float t = i / (float)(charCount - 1); // Normalized time (0 to 1)
+            float t = charCount!=1 ? i / (float)(charCount - 1):0.5f; // Normalized time (0 to 1)
             double speedValue = curvesToUI.speedCurve.Evaluate(t); 
             if(0f <= speedValue && speedValue < 1f) 
             {
@@ -621,6 +624,59 @@ public class TextStyler : MonoBehaviour
             segment.languageObj=null;
         }
     }
+
+    private void UpdateLanguageSelector(List<ActorPackModule> actorPackModules, string actorName)
+    {
+        ActorPackModule actorPackModule = actorPackModules.Where(module => module.name == modelInput.moduleName).FirstOrDefault();
+        if (actorPackModule == null)
+        {
+            Debug.LogError($"No matching ActorPackModule found for moduleName: {modelInput.moduleName}");
+            return;
+        }
+        List<Language> actorLanguages = actorPackModule.GetActorLanguages(actorPackModule.GetActor(actorName));
+        actorLanguages.ForEach(lang => lang.languageKey=null);
+        List<Language> removedLanguages = new List<Language>();
+        if(languageOptionValues != null)
+        {
+            languageSelectorHandler.SetToDefaultOption();
+            removedLanguages = languageOptionValues.Values.Except(actorLanguages).ToList();
+            languageOptionValues.Clear();
+        }
+        foreach (var lang in removedLanguages)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (segments[i].languageObj!=null && segments[i].languageObj.Equals(lang))
+                {
+                    segments[i].languageObj = null;  //Or new Language()?
+                }
+            }
+        }
+        //Merge equal keys
+        for (int i = segments.Count - 1; i > 0; i--)
+        {
+            string currentText = segments[i].text;
+            string prevText = segments[i - 1].text;
+            bool areEqual = segments[i].EqualsIgnoringText(segments[i - 1]);
+
+            if (areEqual || currentText.All(c => IsWordDelimiter(c)))
+            {
+                segments[i - 1].text += currentText;
+                segments.RemoveAt(i);
+            }
+        }
+
+        if(removedLanguages.Contains(modelInput.defaultLanguage))
+        {
+            modelInput.defaultLanguage = actorLanguages[0];
+        }
+
+        modelInput.segments = segments;
+        inputField.text = string.Join("|", segments.Select(seg => seg.text));
+
+        languageOptionValues = actorLanguages.ToDictionary(language => language.ToDisplay());
+        languageSelectorHandler.SetOptions(languageOptionValues.Keys.ToList());
+    }
     
 
     #endregion
@@ -791,56 +847,18 @@ public class TextStyler : MonoBehaviour
             }
             qualitySelectorHandler.SetOptions(nameAndTags.Where(pair => pair.Item1 == optionText).Select(x => x.Item2.quality.ToString()).ToList());
 
-            //OBS assumes same language accross modules.
-            List<Language> actorLanguages = actorPackModules[0].GetActorLanguages(actorPackModules[0].GetActor(optionText));
-            actorLanguages.ForEach(lang => lang.languageKey=null);
-            List<Language> removedLanguages = new List<Language>();
-            if(languageOptionValues != null)  
-            {
-                languageSelectorHandler.SetToDefaultOption();
-                removedLanguages = languageOptionValues.Values.Except(actorLanguages).ToList();
-                languageOptionValues.Clear();
-            }
-            foreach (var lang in removedLanguages)
-            {
-                for (int i = 0; i < segments.Count; i++)
-                {
-                    if (segments[i].languageObj!=null && segments[i].languageObj.Equals(lang))
-                    {
-                        segments[i].languageObj = null;  //Or new Language()?
-                    }
-                }
-            }
-            //Merge equal keys
-            for (int i = segments.Count - 1; i > 0; i--)
-            {
-                string currentText = segments[i].text;
-                string prevText = segments[i - 1].text;
-                bool areEqual = segments[i].EqualsIgnoringText(segments[i - 1]);
-
-                if (areEqual || currentText.All(c => IsWordDelimiter(c)))
-                {
-                    segments[i - 1].text += currentText;
-                    segments.RemoveAt(i);
-                }
-            }
-
-            if(removedLanguages.Contains((Language) modelInput.defaultLanguage))
-            {
-                modelInput.defaultLanguage = actorLanguages[0];
-            }
-
-            modelInput.segments = segments;
-            inputField.text = string.Join("|", segments.Select(seg => seg.text));
-
-            languageOptionValues = actorLanguages.ToDictionary(language => language.ToDisplay());
-            languageSelectorHandler.SetOptions(languageOptionValues.Keys.ToList());
+            UpdateLanguageSelector(actorPackModules, optionText);
                    
-            UpdateSegmentsFromText();       //bit of a hack to update after this change. Should be done in a better way.
+            UpdateSegmentsFromText();       
             UpdateJsonVisualizer();
         } else if(dropdown.name=="Quality Selector"){
             modelInput.moduleName = ThespeonAPI.GetActorPackModuleName(modelInput.actorUsername, new ActorTags(optionText));
-            UpdateSegmentsFromText();       //bit of a hack to update after this change. Should be done in a better way.
+            List<ActorPackModule> actorPackModules = ThespeonAPI.GetRegisteredActorPacks()
+                .SelectMany(pack => pack.Value) // Access the List<ActorPack> from the KeyValuePair
+                .SelectMany(actorPack => actorPack.modules) // Access the modules of each ActorPack
+                .Where(module => module.name == modelInput.moduleName).ToHashSet().ToList();
+            UpdateLanguageSelector(actorPackModules, modelInput.actorUsername);
+            UpdateSegmentsFromText();       
             UpdateJsonVisualizer();
         }else if(dropdown.name=="Language Selector"){
             Language selectedLanguage = languageOptionValues[optionText];
@@ -954,14 +972,12 @@ public class TextStyler : MonoBehaviour
             string actorName = modelSelectorHandler.GetSelectedOption();
             string qualityTag = qualitySelectorHandler.GetSelectedOption();
             string moduleID="";
-            try{
+            try {
                 moduleID = ThespeonAPI.GetActorPackModuleName(actorName, new ActorTags(qualityTag));
             }
             catch (ArgumentException)
             {
-                Debug.LogWarning($"Module ID {moduleID} not found in registered actor packs. Using first available module and actor.");
-                actorName = ThespeonAPI.GetRegisteredActorPacks().First().Key;
-                moduleID = ThespeonAPI.GetRegisteredActorPacks().First().Value[0].modules[0].name;
+                actorName = actorName != null ? actorName:ThespeonAPI.GetRegisteredActorPacks().First().Key;
             }
             Language lang = modelInput.defaultLanguage;
 
@@ -978,7 +994,6 @@ public class TextStyler : MonoBehaviour
                 moduleID = modelInput.moduleName;
                 if(!actorPackModules.Select(m => m.name).Contains(moduleID)){       
                     module = actorPackModules[0];
-                    Debug.LogWarning($"Module ID {moduleID} not found in registered actor packs. Using first available module and actor.");
                     modelInput.moduleName = module.name;
                     modelInput.actorUsername = module.actor_options.actors[0].username;
                 }else
@@ -990,11 +1005,10 @@ public class TextStyler : MonoBehaviour
             {
                 modelInput.actorUsername = actorName;
 
-                if(moduleID==null)
+                if(moduleID=="")
                 {
                     if(!actorPackModules.Select(m => m.name).Contains(moduleID)){       
-                        module = actorPackModules[0];
-                        Debug.LogWarning($"Module ID {moduleID} not found in registered actor packs. Using first available module and actor.");
+                        module = actorPackModules.Where(m => m.actor_options.actors[0].username == actorName).First();
                         modelInput.moduleName = module.name;
                     }else
                     {

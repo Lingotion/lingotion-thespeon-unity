@@ -30,17 +30,13 @@ namespace Lingotion.Thespeon
         // -----------------------
         //   IN-MEMORY CACHES
         // -----------------------
-        /// <summary>
         /// Detailed Actor info (one entry per actor username):
         ///   - modules, aggregated languages, aggregated tags, etc.
-        /// </summary>
         public static Dictionary<string, ActorData> ActorDataCache 
             = new Dictionary<string, ActorData>();
 
-        /// <summary>
         /// Languages found in the Language Packs only. 
         /// We'll unify nameinenglish from actor data if iso639_2 matches.
-        /// </summary>
         public static List<LanguageData> LanguageDataCache 
             = new List<LanguageData>();
 
@@ -242,12 +238,10 @@ namespace Lingotion.Thespeon
             AssetDatabase.Refresh();
         }
 
-        /// <summary>
         /// This is where we produce the entire mapping info. 
         /// We do NOT change the 'actorpacks' part from your original approach. 
         /// We only change how we build the 'tagOverview' section so it uses 
         /// TTS module names as the keys, storing "tags": { ... } or null.
-        /// </summary>
         private static string UpdatePackMappingsInfo()          //TUNI-87
         {
             // Start fresh by creating a new JObject
@@ -451,7 +445,6 @@ namespace Lingotion.Thespeon
             // 4) Merge nameinenglish from Actor side into LanguageDataCache (iso639_2 match)
             UnifyLanguageNameInEnglish();
 
-            Debug.Log("PackFoldersWatcher: Actor/Language data updated in memory.");
             OnActorDataUpdated?.Invoke();
         }
 
@@ -459,7 +452,7 @@ namespace Lingotion.Thespeon
         {
             if (!Directory.Exists(actorModulesPath))
             {
-                Debug.LogWarning($"Actor modules path not found: {actorModulesPath}");
+                Directory.CreateDirectory(actorModulesPath);
                 return;
             }
 
@@ -582,7 +575,7 @@ namespace Lingotion.Thespeon
         {
             if (!Directory.Exists(languagePacksPath))
             {
-                Debug.LogWarning($"Language packs path not found: {languagePacksPath}");
+                Directory.CreateDirectory(languagePacksPath);
                 return;
             }
 

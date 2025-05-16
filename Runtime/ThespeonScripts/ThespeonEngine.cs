@@ -1,14 +1,13 @@
 // This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service found at www.lingotion.com.
 
-using Lingotion.Thespeon.API;
 using UnityEngine;
 using System.Collections.Generic;
 using System;
 using System.Collections;
 using UnityEngine.Profiling;
-using Lingotion.Thespeon.Utils;
+using Lingotion.Thespeon.ThespeonRunscripts;
 
-namespace Lingotion.Thespeon.ThespeonRunscripts
+namespace Lingotion.Thespeon.API
 {
     /// <summary>
     /// ThespeonEngine is the main game component for interfacing with the Thespeon API from your scene. It is responsible for loading and managing actors and modules, and for running inference jobs.
@@ -19,10 +18,8 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         public Action<float[]> defaultCallback;
         
         private Queue<LingotionDataPacket<float>> outputPackets = new Queue<LingotionDataPacket<float>>();
-        public int jitterPacketSize = 1024;
-        public int jitterDataLimit = 2;
-        public float jitterSecondsWaitTime = 0.5f;
-        bool start = false;
+
+        public float jitterSecondsWaitTime;
         private int currentDataLength = 0;
         List<int>[] customSkipIndices;
         // Assumes first packet has been returned
@@ -117,8 +114,8 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             outputPackets.Enqueue(dataPacket);
             
             currentDataLength += dataPacket.Data.Length;
-
-            if(currentDataLength >= jitterSecondsWaitTime * 44100)
+            bool isFinished = (bool) dataPacket.Metadata["finalDataPackage"];
+            if (isFinished || currentDataLength >= jitterSecondsWaitTime * 44100)
             {
                 LingotionDataPacket<float> currentPacket = null;
                 bool receivedLast = false;

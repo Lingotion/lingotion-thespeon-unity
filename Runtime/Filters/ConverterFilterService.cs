@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.IO;
-using Lingotion.Thespeon.Utils;
+using Lingotion.Thespeon.API;
 
 
 namespace Lingotion.Thespeon.Filters

@@ -3,8 +3,17 @@
 // Assets/Converters/IAbbrevationToWordsConverter.cs
 namespace Lingotion.Thespeon.Filters
 {
+    /// <summary>
+    /// Interface for converting abbreviations to words.
+    /// </summary>
+    /// <remarks>
+    /// This interface is used to convert abbreviations in a text to their full word forms. It is typically used in conjunction with the Thespeon API to ensure that the input text is properly formatted for synthesis.
+    /// </remarks>
     public interface IAbbrevationToWordsConverter
     {
+        /// <summary>
+        /// Converts abbreviations in the given text to their full word forms.
+        /// </summary>
         (string, string) ConvertAbbreviations(string text);
     }
 }

@@ -5,37 +5,57 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
-using Lingotion.Thespeon.API;
 using System.Text;
 using System.Reflection;
-using System.Diagnostics;
+using Lingotion.Thespeon.Utils;
+using Lingotion.Thespeon.API;
 
-namespace Lingotion.Thespeon.Utils
+namespace Lingotion.Thespeon.API
 {   
+    /// <summary>
+    /// A class representing the users input data for a model in the Thespeon API. It includes properties for module name, actor username, default language, default emotion, segments, speed and loudness.
+    /// The class is deserializable from JSON using Newtonsoft.Json as follows:
+    ///     UserModelInput modelInput = JsonConvert.DeserializeObject<UserModelInput>(myJsonString);
+    /// </summary>
     public class UserModelInput
     {
+        /// <summary>
+        /// The name of the module to be used for inference. This is a required property but can be selected with actorUsername and ActorTags using the class constructors.
+        /// </summary>
         [JsonProperty("moduleName", Required = Required.Always)]
         public string moduleName { get; set; }
+        /// <summary>
+        /// The username of the actor associated with this input. This is a required property and must match a valid option (case sensitive).
+        /// </summary>
         [JsonProperty("actorUsername", Required = Required.Always)]
         public string actorUsername { get; set; } = "";
         #nullable enable
+        /// <summary>
+        /// The default language to be used across segments. This is an optional, nullable property.
+        /// </summary>
         [JsonProperty("defaultLanguage", NullValueHandling = NullValueHandling.Ignore)]
         public Language? defaultLanguage { get; set; }
-
+        /// <summary>
+        /// The default emotion to be used across segments. This is an optional, nullable property.
+        /// </summary>
         [JsonProperty("defaultEmotion", NullValueHandling = NullValueHandling.Ignore)]
         public string? defaultEmotion { get; set; }
         #nullable disable    
+        /// <summary>
+        /// A list of UserSegment objects representing the text segments with local parameters to be synthesized. This is a required property.
+        /// </summary>
         [JsonProperty("segments", Required = Required.Always)]
         public List<UserSegment> segments { get; set; } = new();
-
+        /// <summary>
+        /// A list of speed multipliers for the segments. Default value is 1 meaning no change whereas 2 means double speed. This is an optional property of arbitrary length.
+        /// </summary>
         [JsonProperty("speed", NullValueHandling = NullValueHandling.Ignore)]
         public List<double> speed { get; set; }
-
+        /// <summary>
+        /// A list of loudness multipliers for the segments. Default value is 1 meaning no change whereas 2 means double loudness. This is an optional property of arbitrary length.
+        /// </summary>
         [JsonProperty("loudness", NullValueHandling = NullValueHandling.Ignore)]
         public List<double> loudness { get; set; }
-
-
-
 
         // --- Add this property for unknown/extra fields ---
         #nullable enable
@@ -56,7 +76,7 @@ namespace Lingotion.Thespeon.Utils
 
 
         /// <summary>
-        /// Initializes a new instance of the UserModelInput class with specified actor name, match actor module with specified tags, and text segments. Will initialize moduleName defaultLanguage to the first module and language from the actor's available modules.
+        /// Initializes a new instance of the UserModelInput class with specified actor name, tags, and text segments. 
         /// </summary>
         /// <param name="actorName">The username of the actor associated with this input.</param>
         /// <param name="actorModuleTag">The tags of the actor module to be used, comes in a key-value pair dictionary.</param>
@@ -80,7 +100,7 @@ namespace Lingotion.Thespeon.Utils
 
 
         /// <summary>
-        /// Initializes a new instance of the UserModelInput class with specified actor name and text segments. Will initialize moduleName defaultLanguage to the first module and language from the actor's available modules.
+        /// Initializes a new instance of the UserModelInput class with specified actor name and text segments. 
         /// </summary>
         /// <param name="actorName">The username of the actor associated with this input.</param>
         /// <param name="textSegments">A list of user segments defining the input text data.</param>
@@ -90,7 +110,6 @@ namespace Lingotion.Thespeon.Utils
             List<ActorPackModule> actorModules = ThespeonAPI.GetModulesWithActor(actorName);
             // TODO: Replace with tag of highest quality
             moduleName = actorModules[0].name;
-            defaultLanguage = actorModules[0].language_options.languages[0];
             
             this.segments = textSegments;
         }
@@ -117,8 +136,18 @@ namespace Lingotion.Thespeon.Utils
                 defaultLanguage = new Language(other.defaultLanguage);
             }
             defaultEmotion = other.defaultEmotion;
-            speed = new List<double>(other.speed);
-            loudness = new List<double>(other.loudness);
+            if(other.speed == null || other.speed.Count == 0)
+            {
+                speed = null;
+            } else {
+                speed = new List<double>(other.speed);
+            }
+            if(other.loudness == null || other.loudness.Count == 0)
+            {
+                loudness = null;
+            } else {
+                loudness = new List<double>(other.loudness);
+            }
             segments = new List<UserSegment>(other.segments.Select(segment => new UserSegment(segment)));
             extraData = other.extraData;    //reference copy for now. Revisit for TUNI-110
         }
@@ -167,14 +196,14 @@ namespace Lingotion.Thespeon.Utils
 
             if (string.IsNullOrEmpty(defaultEmotion))
             {
-                warnings.Add("DefaultEmotion => Optional field is missing; the fallback Emotion will be used instead.");
+                warnings.Add("DefaultEmotion => Optional property is missing; the fallback Emotion will be used instead.");
             } else if(module !=null && module.emotion_options.emotions.FindIndex(emotion => emotion.emotionsetname == defaultEmotion) == -1)
             {
                 warnings.Add($"The 'defaultEmotion' {defaultEmotion} does not match any emotions for the module {moduleName}. The fallback Emotion will be used instead. \nHere are the available emotions for {moduleName}:\n{string.Join(", ", module.emotion_options.emotions.Select(emotion => emotion.emotionsetname))}");
             }
             if (defaultLanguage == null)
             {
-                warnings.Add("DefaultLanguage => Optional field is missing; using fallback.");
+                warnings.Add("DefaultLanguage => Optional property is missing; using fallback.");
             } else if(module !=null && module.language_options.languages.FindIndex(language => language.Equals(defaultLanguage)) == -1)
             {
                 warnings.Add($"The 'defaultLanguage' {defaultLanguage} does not match any languages for the module {moduleName}. The fallback Language will be used instead. \nHere are the available languages for {moduleName}:\n{string.Join(", ", module.language_options.languages)}");
@@ -185,6 +214,11 @@ namespace Lingotion.Thespeon.Utils
                 warnings.Add("Speed => No speed values provided; default speed will apply.");
             } else 
             {
+                //check if any value is NaN or Infinity
+                if(speed.Any(val => double.IsNaN(val) || double.IsInfinity(val)))
+                {
+                    warnings.Add("Speed => Some Speed multiplier(s) is NaN or Infinity and will be set to 1.");
+                }
                 if(speed.Any(val => val <=0.1))         //HARD LIMIT SET TO 0.1, This is then enforced ThespeonInferenceHandler.RunModelCoroutine
                 {
                     warnings.Add("Speed => Some Speed multiplier(s) is less than or equal to 0.1 and will be clamped to 0.1.");
@@ -201,6 +235,10 @@ namespace Lingotion.Thespeon.Utils
                 warnings.Add("Loudness => No loudness values provided; default loudness will apply.");
             } else 
             {
+                if(loudness.Any(val => double.IsNaN(val) || double.IsInfinity(val)))
+                {
+                    warnings.Add("Loudness => Some Loudness multiplier(s) is NaN or Infinity and will be set to 1.");
+                }
                 if(loudness.Any(val => val <=0))         //HARD LIMIT SET TO 0 (inclusive), This is then enforced ThespeonInferenceHandler.RunModelCoroutine
                 {
                     warnings.Add("Loudness => Some Loudness multiplier(s) is less than or equal to 0 and will be clamped to 0.");
@@ -349,26 +387,40 @@ namespace Lingotion.Thespeon.Utils
 
 
     /// <summary>
-    /// A user-facing segment with only text-based fields.
+    /// A class representing a text segment of UserModelInput. Is annotated with a single language, emotion and/or flagged as custom phonemized.
     /// </summary>
     public class UserSegment
     {
         #nullable enable
+        /// <summary>
+        /// The text content of the segment. This is a required property and cannot be empty.
+        /// </summary>
         [JsonProperty("text", Required = Required.Always)]
         public string text { get; set; }
-
+        /// <summary>
+        /// The language of the segment. This is an optional, nullable property.
+        /// </summary>
         [JsonProperty("language", NullValueHandling = NullValueHandling.Ignore)]
         public Language? languageObj { get; set; }
-
+        /// <summary>
+        /// The emotion of the segment. This is an optional, nullable property.
+        /// </summary>
         [JsonProperty("emotion", NullValueHandling = NullValueHandling.Ignore)]
         public string? emotion { get; set; }
-
+        /// <summary>
+        /// The style of the segment. This is an optional, nullable property and is currently unused.
+        /// </summary>
+        /// <remarks> Not supported yet.</remarks>
         [JsonProperty("style", NullValueHandling = NullValueHandling.Ignore)]
         public string? style { get; set; }
-
+        /// <summary>
+        /// Specifies whether the entire text in the segment is pre-phonemized. This is an optional, nullable property.
+        /// </summary>
         [JsonProperty("IsCustomPhonemized", NullValueHandling = NullValueHandling.Ignore)]
         public bool? isCustomPhonemized { get; set; }
-
+        /// <summary>
+        /// A dictionary capturing additional heteronym descriptions. This is an optional, nullable property and is currently unused.
+        /// </summary>
         [JsonProperty("heteronymDescription", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> heteronymDescription { get; set; }
 
@@ -444,9 +496,7 @@ namespace Lingotion.Thespeon.Utils
         /// </summary>
         /// <param name="module">An optional module that provides validation rules for emotions and languages.</param>
         /// <returns>A tuple containing a list of errors and a list of warnings.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown if the 'text' property is empty or null.
-        /// </exception>
+        /// <exception cref="InvalidOperationException"> Thrown if the 'text' property is empty or null. </exception>
         public (List<string> errors, List<string> warnings) ValidateUserSegment(ActorPackModule module = null)
         {
 
@@ -460,7 +510,7 @@ namespace Lingotion.Thespeon.Utils
                 throw new InvalidOperationException("Text cannot be empty.");
             }
             if(!string.IsNullOrEmpty(style)){
-                warnings.Add("Style => The Style field is currently not supported by the Thespeon Engine and will be ignored.");
+                warnings.Add("Style => The Style property is currently not supported by the Thespeon Engine and will be ignored.");
             }
             if(module!=null){
                 if(!string.IsNullOrEmpty(emotion)){
@@ -544,6 +594,9 @@ namespace Lingotion.Thespeon.Utils
         }
 
     }
+}
+namespace Lingotion.Thespeon.Utils
+{
     public class Version
     {
         [JsonProperty("major")] public int major { get; set; }

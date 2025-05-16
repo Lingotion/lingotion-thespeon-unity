@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Lingotion.Thespeon.API;
 using Unity.Sentis;
 using UnityEngine;
 using UnityEngine.Profiling;

@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 
 namespace Lingotion.Thespeon.Filters 
 {
+    /// <summary>
+    /// Converts numbers in a string to their Swedish word representation.
+    /// </summary>
     public class NumberToWordsSwedish : INumberToWordsConverter
     {
         private const long MAX_SAFE_INTEGER = 9007199254740991;
@@ -63,7 +66,7 @@ namespace Lingotion.Thespeon.Filters
 
         /// <summary>
         /// Replaces all integers in the string with their spelled-out Swedish form.
-        /// Example: "Vi har 1 katt och 1000 hundar." => "Vi har ett katt och ett tusen hundar."
+        /// Example: "Vi har 1 katt och 1000 hundar." => "Vi har en katt och ett tusen hundar."
         /// </summary>
         public string ConvertNumbers(string input)
         {
@@ -91,7 +94,7 @@ namespace Lingotion.Thespeon.Filters
         /// Converts an integer string to Swedish words, e.g., "1000" => "ett tusen", "19" => "nitton".
         /// Throws if not "safe" or not parseable.
         /// </summary>
-        public static string ToWords(string number)
+        private static string ToWords(string number)
         {
             if (!long.TryParse(number, out long num))
             {
@@ -161,7 +164,7 @@ namespace Lingotion.Thespeon.Filters
             return Math.Abs(value) <= MAX_SAFE_INTEGER;
         }
 
-        public string InsertSpaceBetweenNumbersAndLetters(string input)
+        private string InsertSpaceBetweenNumbersAndLetters(string input)
         {
             // This pattern uses lookbehind and lookahead to find a boundary:
             //  - (?<=[0-9])(?=[A-Za-z]) means "right after a digit, right before a letter"

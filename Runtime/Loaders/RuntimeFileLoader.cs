@@ -46,6 +46,10 @@ namespace Lingotion.Thespeon.FileLoader
             return relative ? Path.Combine(RUNTIME_FILES, "LanguagePacks") : GetPackagePath("LanguagePacks");
         }
         
+        public static string GetInputSamplesPath(bool relative = false)
+        {
+            return relative ? Path.Combine(RUNTIME_FILES, "ModelInputSamples") : GetPackagePath("ModelInputSamples");
+        }
 
         private static Dictionary<string, JToken> ExtractJSON(string jsonpath)
         {

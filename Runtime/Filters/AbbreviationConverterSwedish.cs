@@ -7,6 +7,9 @@ using System.Text.RegularExpressions;
 
 namespace Lingotion.Thespeon.Filters
 {
+    /// <summary>
+    /// This class is used to convert abbreviations in Swedish text to their full forms.
+    /// </summary>
     public class AbbreviationConverterSwedish : IAbbrevationToWordsConverter 
     {
         private static readonly Dictionary<string, string> abbreviationsAllowedToStart = new()
@@ -98,7 +101,7 @@ namespace Lingotion.Thespeon.Filters
         };
 
         /// <summary>
-        /// Simple one-parameter version if you DON'T need the log.
+        /// Process input text to convert abbreviations to text based on lookup table (naive but useful), one-parameter version if you DON'T need the feedback log.
         /// </summary>
         public string ConvertAbbreviationsOriginal(string text)
         {
@@ -112,10 +115,9 @@ namespace Lingotion.Thespeon.Filters
 
         /// <summary>
         /// Tuple-returning version: returns (convertedText, changesLog).
-        /// Instead of counting how many times each abbreviation was replaced,
-        /// we record each abbreviation + its translation in a dictionary.
+        /// We record each occurred abbreviation + its translation in a dictionary.
         /// </summary>
-        public (string , string ) ConvertAbbreviations(string text)
+        public (string, string) ConvertAbbreviations(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return (text, "No text given.");

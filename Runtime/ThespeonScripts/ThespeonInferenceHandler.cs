@@ -23,6 +23,9 @@ using Lingotion.Thespeon.FileLoader;
 
 namespace Lingotion.Thespeon.ThespeonRunscripts
 {
+    /// <summary>
+    /// The ThespeonInferenceHandler class is responsible for managing the inference process of the Thespeon API. It handles the loading and unloading of models, as well as the execution of inference jobs.
+    /// </summary>
     public static class ThespeonInferenceHandler
     {
         #if UNITY_ANDROID                           //this BackendType should be CONFIGURABLE. 
@@ -45,7 +48,6 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         
         private static PackageConfig globalConfig = SetDefaultConfig();
         private static Dictionary<string, PackageConfig> localConfigs = new Dictionary<string, PackageConfig>();
-        private static Dictionary<string, UserModelInput> synthIDToUserInput = new Dictionary<string, UserModelInput>(); 
         private static Dictionary<string, Config> moduleIdToConfig = new Dictionary<string, Config>();
 
         private static bool isRunning = false;
@@ -64,7 +66,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         /// <summary>
         /// Sets the global configuration for the package by overriding all properties in the existing global config which are not null in configOverride.
         /// </summary>
-        /// <param name="config"></param>
+        /// <param name="configOverride"></param>
         public static void SetGlobalConfig(PackageConfig configOverride)
         {
             globalConfig = globalConfig.SetConfig(configOverride);
@@ -109,23 +111,6 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             }
         }
         
-        /// <summary>
-        /// Associates a synthRequestID with a UserModelInput object.
-        /// </summary>
-        /// <param name="synthRequestID">The ID of the synth request</param>
-        /// <param name="annotatedInput">The UserModelInput object to associate with the synthRequestID</param>
-        public static void SetSynthInput(string synthRequestId, UserModelInput annotatedInput)
-        {
-            if (synthIDToUserInput.ContainsKey(synthRequestId))
-            {
-                Debug.LogWarning($"Input for SynthRequestID {synthRequestId} already exists. Overwriting.");
-                synthIDToUserInput[synthRequestId] = annotatedInput;
-            }
-            else
-            {
-                synthIDToUserInput.Add(synthRequestId, annotatedInput);
-            }
-        }
         static ThespeonInferenceHandler()
         {
             Application.quitting += Cleanup;
@@ -196,7 +181,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(fileName));
                 vocoderParts.Add(key, model);
             }
-            Lingotion.Thespeon.VocoderBuilder.SerializeVocoder(vocoderParts, ref encoderModels, module.config);
+            VocoderBuilder.SerializeVocoder(vocoderParts, ref encoderModels, module.config);
             if(moduleIdToConfig.ContainsKey(module.name)) moduleIdToConfig[module.name] = module.config;
             else moduleIdToConfig.Add(module.name, module.config);
 
@@ -421,6 +406,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             // clamp speed to always be larger than 0.1
             for(int i = 0; i < input.speed.Count; i++)
             {
+                if(double.IsNaN(input.speed[i]) || double.IsInfinity(input.speed[i])) input.speed[i] = 1.0;
                 input.speed[i] = Math.Max(0.1, input.speed[i]);
             }
             input.speed = ResampleListAdvanced(input.speed, inputTextLength );
@@ -428,6 +414,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             //clamp loudness to always be non-negative
             for(int i = 0; i < input.loudness.Count; i++)
             {
+                if(double.IsNaN(input.loudness[i]) || double.IsInfinity(input.loudness[i])) input.loudness[i] = 1.0;
                 input.loudness[i] = Math.Max(0, input.loudness[i]);
             }
             input.loudness = ResampleListAdvanced(input.loudness, inputTextLength);
@@ -686,7 +673,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
 
 
 
-            var (encoder, decoder, vocoder) = BuildModels(synthRequestID); 
+            var (encoder, decoder, vocoder) = BuildModels(synthRequestID, synthRequest.usedInput.moduleName); 
 
             if(customSkipIndices != null)
             {
@@ -807,6 +794,11 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 
                 if (current_chunk_idx == 0)
                 {
+                    if(chunk_idx == nbr_of_chunks - 1)
+                    {
+                        Debug.LogError("A synthesis this short is not supported yet. Please use longer input text or lower speed.");
+                        break;
+                    }
                     TaskCompletionSource<Tensor<float>[]> tcs = new TaskCompletionSource<Tensor<float>[]>();
                     yield return decoder.Infer(new DecoderInput(decoderChunkedInput, tcs));
                     decoderChunkedInput[7]?.Dispose();
@@ -954,6 +946,13 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             var defaultLanguageIso = modelInput.defaultLanguage;
             foreach (var segment in modelInput.segments)
             {
+
+                // if segment is phonemized, skip
+                if (segment.isCustomPhonemized ?? false)
+                {
+                    continue;
+                }
+
                 // Determine which language to use for this segment
                 var segmentLanguageIso = segment.languageObj ?? defaultLanguageIso;
 
@@ -1072,6 +1071,11 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 {
                     encoded.Add(symbolToID[token.ToString()]);
                 }
+                else if (token == '\"')
+                {
+                    // If the token is a quotation mark, do not encode it and do not warn the user to avoid unnecessary logs.  
+                    // Quotation marks do not affect prosody anyway!
+                }
                 else
                 {
                     Debug.LogWarning($"Delimiter '{token}' is not valid symbol in model. Ignoring.");
@@ -1097,18 +1101,17 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             return encoded;
         }
 
-        private static (ThespeonEncoder, ThespeonDecoder, ThespeonVocoder) BuildModels(string synthRequestID)
+        private static (ThespeonEncoder, ThespeonDecoder, ThespeonVocoder) BuildModels(string synthRequestID, string moduleID)
         {
             PackageConfig localPackageConfig = localConfigs[synthRequestID];
             //Due to global config having default values, no element in it should ever be null except if someone tampered with the code.
             if(!localPackageConfig.targetFrameTime.HasValue || !localPackageConfig.useAdaptiveFrameBreakScheduling.HasValue || !localPackageConfig.overshootMargin.HasValue) Debug.LogError($"Local config entries for synth {synthRequestID} are null.");
         
 
-            string moduleId = synthIDToUserInput[synthRequestID].moduleName;
             // Find previous Inference step objects
-            if(runningModules.ContainsKey(moduleId) && runningModules[moduleId][0].GetFirstWorkerHash() == preloadedSynthWorkers[(moduleId, "encoder")].GetHashCode()) 
+            if(runningModules.ContainsKey(moduleID) && runningModules[moduleID][0].GetFirstWorkerHash() == preloadedSynthWorkers[(moduleID, "encoder")].GetHashCode())
             {
-                var stepsObjects = runningModules[moduleId];
+                var stepsObjects = runningModules[moduleID];
                 foreach (var step in stepsObjects)
                 {
                     step.ApplyConfigChange(localPackageConfig);                                                                             //This will need revision once Backend is added to the config. See TUNI-75.
@@ -1121,23 +1124,23 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
                 );
             }
             // Debug.Log("TARGET FRAME TIME: "+targetFrameTime);
-            Worker encoderWorker = preloadedSynthWorkers[(moduleId, "encoder")];
+            Worker encoderWorker = preloadedSynthWorkers[(moduleID, "encoder")];
 
             ThespeonEncoder encoder = new ThespeonEncoder(encoderWorker, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, localPackageConfig.overshootMargin.Value);   
 
             
 
             Worker[] decoderWorkers = new Worker[3];
-            decoderWorkers[0] = preloadedSynthWorkers[(moduleId, "decoder_preprocess")];
-            decoderWorkers[1] = preloadedSynthWorkers[(moduleId, "decoder_chunked")];
-            decoderWorkers[2] = preloadedSynthWorkers[(moduleId, "decoder_postprocess")];
+            decoderWorkers[0] = preloadedSynthWorkers[(moduleID, "decoder_preprocess")];
+            decoderWorkers[1] = preloadedSynthWorkers[(moduleID, "decoder_chunked")];
+            decoderWorkers[2] = preloadedSynthWorkers[(moduleID, "decoder_postprocess")];
             ThespeonDecoder decoder = new ThespeonDecoder(decoderWorkers, localPackageConfig.targetFrameTime.Value, localPackageConfig.useAdaptiveFrameBreakScheduling.Value, localPackageConfig.overshootMargin.Value); //Take true from localConfigs[synthRequestID].useAdaptiveScheduling
 
             Worker[] vocoderWorkers = new Worker[3];
-            vocoderWorkers[0] = preloadedSynthWorkers[(moduleId, "vocoder_first_chunk")];
-            vocoderWorkers[1] = preloadedSynthWorkers[(moduleId, "vocoder_middle_chunk")];
-            vocoderWorkers[2] = preloadedSynthWorkers[(moduleId, "vocoder_last_chunk")];
-            Config config = moduleIdToConfig[synthIDToUserInput[synthRequestID].moduleName];
+            vocoderWorkers[0] = preloadedSynthWorkers[(moduleID, "vocoder_first_chunk")];
+            vocoderWorkers[1] = preloadedSynthWorkers[(moduleID, "vocoder_middle_chunk")];
+            vocoderWorkers[2] = preloadedSynthWorkers[(moduleID, "vocoder_last_chunk")];
+            Config config = moduleIdToConfig[moduleID];
 
             int resblock_dilations = config.resblock_dilation_sizes.Count;
             int kernel_sizes = config.resblock_kernel_sizes.Count;
@@ -1153,13 +1156,13 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             models[0] = encoder;
             models[1] = decoder;
             models[2] = vocoder;
-            if (runningModules.ContainsKey(moduleId))
+            if (runningModules.ContainsKey(moduleID))
             {
-                runningModules[moduleId] = models;
+                runningModules[moduleID] = models;
             }
             else
             {
-                runningModules.Add(moduleId, models);
+                runningModules.Add(moduleID, models);
             }
             return (encoder, decoder, vocoder);
         }
@@ -1292,10 +1295,8 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
             public int Count;   // number of intervals (n - 1)
         }
 
-        /// <summary>
         /// Main method to resample a list of y-values to newSize using a Natural Cubic Spline.
         /// If newSize == originalValues.Count, returns a copy unmodified.
-        /// </summary>
         public static List<double> ResampleCubicSpline(List<double> originalValues, int newSize)
         {
             if (originalValues == null || originalValues.Count == 0 || newSize < 1)

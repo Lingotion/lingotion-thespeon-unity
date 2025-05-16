@@ -81,9 +81,8 @@ namespace Lingotion.Thespeon.API
 
 
         
-        /// <summary>
+
         /// Validates the configuration values and revises them in place if invalid.
-        /// </summary>
         private void ValidateAndRevise(){
             if(targetFrameTime <= 0) 
             {
@@ -98,6 +97,9 @@ namespace Lingotion.Thespeon.API
 
         }
 
+        /// <summary>
+        /// Converts the PackageConfig instance to a JSON string.
+        /// </summary>
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);

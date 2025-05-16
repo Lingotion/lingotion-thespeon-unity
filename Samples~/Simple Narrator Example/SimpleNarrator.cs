@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Lingotion.Thespeon.Utils;
-using Lingotion.Thespeon.ThespeonRunscripts;
+using Lingotion.Thespeon.API;
 using UnityEngine;
 
 [RequireComponent(typeof(ThespeonEngine))]

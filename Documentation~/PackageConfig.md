@@ -102,7 +102,6 @@ Here is a simple example of how to construct and use the PackageConfig class in 
 using UnityEngine;
 using Newtonsoft.Json;
 using Lingotion.Thespeon.API;
-using Lingotion.Thespeon.Utils;
 
   
 
@@ -110,7 +109,7 @@ public class ExampleUsage : MonoBehaviour
 {
     void Start()
     {
-        UserModelInput input = //from some source - see UserModelInput.md for details.
+        UserModelInput input = //from some source - see [Thespeon Advanced Control Guide](./how-to-control-thespeon.md) for details.
 		PackageConfig myGlobalConfigs = new PackageConfig {
             useAdaptiveFrameBreakScheduling = true,
             targetFrameTime = 0.005, // 5 ms
@@ -124,7 +123,6 @@ public class ExampleUsage : MonoBehaviour
         };
 
 		GameObject.Find("My NPC Object").GetComponent<ThespeonEngine>().Synthesize(input); //Here global configs will apply.
-		while(ThespeonAPI.isRunning){}
 		GameObject.Find("My NPC Object").GetComponent<ThespeonEngine>().Synthesize(input, config: myLocalDeviations); //Here global configs with specified local deviations will apply.
     }
 

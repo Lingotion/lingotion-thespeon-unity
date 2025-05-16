@@ -227,17 +227,10 @@ namespace Lingotion.Thespeon.API
         /// Retrieves an <see cref="ActorPackModule"/> from the specified actor's packs based on the provided module name. 
         /// If the actor pack or specified module is not found, an <see cref="ArgumentException"/> is thrown.
         /// </summary>
-        /// <param name="annotatedInput">
-        /// A <see cref="UserModelInput"/> instance containing the actor's username and the desired module name.
-        /// </param>
-        /// <returns>
-        /// The first matching <see cref="ActorPackModule"/> for the specified actor and module name.
-        /// </returns>
-        /// <exception cref="ArgumentException">
-        /// Thrown if the actor username does not exist in the registered packs, 
-        /// or if no module matching the requested name is found for the specified actor.
-        /// </exception>
-        public static (ActorPackModule, ActorPack) GetActorPackModule(UserModelInput annotatedInput) //TUNI-88 -  This should not be part of API and not be exposed to user. Is now used by engine and sample. Rework Later.
+        /// <param name="annotatedInput"> A <see cref="UserModelInput"/> instance containing the actor's username and the desired module name.</param>
+        /// <returns> The first matching <see cref="ActorPackModule"/> for the specified actor and module name. </returns>
+        /// <exception cref="ArgumentException"> Thrown if the actor username does not exist in the registered packs, or if no module matching the requested name is found for the specified actor. </exception>
+        public static (ActorPackModule, ActorPack) GetActorPackModule(UserModelInput annotatedInput)
         {
 
             Dictionary<string, List<ActorPack>> registeredActorPacks = GetRegisteredActorPacks();
@@ -334,38 +327,38 @@ namespace Lingotion.Thespeon.API
         /// <param name="annotatedInput">Model input. See Annotated Input Format Guide for details.</param>
         /// <param name="dataStreamCallback">An Action callback to receive synthesized data as a stream.</param>
         /// <param name="config">A synthetization instance specific config override.</param>
-        /// <returns></returns>
-        /// 
+        /// <returns>A LingotionSynthRequest object containing a unique Synth Request ID, feedback object and warnings/errors raised as well as a copy of the processed input and callback to be used by this synthesis.</returns>
         public static LingotionSynthRequest Synthesize(UserModelInput annotatedInput, Action<float[]> dataStreamCallback = null, PackageConfig config=null)
         {
+            UserModelInput inputCopy = new UserModelInput(annotatedInput);
             string synthRequestID = Guid.NewGuid().ToString();
             ThespeonInferenceHandler.SetLocalConfig(synthRequestID, config);
 
 
-            var (errors, warnings) = annotatedInput.ValidateAndWarn();
+            var (errors, warnings) = inputCopy.ValidateAndWarn();
 
             foreach (var error in errors)
             {
                 Debug.LogError(error);
             }
 
-            (ActorPackModule selectedModule, _ )= GetActorPackModule(annotatedInput);
+            (ActorPackModule selectedModule, _ )= GetActorPackModule(inputCopy);
 
                 // TUNI-87
-            PreloadActorPackModule(packMappings["tagMapping"][annotatedInput.moduleName]["actors"][0].ToString(), JsonConvert.DeserializeObject<ActorTags>(packMappings["tagMapping"][annotatedInput.moduleName]["tags"].ToString())); //if already loaded this will retun immediately. -> OBS we should move ValidateAndWarn() to above this and make it return languages so we can send that into this. On the other side we cannot return of not all languages are loaded.
-            if(!ThespeonInferenceHandler.HasAnyLoadedLanguageModules(annotatedInput.moduleName))
+            PreloadActorPackModule(packMappings["tagMapping"][inputCopy.moduleName]["actors"][0].ToString(), JsonConvert.DeserializeObject<ActorTags>(packMappings["tagMapping"][inputCopy.moduleName]["tags"].ToString())); //if already loaded this will retun immediately. -> OBS we should move ValidateAndWarn() to above this and make it return languages so we can send that into this. On the other side we cannot return of not all languages are loaded.
+            if(!ThespeonInferenceHandler.HasAnyLoadedLanguageModules(inputCopy.moduleName))
             {
                 throw new ArgumentException("No suitable Language Packs imported, aborting synthesis.");
             }
             //parse and TPP the annotated input.
 
-            PopulateUserModelInput(annotatedInput, selectedModule);
+            PopulateUserModelInput(inputCopy, selectedModule);
 
-            NestedSummary summaryJObject = annotatedInput.MakeNestedSummary();
-            FillSummaryQualities(selectedModule, annotatedInput.actorUsername, summaryJObject);
+            NestedSummary summaryJObject = inputCopy.MakeNestedSummary();
+            FillSummaryQualities(selectedModule, inputCopy.actorUsername, summaryJObject);
 
 
-            HashSet<Language> inputLangs = GetInputLanguages(annotatedInput);
+            HashSet<Language> inputLangs = GetInputLanguages(inputCopy);
             Dictionary<Language, Vocabularies> vocabsByLanguage = new Dictionary<Language, Vocabularies>(); 
 
             foreach (var lang in inputLangs)
@@ -374,20 +367,24 @@ namespace Lingotion.Thespeon.API
                 vocabsByLanguage[lang] = vocab;
             }
 
-            Dictionary<string, int> moduleSymbolTable = ThespeonInferenceHandler.GetSymbolToID(annotatedInput.moduleName);
+            Dictionary<string, int> moduleSymbolTable = ThespeonInferenceHandler.GetSymbolToID(inputCopy.moduleName);
             
 
 
             
-            string feedback= TPP(annotatedInput, vocabsByLanguage, moduleSymbolTable);           
+            string feedback= TPP(inputCopy, vocabsByLanguage, moduleSymbolTable);           
             warnings.Add(feedback);
 
+            //hide LanguageKey from user
+            UserModelInput feedbackInput = new UserModelInput(inputCopy);
+            feedbackInput.defaultLanguage.languageKey = null;
+            foreach(var segment in feedbackInput.segments)
+            {
+                if(segment.languageObj != null) segment.languageObj.languageKey = null;
+            }
 
 
-            ThespeonInferenceHandler.SetSynthInput(synthRequestID, annotatedInput);
-
-
-            return new LingotionSynthRequest(synthRequestID, summaryJObject, errors, warnings, annotatedInput, dataStreamCallback);
+            return new LingotionSynthRequest(synthRequestID, summaryJObject, errors, warnings, feedbackInput, dataStreamCallback);
         }
 
         /// <summary>
@@ -415,15 +412,6 @@ namespace Lingotion.Thespeon.API
         /// Returns a dictionary keyed by actorUsername.
         /// Each entry is a list of ModuleTagInfo objects describing
         /// (packName, moduleName, moduleId, tags).
-        ///
-        /// Example usage:
-        ///   var overview = GetActorsAndTagsOverview();
-        ///   foreach (var kvp in overview)
-        ///   {
-        ///       string actor = kvp.Key;
-        ///       List<ModuleTagInfo> modulesForActor = kvp.Value;
-        ///       ...
-        ///   }
         /// </summary>
         public static Dictionary<string, List<ModuleTagInfo>> GetActorsAndTagsOverview()
         {
@@ -731,7 +719,7 @@ namespace Lingotion.Thespeon.API
         ///    ActorPack data (if found).
         /// </summary>
 
-        public static void FillSummaryQualities(
+        private static void FillSummaryQualities(
             ActorPackModule module,
             string actorUsername,
             NestedSummary summary)
@@ -919,7 +907,7 @@ namespace Lingotion.Thespeon.API
         }
             
 
-        public static (string,string) PhonemeValidation(string phonemeText, Dictionary<string, int> symbol_to_id)
+        private static (string,string) PhonemeValidation(string phonemeText, Dictionary<string, int> symbol_to_id)
         {
             phonemeText= phonemeText.ToLower();
             string validPhonemeText = "";

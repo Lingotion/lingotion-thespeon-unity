@@ -7,6 +7,9 @@ using System.Text.RegularExpressions;
 
 namespace Lingotion.Thespeon.Filters
 {
+    /// <summary>
+    /// This class is used to convert abbreviations in English text to their full forms.
+    /// </summary>
     public class AbbreviationConverter : IAbbrevationToWordsConverter 
     {
         // 1) Abbreviations that can appear at the start (no "St." here, we handle it separately)
@@ -17,7 +20,7 @@ namespace Lingotion.Thespeon.Filters
             { "Mrs.", "Missis " },
             { "Mrs ", "Missis " },
             { "Ms.",  "Miss " },
-            { "Ms ",  "Msss " },
+            { "Ms ",  "Miss " },
             { "Dr.",  "Doctor " },
             { "Dr ",  "Doctor " },
             { "Capt.", "Captain " },
@@ -70,20 +73,6 @@ namespace Lingotion.Thespeon.Filters
             { "%",    " percent" }
         };
 
-        // Combine everything (except St.) into a single, sorted list
-        private class AbbrevEntry
-        {
-            public string Abbrev { get; }
-            public string Replacement { get; }
-            public bool AllowStart { get; }
-
-            public AbbrevEntry(string abbrev, string replacement, bool allowStart)
-            {
-                Abbrev = abbrev;
-                Replacement = replacement;
-                AllowStart = allowStart;
-            }
-        }
 
         private static readonly List<AbbrevEntry> _abbrevList;
 
@@ -106,10 +95,8 @@ namespace Lingotion.Thespeon.Filters
             "ave.", "avenue.", "blvd.", "lane.", "drive.", "dr.", "court.", "ct.", "way."
         };
 
-        /// <summary>
         /// Static constructor merges the dictionaries and sorts them by descending length
         /// so e.g. "U.S.A." is matched before "U.S.".
-        /// </summary>
         static AbbreviationConverter()
         {
             var tempList = new List<AbbrevEntry>();
@@ -133,7 +120,7 @@ namespace Lingotion.Thespeon.Filters
         }
 
         /// <summary>
-        /// Original 1-parameter version: just returns the converted text, no log.
+        /// Process input text to convert abbrevations to text based on lookup table (naive but useful), one-parameter version if you DON'T need the feedback log.
         /// </summary>
         public string ConvertAbbreviationsOriginal(string text)
         {
@@ -151,11 +138,10 @@ namespace Lingotion.Thespeon.Filters
         }
 
         /// <summary>
-        /// NEW method that returns a tuple: (convertedText, changesLog).
-        /// Instead of counting how many times each abbreviation was replaced,
-        /// we log the original abbreviation and its final expansion.
+        /// Tuple-returning version: returns (convertedText, changesLog).
+        /// We record each occurred abbreviation + its translation in a dictionary.
         /// </summary>
-        public (string , string ) ConvertAbbreviations(string text)
+        public (string, string) ConvertAbbreviations(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return (text, "No text provided.");
@@ -221,12 +207,10 @@ namespace Lingotion.Thespeon.Filters
             return input;
         }
 
-        /// <summary>
         /// Builds a regex for the abbreviation that enforces:
         ///   - A leading boundary (start of text or non-alphanumeric)
         ///   - A trailing boundary (end of text or non-alphanumeric)
         /// So abbreviations won't match partial strings inside words.
-        /// </summary>
         private static Regex BuildRegex(string abbreviation, bool allowStart)
         {
             string escaped = Regex.Escape(abbreviation);
@@ -385,6 +369,7 @@ namespace Lingotion.Thespeon.Filters
          *   'St.' -> 'Street'
          */
         private static string BuildChangesLog(Dictionary<string,string> changesMap)
+
         {
             if (changesMap.Count == 0)
             {
@@ -396,5 +381,21 @@ namespace Lingotion.Thespeon.Filters
                        changesMap.Select(kvp => $"'{kvp.Key}' -> '{kvp.Value}'")
                    );
         }
+
+        // Combine everything (except St.) into a single, sorted list
+        private class AbbrevEntry
+        {
+            public string Abbrev { get; }
+            public string Replacement { get; }
+            public bool AllowStart { get; }
+
+            public AbbrevEntry(string abbrev, string replacement, bool allowStart)
+            {
+                Abbrev = abbrev;
+                Replacement = replacement;
+                AllowStart = allowStart;
+            }
+        }
+
     }
 }

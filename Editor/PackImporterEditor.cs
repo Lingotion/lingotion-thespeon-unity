@@ -436,10 +436,8 @@ namespace Lingotion.Thespeon
 		}
 
 
-        /// <summary>
         /// Deletes <paramref name="targetPath"/> (folder or file) plus its
         /// <c>.meta</c> file if present, then refreshes the <see cref="AssetDatabase"/>.
-        /// </summary>
         private static void Cleanup(string targetPath)
         {
             if (Directory.Exists(targetPath))
@@ -457,7 +455,6 @@ namespace Lingotion.Thespeon
         /// <summary>
         /// Lets the user pick an Actor-Pack folder (limited to the Actor-Packs root)
         /// and—after confirmation—permanently deletes it together with its meta file.
-        /// Also refreshes the <see cref="AssetDatabase"/> and updates pack mappings.
         /// </summary>
         public static void DeleteActorPack()
         {
@@ -537,11 +534,9 @@ namespace Lingotion.Thespeon
             Debug.Log($"Deleted Language Pack: {packName}");
         }
 
-        /// <summary>
         /// Returns <c>true</c> if <paramref name="folder"/> is physically located
         /// inside <paramref name="root"/> (after both paths are normalised and
         /// slashes unified).
-        /// </summary>
         private static bool IsInside(string folder, string root)
         {
             folder = Path.GetFullPath(folder).Replace('\\', '/');
@@ -553,14 +548,12 @@ namespace Lingotion.Thespeon
 
 
 
-        /// <summary>
         /// Ensures every <c>files.*.filename</c> entry in the pack config
         /// was actually extracted to <paramref name="extractRoot"/>.
-        /// </summary>
-        /// <returns>
+        /// returns
         /// <c>true</c> when all files are found; <c>false</c> otherwise and
         /// <paramref name="error"/> contains a user-friendly message.
-        /// </returns>
+        /// returns
         private static bool VerifyPackFiles(
             JObject configRoot,            // parsed config json
             string  extractRoot,           // temp extraction folder

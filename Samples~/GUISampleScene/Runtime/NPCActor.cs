@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
-using Lingotion.Thespeon.ThespeonRunscripts;
+using Lingotion.Thespeon.API;
 using UnityEngine;
 
 [RequireComponent(typeof(AudioSource))]
@@ -14,14 +12,13 @@ public class NPCActor : MonoBehaviour
     [SerializeField]
     private AudioClip audioClip;
     private List<float> audioData;
-    public int packetSize = 1024;
+    private int packetSize = 1024;
     public float jitterDataLimit = 0.0f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         thespeonEngine = GetComponent<ThespeonEngine>();
         thespeonEngine.defaultCallback = OnAudioPacketReceive;
-        thespeonEngine.jitterPacketSize = packetSize;
         thespeonEngine.jitterSecondsWaitTime = jitterDataLimit;
         audioData = new List<float>();
         audioSource = GetComponent<AudioSource>();
