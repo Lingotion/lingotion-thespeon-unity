@@ -32,10 +32,10 @@ The process of getting started with Lingotion Thespeon consist of four main part
 
 ## **Developer Portal Setup**  
 The Lingotion Actor Packs are downloaded from the Lingotion developer portal. Before getting started with the package, you need to set up an account and download a pair of Actor and Language Packs.
-The following guide will step you through the process of creating an account at the Lingotion developer portal: ➡️ [Get Started Webportal](./get-started-webportal.md)  
+The following guide will step you through the process of creating an account at the Lingotion developer portal: ➡️ [Get Started Webportal](./Documentation~/get-started-webportal.md)  
 
 ## **Unity Package Setup**  
-Lingotion Thespeon is a Unity package, and thus easily integrated into a Unity Project. The following guide will step you through the process of installing the package and importing the Actor Packs into your Unity Project: ➡️ [Get Started Unity](./get-started-unity.md)  
+Lingotion Thespeon is a Unity package, and thus easily integrated into a Unity Project. The following guide will step you through the process of installing the package and importing the Actor Packs into your Unity Project: ➡️ [Get Started Unity](./Documentation~/get-started-unity.md)  
 
 
 # Changelog
