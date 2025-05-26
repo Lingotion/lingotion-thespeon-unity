@@ -5,7 +5,10 @@
   
 </div>
 
-![](https://dcbadge.limes.pink/api/server/https://discord.gg/9f2HFyu5gF)
+![]()
+
+<a target="_blank" href="https://discord.gg/9f2HFyu5gF"><img src="https://dcbadge.limes.pink/api/server/https://discord.gg/9f2HFyu5gF" alt="" /></a>
+
 
 Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.
 The package runs entirely offline on the player’s device, eliminating cloud costs and network dependencies.
