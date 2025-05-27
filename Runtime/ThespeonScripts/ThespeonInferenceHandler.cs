@@ -935,7 +935,7 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         
         private static Dictionary<Language, HashSet<string>> ExtractWordsByLanguage(UserModelInput modelInput)
         {
-            Regex WordRegex = new Regex(@"[\p{L}\p{M}\p{N}]+", RegexOptions.Compiled);
+            Regex WordRegex = new Regex(@"[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*", RegexOptions.Compiled);
             var result = new Dictionary<Language, HashSet<string>>();
             if (modelInput == null)
             {
@@ -1030,13 +1030,14 @@ namespace Lingotion.Thespeon.ThespeonRunscripts
         private static List<(string Text, bool IsWord)> ExtractWordsAndNonWords(string text)
         {
 
-            Regex WordRegex = new Regex(@"[\p{L}\p{M}\p{N}]+", RegexOptions.Compiled);
+            Regex WordRegex = new Regex(@"[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*", RegexOptions.Compiled);
 
             var result = new List<(string Text, bool IsWord)>();
             if (string.IsNullOrEmpty(text)) return result;
 
             int lastIndex = 0;
             var matches = WordRegex.Matches(text);
+
 
             foreach (Match match in matches)
             {

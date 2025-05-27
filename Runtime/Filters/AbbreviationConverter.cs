@@ -206,31 +206,32 @@ namespace Lingotion.Thespeon.Filters
             }
             return input;
         }
-
-        /// Builds a regex for the abbreviation that enforces:
-        ///   - A leading boundary (start of text or non-alphanumeric)
-        ///   - A trailing boundary (end of text or non-alphanumeric)
-        /// So abbreviations won't match partial strings inside words.
+        
+        /// Builds a regex for the abbreviation that enforces
+        ///   – a leading boundary (start-of-text or non-alphanumeric **but not an apostrophe**)
+        ///   – a trailing boundary (end-of-text or non-alphanumeric)
         private static Regex BuildRegex(string abbreviation, bool allowStart)
         {
             string escaped = Regex.Escape(abbreviation);
+
+            // ❶ Apostrophe (') is intentionally excluded from the set
+            const string leadingBoundary  = @"[^\p{L}\p{N}']";
             const string trailingBoundary = @"(?=$|[^\p{L}\p{N}])";
 
             if (allowStart)
             {
-                return new Regex(
-                    $@"(^|[^\p{{L}}\p{{N}}])({escaped}){trailingBoundary}",
-                    RegexOptions.IgnoreCase
-                );
+                // (^ | non-alnum-non-')  <abbr>  trailing-boundary
+                return new Regex($@"(^|{leadingBoundary})({escaped}){trailingBoundary}",
+                                RegexOptions.IgnoreCase);
             }
             else
             {
-                return new Regex(
-                    $@"([^\p{{L}}\p{{N}}])({escaped}){trailingBoundary}",
-                    RegexOptions.IgnoreCase
-                );
+                // non-alnum-non-'  <abbr>  trailing-boundary
+                return new Regex($@"({leadingBoundary})({escaped}){trailingBoundary}",
+                                RegexOptions.IgnoreCase);
             }
         }
+
 
         /* -------------------------------------------------------
          * Pass 2) Special "St." logic

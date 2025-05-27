@@ -5,9 +5,7 @@
   
 </div>
 
-![]()
-
-<a target="_blank" href="https://discord.gg/9f2HFyu5gF"><img src="https://dcbadge.limes.pink/api/server/https://discord.gg/9f2HFyu5gF" alt="" /></a>
+<a target="_blank" href="https://discord.gg/9f2HFyu5gF"><img src="https://dcbadge.limes.pink/api/server/https://discord.gg/9f2HFyu5gF" alt="Join our Discord server" /></a>
 
 
 Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.
@@ -47,4 +45,3 @@ See [known-issues.md](./Documentation~/known-issues.md) for a list of known issu
 ![License](https://img.shields.io/badge/license-Custom-blue.svg)
 
 This project is licensed according to the Terms of Service found at www.lingotion.com (LICENSE).
-

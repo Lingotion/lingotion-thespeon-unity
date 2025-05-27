@@ -24,6 +24,19 @@
 >
 > Tuple-returning version: returns (convertedText, changesLog). We record each occurred abbreviation + its translation in a dictionary.
 
+> ## Class `ConverterFilterService`
+> ### Methods
+>
+> #### `string NormalizeApostrophes(string input)`
+>
+> Replaces various apostrophe-like characters in the input text with the standard apostrophe (U+0027).
+>
+> **Parameters:**
+>
+> - `input`: The input string potentially containing ambiguous apostrophe characters.
+>
+> **Returns:** A string with all ambiguous apostrophe characters replaced by the standard apostrophe.
+
 > ## Class `NumberToWordsConverter`
 >
 > Converts numbers in a string to their English word representation.
