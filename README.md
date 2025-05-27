@@ -11,7 +11,7 @@
 Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.
 The package runs entirely offline on the player’s device, eliminating cloud costs and network dependencies.
 
-This is version 0.3.0 BETA of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Please report any encountered issues to the Issues page](https://github.com/Lingotion/unity-package/issues) or [get help from our developers on our discord channel](https://discord.gg/9f2HFyu5gF).
+This is version 0.3.1 BETA of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Please report any encountered issues to the Issues page](https://github.com/Lingotion/unity-package/issues) or [get help from our developers on our discord channel](https://discord.gg/9f2HFyu5gF).
 
 ## Getting Started with Unity and the Lingotion Thespeon AI-acting Engine
 
