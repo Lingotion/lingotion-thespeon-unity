@@ -2,7 +2,7 @@
 
 
 using UnityEngine;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine.Profiling;

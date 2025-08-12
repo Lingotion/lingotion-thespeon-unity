@@ -2,7 +2,7 @@
     "name": "lingotion.thespeon.Editor",
     "rootNamespace": "",
     "references": [
-        "Unity.Sentis",
+        "Unity.InferenceEngine",
         "UnityEditor.UI",
         "lingotion.thespeon.Runtime"
     ],

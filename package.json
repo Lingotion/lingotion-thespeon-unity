@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "displayName": "Lingotion Thespeon",
     "description": "This is the Lingotion Thespeon package. To get started, please see Window > Lingotion > Lingotion Thespeon Info.",
     "unity": "6.0",
@@ -10,10 +10,10 @@
     "licensesUrl": "https://lingotion.com/terms-of-service/",
     "dependencies": {
       "com.unity.nuget.newtonsoft-json": "3.2.1",
-      "com.unity.sentis": "2.1.2"
+      "com.unity.ai.inference": "2.2.0"
    },
    "_upm": {
-    "changelog": "# [0.3.1] - 2025-05-27\n## Fixed\n* Fixed an issue with contractions that occurred during text preprocessing."
+    "changelog": "# [0.3.2] - 2025-08-12 ## Fixed * Updated package to Unity Inference Engine."
     },
    "keywords": [
       "AI",

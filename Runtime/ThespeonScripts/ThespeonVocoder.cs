@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 using UnityEngine;
 using UnityEngine.Profiling;
 

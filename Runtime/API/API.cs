@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System;
 using Newtonsoft.Json;
 using System.Linq;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using UnityEditor;

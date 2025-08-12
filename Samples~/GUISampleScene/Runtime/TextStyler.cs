@@ -9,7 +9,7 @@ using System.Collections;
 using Lingotion.Thespeon.API;
 using Lingotion.Thespeon.Utils;
 using Newtonsoft.Json;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 using UnityEditor;
 using UnityEngine.Profiling; 
 using Lingotion.Thespeon.ModelInputFileLoader;

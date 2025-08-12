@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Lingotion.Thespeon.API;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 using UnityEngine;
 
 namespace Lingotion.Thespeon.ThespeonRunscripts
