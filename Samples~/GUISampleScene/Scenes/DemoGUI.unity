@@ -2056,7 +2056,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   audioClip: {fileID: 0}
-  packetSize: 1024
   jitterDataLimit: 1
 --- !u!114 &299231462
 MonoBehaviour:
@@ -2067,12 +2066,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 299231456}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2cd1a047349cb524da6f59005be25bb6, type: 3}
+  m_Script: {fileID: 11500000, guid: 990086e8225961f46afe76225afcfe70, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  jitterPacketSize: 1024
-  jitterDataLimit: 2
-  jitterSecondsWaitTime: 1
 --- !u!1 &306330814
 GameObject:
   m_ObjectHideFlags: 0
@@ -3035,7 +3031,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Select Quality
+  m_text: Select Size
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 379419c34e61ae840b205ae581a051e9, type: 2}
   m_sharedMaterial: {fileID: 5249362907776073006, guid: 379419c34e61ae840b205ae581a051e9, type: 2}
@@ -4983,8 +4979,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1830300709}
-        m_TargetAssemblyTypeName: TextStyler, Runtime
+      - m_Target: {fileID: 864776704}
+        m_TargetAssemblyTypeName: RLETextAnnotator, Runtime
         m_MethodName: OnInsertPauseButton
         m_Mode: 1
         m_Arguments:
@@ -5303,7 +5299,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1830300709}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: TextStyler, Runtime
         m_MethodName: CopyTextToClipboard
         m_Mode: 1
@@ -5973,8 +5969,8 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 299231462}
-        m_TargetAssemblyTypeName: Lingotion.Inference.ThespeonEngine, lingotion.inference.Runtime
+      - m_Target: {fileID: 1830300714}
+        m_TargetAssemblyTypeName: UIManager, Runtime
         m_MethodName: set_targetFrameTimeMs
         m_Mode: 0
         m_Arguments:
@@ -6420,6 +6416,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 864776703}
+  - component: {fileID: 864776704}
   m_Layer: 0
   m_Name: TextAnnotation
   m_TagString: Untagged
@@ -6449,6 +6446,20 @@ RectTransform:
   m_AnchoredPosition: {x: 291, y: -165}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &864776704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 864776702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 293e9cb55a1fa0d48bed82910c8d4b79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  inputField: {fileID: 669257952}
+  underlinePrefab: {fileID: 6457160075398435527, guid: bd20ffec8bf015b46be32624f9d210ee, type: 3}
 --- !u!1 &864870703
 GameObject:
   m_ObjectHideFlags: 0
@@ -6555,7 +6566,7 @@ MonoBehaviour:
   m_MultiSelect: 0
   m_Options:
     m_Options:
-    - m_Text: Select Quality
+    - m_Text: Select Size
       m_Image: {fileID: 0}
       m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_OnValueChanged:
@@ -8085,7 +8096,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1357397612}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.13638328
+  m_Size: 0.1363833
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -11299,6 +11310,7 @@ GameObject:
   - component: {fileID: 1496686603}
   - component: {fileID: 1496686602}
   - component: {fileID: 1496686604}
+  - component: {fileID: 1496686605}
   m_Layer: 0
   m_Name: JSON Visualizer
   m_TagString: Untagged
@@ -11382,6 +11394,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.88235295, g: 0.9490196, b: 0.9882353, a: 1}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
+--- !u!114 &1496686605
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496686600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d285ca0f7351944db51b816b5d4217c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  jsonVisualizer: {fileID: 583768137}
 --- !u!1 &1534895666
 GameObject:
   m_ObjectHideFlags: 0
@@ -12774,8 +12799,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1830300709}
-        m_TargetAssemblyTypeName: TextStyler, Runtime
+      - m_Target: {fileID: 1830300714}
+        m_TargetAssemblyTypeName: UIManager, Runtime
         m_MethodName: OnInsertIPAButton
         m_Mode: 1
         m_Arguments:
@@ -13160,9 +13185,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1830300710}
-  - component: {fileID: 1830300709}
   - component: {fileID: 1830300712}
   - component: {fileID: 1830300713}
+  - component: {fileID: 1830300714}
   m_Layer: 0
   m_Name: UI Manager
   m_TagString: Untagged
@@ -13170,21 +13195,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1830300709
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1830300708}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 43b8168cb1e96f24ba4aecc68f43b308, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  inputField: {fileID: 669257952}
-  underlinePrefab: {fileID: 6457160075398435527, guid: bd20ffec8bf015b46be32624f9d210ee, type: 3}
-  jsonVisualizer: {fileID: 583768137}
 --- !u!4 &1830300710
 Transform:
   m_ObjectHideFlags: 0
@@ -13282,6 +13292,21 @@ MonoBehaviour:
   speedRenderer: {fileID: 961653586}
   loudnessRenderer: {fileID: 922341265}
   resolution: 50
+--- !u!114 &1830300714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1830300708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d16221bc23e11004ab3bd5e860d671de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visualizerManager: {fileID: 1496686605}
+  textAnnotator: {fileID: 864776704}
+  curvesToUI: {fileID: 1830300713}
 --- !u!1 &1836215136
 GameObject:
   m_ObjectHideFlags: 0
@@ -13799,8 +13824,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1830300709}
-        m_TargetAssemblyTypeName: TextStyler, Assembly-CSharp
+      - m_Target: {fileID: 1830300714}
+        m_TargetAssemblyTypeName: UIManager, Runtime
         m_MethodName: Synthesize
         m_Mode: 1
         m_Arguments:
@@ -13962,8 +13987,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1885072049}
-        m_TargetAssemblyTypeName: DropdownHandler, Assembly-CSharp
-        m_MethodName: OnLoadPredefinedInput
+        m_TargetAssemblyTypeName: DropdownHandler, Runtime
+        m_MethodName: OnDropdownValue
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

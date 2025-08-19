@@ -1,19 +1,20 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "0.3.2",
+    "version": "1.0.0",
     "displayName": "Lingotion Thespeon",
-    "description": "This is the Lingotion Thespeon package. To get started, please see Window > Lingotion > Lingotion Thespeon Info.",
+    "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6.0",
     "unityRelease": "0b5",
-    "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/Documentation~/get-started-unity.md",
+    "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md",
     "changelogUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/CHANGELOG.md",
     "licensesUrl": "https://lingotion.com/terms-of-service/",
     "dependencies": {
       "com.unity.nuget.newtonsoft-json": "3.2.1",
-      "com.unity.ai.inference": "2.2.0"
+      "com.unity.ai.inference": "2.3.0",
+      "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [0.3.2] - 2025-08-12 ## Fixed * Updated package to Unity Inference Engine."
+    "changelog": "# [1.0.0] - 2025-08-19\n## Added\n* First major release of Lingotion Thespeon."
     },
    "keywords": [
       "AI",
@@ -28,6 +29,9 @@
       "url": "https://lingotion.com/"
     },
     "samples": [ { "displayName": "Demo GUI", "description": "A demo GUI that showcases the flexibility of Thespeon.", "path": "Samples~/GUISampleScene" },
-    { "displayName": "Simple Narrator", "description": "A script showing the simplest way to get started with Thespeon.", "path": "Samples~/Simple Narrator Example" }
+    { "displayName": "Minimal Character", "description": "A script showing the bare minimum required to get started with Thespeon.", "path": "Samples~/Minimal Character" },
+    { "displayName": "Simple Character", "description": "A script showcasing the basics of using Thespeon.", "path": "Samples~/Simple Character" },
+    { "displayName": "Configuration Example", "description": "A script showing how to finely control Thespeon performance and resource consumption.", "path": "Samples~/Configuration Example" },
+    { "displayName": "Advanced Character", "description": "A script showcasing advanced usage of Thespeon.", "path": "Samples~/Advanced Character" }
     ]
   }

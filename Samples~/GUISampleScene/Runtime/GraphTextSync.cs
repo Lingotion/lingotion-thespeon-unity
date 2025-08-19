@@ -5,15 +5,11 @@ using TMPro;
 public class GraphTextSync : MonoBehaviour
 {
     [Header("Graph UI Elements")]
-    public RectTransform graphContainer;  // The graph panel
-    public TextMeshProUGUI mirroredText;  // The text mirrored along the X-axis
-    public TMP_InputField textInput;      // The original input field
-
+    public RectTransform graphContainer;
+    public TextMeshProUGUI mirroredText;
+    public TMP_InputField textInput;
     [Header("Text Stretching")]
-    public float padding = 10f; // Space to prevent text overflow
-    public float minFontWidth = 0.5f; // Minimum horizontal scaling when text is too long
-    public float defaultFontWidth = 1f; // Normal font width (default)
-
+    private readonly float padding = 10f;
 
 
     private void Start()
@@ -21,11 +17,11 @@ public class GraphTextSync : MonoBehaviour
         if (textInput != null)
         {
             textInput.onValueChanged.AddListener(UpdateMirroredText);
-            UpdateMirroredText(textInput.text); // Initialize text
+            UpdateMirroredText(textInput.text);
         }
     }
 
-    void UpdateMirroredText(string newText)
+    private void UpdateMirroredText(string newText)
     {
         if (mirroredText == null || graphContainer == null) return;
 
@@ -47,9 +43,7 @@ public class GraphTextSync : MonoBehaviour
         }
     }
 
-
-
-    string InsertCspaceTags(string input, float spacing)
+    private string InsertCspaceTags(string input, float spacing)
     {
         string cspaceTag = $"<cspace={spacing}>";
         return string.Join(cspaceTag, input.ToCharArray());

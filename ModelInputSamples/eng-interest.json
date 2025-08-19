@@ -1,0 +1,11 @@
+{
+  "actorName": "",
+  "moduleType": "",
+  "defaultLanguage": {"iso639_2":"eng"},
+  "defaultEmotion": "Interest",
+  "segments": [
+    {
+      "text": "Hi! This is my voice generated in real time."
+    }
+  ]
+}

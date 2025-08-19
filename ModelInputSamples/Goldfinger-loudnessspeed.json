@@ -1,10 +1,7 @@
 {
-  "moduleName": "",
-  "actorUsername": "",
-  "defaultLanguage": {
-    "iso639_2": "eng",
-    "iso3166_1": "RU"
-  },
+  "actorName": "",
+  "moduleType": "",
+  "defaultLanguage": {"iso639_2":"eng"},
   "defaultEmotion": "Joy",
   "segments": [
     {

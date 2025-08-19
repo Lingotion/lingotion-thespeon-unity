@@ -12,8 +12,8 @@ public class PolygonColliderManager : MonoBehaviour
     private RectTransform rectTransform;
     private Vector2 lastSize;
     private Vector3 lastLossyScale;
-    private Dictionary<Transform, Vector3> originalColliderPositions = new Dictionary<Transform, Vector3>();
-    private Dictionary<Transform, Vector3> originalColliderScales = new Dictionary<Transform, Vector3>();
+    private Dictionary<Transform, Vector3> originalColliderPositions = new();
+    private Dictionary<Transform, Vector3> originalColliderScales = new();
 
     void Awake()
     {
@@ -51,7 +51,7 @@ public class PolygonColliderManager : MonoBehaviour
             }
         }
 
-        Physics2D.SyncTransforms(); // Ensure physics updates properly
+        Physics2D.SyncTransforms();
     }
 
 
@@ -73,7 +73,7 @@ public class PolygonColliderManager : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
-            DetectAndResize(); // Wait for UI changes to settle
+            DetectAndResize();
         }
     }
     #endif
@@ -87,15 +87,15 @@ public class PolygonColliderManager : MonoBehaviour
     #if UNITY_EDITOR
     void OnRectTransformDimensionsChange()
     {
-        if (BuildPipeline.isBuildingPlayer) return; // Skip execution during build
+        if (BuildPipeline.isBuildingPlayer) return;
         if (!Application.isPlaying)
         {
-            EditorApplication.delayCall += DetectAndResize; // Wait for UI changes to settle
+            EditorApplication.delayCall += DetectAndResize;
         }
     }
     #endif
 
-    void DetectAndResize()
+    private void DetectAndResize()
     {
         if (BuildPipeline.isBuildingPlayer) return;
         if (rectTransform == null) return;
@@ -105,7 +105,7 @@ public class PolygonColliderManager : MonoBehaviour
 
         if (currentSize != lastSize || currentLossyScale != lastLossyScale)
         {
-            Vector2 scaleFactor = new Vector2(
+            Vector2 scaleFactor = new(
                 currentSize.x / lastSize.x,
                 currentSize.y / lastSize.y
             );
@@ -116,38 +116,33 @@ public class PolygonColliderManager : MonoBehaviour
         }
     }
 
-    void Initialize()
+    private void Initialize()
     {
         rectTransform = GetComponent<RectTransform>();
         lastSize = rectTransform.rect.size;
         lastLossyScale = rectTransform.lossyScale;
     }
 
-    void ResizeColliders(Vector2 scaleFactor)
+    private void ResizeColliders(Vector2 scaleFactor)
     {
-        // if (!Application.isPlaying) return; // Prevents resizing in Edit mode
         if(this==null) return;
         foreach (PolygonCollider2D poly in GetComponentsInChildren<PolygonCollider2D>())
         {
             Transform colliderTransform = poly.transform;
-            
-            // Scale the Transform
-            Vector3 newScale = new Vector3(
+            Vector3 newScale = new(
                 colliderTransform.localScale.x * scaleFactor.x,
                 colliderTransform.localScale.y * scaleFactor.y,
-                1 // Z remains unchanged
+                1
             );
             colliderTransform.localScale = newScale;
 
-            // Adjust position to maintain relative placement
-            Vector3 newPosition = new Vector3(
+            Vector3 newPosition = new(
                 colliderTransform.localPosition.x * scaleFactor.x,
                 colliderTransform.localPosition.y * scaleFactor.y,
                 colliderTransform.localPosition.z
             );
             colliderTransform.localPosition = newPosition;
 
-            // Force Unity to refresh physics calculations
             Physics2D.SyncTransforms();
         }
     }

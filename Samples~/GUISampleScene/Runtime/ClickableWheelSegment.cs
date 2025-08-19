@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using UnityEngine.UI;
-
+using System.Collections;
 
 public class ClickableWheelSegment : MonoBehaviour
 {
@@ -14,11 +14,12 @@ public class ClickableWheelSegment : MonoBehaviour
     public GameObject dropdown1; // Assign the dropdowns that should block clicks in Inspector
     public GameObject dropdown2; // Assign the dropdowns that should block clicks in Inspector
 
-    private InputAction clickAction; // Click action retrieved dynamically
+    private InputAction clickAction;
+    private bool duringClick = false;
 
     private void OnEnable()
     {
-        LoadClickAction(); // Load input action dynamically
+        LoadClickAction();
 
         if (clickAction != null)
         {
@@ -27,7 +28,7 @@ public class ClickableWheelSegment : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Click action could not be found.");
+            Lingotion.Thespeon.Core.LingotionLogger.Error("Click action could not be found.");
         }
     }
 
@@ -50,33 +51,39 @@ public class ClickableWheelSegment : MonoBehaviour
         }
         else
         {
-            Debug.LogError("InputConfig or InputActionAsset is missing! Ensure it's assigned in the Inspector.");
+            Lingotion.Thespeon.Core.LingotionLogger.Error("InputConfig or InputActionAsset is missing! Ensure it's assigned in the Inspector.");
         }
 
     }
 
-    private void OnClick(InputAction.CallbackContext context) 
+    private IEnumerator ResetDuringClickFlag()
     {
+        yield return new WaitForSeconds(0.5f);
+        duringClick = false;
+    }
+
+    private void OnClick(InputAction.CallbackContext context)
+    {
+        // clickAction fires on both mouse down and mouse up, leading to double emotion annotations unless this is in place.
+        if (duringClick) return;
+        duringClick = true;
+        StartCoroutine(ResetDuringClickFlag());
         if (Pointer.current == null) return;
 
-        Vector2 screenPoint = Pointer.current.position.ReadValue(); // Get pointer position
+        Vector2 screenPoint = Pointer.current.position.ReadValue();
 
 
-        // 🔹 Check if the dropdowns are in the path of the click
         if (IsPointerOverDropdown(screenPoint))
         {
             return;
         }
 
-        Vector2 worldPoint = ScreenToWorldPoint(screenPoint); // Convert UI position to world space
+        Vector2 worldPoint = ScreenToWorldPoint(screenPoint);
 
-        // Check if the point overlaps with any Collider2D
         Collider2D hitCollider = Physics2D.Raycast(worldPoint, Vector2.zero).collider;
         if (hitCollider != null)
         {
-            // Debug.Log("Clicked on: " + hitCollider.gameObject.name);
-
-            TextStyler.Instance.ButtonClicked(hitCollider.gameObject.name);
+            RLETextAnnotator.Instance.EmotionClicked(hitCollider.gameObject.name);
         }
     }
     private bool IsPointerOverDropdown(Vector2 screenPosition)
@@ -93,7 +100,7 @@ public class ClickableWheelSegment : MonoBehaviour
         {
             if (result.gameObject == dropdown1 || result.gameObject == dropdown2)
             {
-                return true; // Pointer is over one of the dropdowns
+                return true;
             }
         }
 
@@ -102,16 +109,14 @@ public class ClickableWheelSegment : MonoBehaviour
 
     private Vector3 ScreenToWorldPoint(Vector2 screenPoint)
     {
-        // 🔥 Make sure to get the UI Camera (since Canvas is in "Screen Space - Camera")
-        Camera uiCamera = Camera.main; // Or assign your UI camera if different
+        Camera uiCamera = Camera.main;
 
         if (uiCamera == null)
         {
-            Debug.LogError("UI Camera is null! Ensure the Canvas is set to 'Screen Space - Camera' and has a Camera assigned.");
+            Lingotion.Thespeon.Core.LingotionLogger.Error("UI Camera is null! Ensure the Canvas is set to 'Screen Space - Camera' and has a Camera assigned.");
             return Vector3.zero;
         }
 
-        // 🔹 Convert Screen Point to World Point
         Vector3 worldPoint = uiCamera.ScreenToWorldPoint(new Vector3(screenPoint.x, screenPoint.y, uiCamera.nearClipPlane));
 
         return worldPoint;

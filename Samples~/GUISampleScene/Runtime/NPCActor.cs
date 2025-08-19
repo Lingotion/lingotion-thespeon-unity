@@ -1,25 +1,27 @@
 using System;
 using System.Collections.Generic;
-using Lingotion.Thespeon.API;
+using Lingotion.Thespeon.Core;
+using Lingotion.Thespeon.Engine;
 using UnityEngine;
 
+/// <summary>
+/// NPCActor is responsible for managing the NPC's audio and interaction with the Thespeon engine.
+/// </summary>
 [RequireComponent(typeof(AudioSource))]
 [RequireComponent(typeof(ThespeonEngine))]
 public class NPCActor : MonoBehaviour
 {
     private ThespeonEngine thespeonEngine;
-    private AudioSource audioSource; 
+    private AudioSource audioSource;
     [SerializeField]
     private AudioClip audioClip;
     private List<float> audioData;
     private int packetSize = 1024;
-    public float jitterDataLimit = 0.0f;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         thespeonEngine = GetComponent<ThespeonEngine>();
-        thespeonEngine.defaultCallback = OnAudioPacketReceive;
-        thespeonEngine.jitterSecondsWaitTime = jitterDataLimit;
+        thespeonEngine.OnAudioReceived += OnAudioPacketReceive;
+
         audioData = new List<float>();
         audioSource = GetComponent<AudioSource>();
         audioClip = AudioClip.Create("ThespeonClip", packetSize, 1, 44100, true, OnAudioRead);
@@ -27,48 +29,34 @@ public class NPCActor : MonoBehaviour
         audioSource.loop = true;
         audioSource.Play();
     }
-
-    // Update is called once per frame
-    void Update()
+    private void OnAudioRead(float[] data)
     {
-        
-    }
-
-    void OnAudioRead(float[] data)
-    {
-        lock(audioData)
+        lock (audioData)
         {
-            int currentCopyLength =  Mathf.Min(data.Length, audioData.Count);
-            // take slice of buffer
-            audioData.CopyTo(0, data, 0, currentCopyLength);  
-            audioData.RemoveRange(0, currentCopyLength);          
-            if(currentCopyLength < data.Length)
-            { 
-                // Debug.Log("ZERO_DATA " + data.Length);
-                Array.Fill(data, 0f, currentCopyLength, data.Length - currentCopyLength);
-            } else
+            int currentCopyLength = Mathf.Min(data.Length, audioData.Count);
+            audioData.CopyTo(0, data, 0, currentCopyLength);
+            audioData.RemoveRange(0, currentCopyLength);
+            if (currentCopyLength < data.Length)
             {
-                
+                Array.Fill(data, 0f, currentCopyLength, data.Length - currentCopyLength);
             }
         }
-    } 
-
-    void OnAudioPacketReceive(float[] data)
+    }
+    private void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
     {
-        // Debug.Log("real data before lock " + Time.realtimeSinceStartup);
-        lock(audioData)
+        lock (audioData)
         {
-            
-            // Debug.Log("real data " + Time.realtimeSinceStartup);
             audioData.AddRange(data);
         }
-        // if(isDone)
-        // {
-        //   
-            // string savePath = Path.Combine(Application.dataPath, "output.wav");
-            // WavExporter.SaveWav(savePath, audioData.ToArray());
-            // Debug.Log("Saved WAV at: " + savePath);
-        // 
-        // }
+    }
+
+    void OnDestroy()
+    {
+        thespeonEngine.OnAudioReceived -= OnAudioPacketReceive;
+        if (audioSource != null)
+        {
+            audioSource.Stop();
+            audioSource.clip = null;
+        }
     }
 }

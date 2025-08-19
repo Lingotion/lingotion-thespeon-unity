@@ -1,60 +1,11 @@
 {
-  "moduleName": "",
-  "actorUsername": "",
-  "defaultLanguage": {
-    "iso639_2": "eng",
-    "iso3166_1": "RU"
-  },
+  "actorName": "",
+  "moduleType": "",
+  "defaultLanguage": {"iso639_2":"eng"},
   "defaultEmotion": "Loathing",
   "segments": [
     {
       "text": "Guns. ⏸ Lots of guns."
     }
-  ],
-  "speed": [
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0
-  ],
-  "loudness": [
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0,
-    1.0
   ]
 }

@@ -1,106 +1,117 @@
-
+# Get Started - Webportal 
 ## Table of Contents
-
-
 - [Overview](#overview)
 - [Developer Registration](#developer-registration)
-- [Finding the Perfect Actor](#finding-the-perfect-actor)
-	- [Qualities and Ethics Levels](#qualities-and-ethics-levels)
-	- [Order and Download](#order-and-download)
 - [Creating a Project](#creating-a-project)
+- [Finding the Perfect Actor](#finding-the-perfect-actor)
+	- [Module Type](#module-type) 
+	- [Ethics Level](#ethics-level) 
+	- [Order and Download](#order-and-download)
 - [Next Steps](#next-steps)
 
 ---
 ## Overview
-To use the Lingotion Thespeon Engine you need to do 3 things:
+This document details a step-by-step guide on how to register as a developer at the Lingotion Developer Portal, as well as how to download Lingotion Packs for your project.
+This process has three main steps:
 1. Register as a Developer on the [Lingotion Portal](https://portal.lingotion.com).
-2. Choose an appropriate actor for your project and download its Actor Pack and corresponding Language Pack(s). 
-3. Install and use the Lingotion Thespeon Package in Unity.
-
-Below follows a step-by-step guide on how to carry out the first two with the Unity related guide available [here](./get-started-unity.md).
-
+2. Create a project
+3. Choose an appropriate actor for your project and download its Actor Pack and corresponding Language Pack(s).
 --- 
 ## Developer Registration
 
-> [!TIP]
+> [!NOTE]
 > For best results, use the Google Chrome browser.
 
-
-To get your hands on a Thespeon Actor you must first register as a Developer on the [Lingotion Portal](https://portal.lingotion.com). Upon your first visit you will be asked to sign up using an email address after which a verification email will be sent before the registration process can begin. 
+To download Lingotion Actor and Language Packs, you must first register as a Developer on the [Lingotion Portal](https://portal.lingotion.com). Upon your first visit you will be asked to sign up using an email address after which a verification email will be sent before the registration process can begin. 
 
 The first thing you will see are the Lingotion Terms of Service (TOS). Make sure to read these carefully before accepting as it is a legally binding document. An up-to-date TOS can always be found [here](https://portal.lingotion.com/termsofservice) and on any eventual updates to the TOS you will be notified and asked to accept the revision once more on your next login.
 
-Once accepted the first time, the user registration initiates. Check the option for Developer and fill out your and your company's information. This information can be edited at a later time in your user settings. 
+Once accepted the first time, the user registration initiates. Check the option for Developer and fill out your and your company's information. This information can be edited later in the user settings. 
 
-The portal consists of the main pages My Projects, Actors, Pricing and User Settings. 
-- Under My Projects you will find an overview of all your current active projects. A project is necessary to have since each acquired Actor must be connected to a Project for the license to take effect. 
+The portal consists of the main pages _My Projects_, _Actors_, _Pricing_ and _User Settings_. 
+- Under _My Projects_ you will find an overview of all your current active projects.  
 - The Actors page allows you to browse all our available actors, read about the actor profile, listen to audio samples and find the perfect fit for your project.
 - Under Pricing you will find up-to-date pricing information for our Actors.
-* Under User Settings you may revise your user information at any time.
+- Under User Settings you may revise your user information at any time.
 
 
+
+---
+## Creating a Project
+
+A project is a representation of a game title, and can have multiple actors tied to it. Upon first entry to the _My Projects_ page you will see instructions to guide you through creating your first project. Click on the _Create Project_ button and fill in the title, description, and target development platform.
+
+![create-project screenshot](./data/create-project.png?raw=true "create-project screenshot")
+
+> [!IMPORTANT]
+> The Thespeon Actor may only be used within the project to which its license applies. For use in several projects you must order the Thespeon Actor to each individual project. 
 
 ---
 ## Finding the Perfect Actor
 
 ![choose-actor screenshot](./data/choose-actor.png?raw=true "choose-actor screenshot")
 
-Lingotion offers a number of different actors, each of which you will find under the Actors page on the developer portal. Apart from each actor having its own unique voice, style and language(s), you will also find some other important information under each actor. Lingotion currently offers each of its actors in three tiers of quality - directly linked to their size in memory and computational demand. Each Actor also has the option to set their own Ethics Level which determine restrictions on the license in terms of use. Below is a more detailed description of these properties. 
+Lingotion offers a number of different actors, shown by the list of actor cards under the _Actors_ page on the developer portal. The actor cards contain a description of each actor, as well as information about the specific module type and ethics level. 
 
-When browsing the actors you will find audio samples for each of their supported languages. These are audio files generated by the Thespeon Actor Pack which you will receive upon order and download and can easily be replicated in your own project.
+At the bottom of each actor card you will find audio samples for each of their supported languages, generated using that specific Actor Pack.
 
-##### Qualities and Ethics Levels
-Currently, three tiers of qualities are available for each Thespeon Actor: high, mid and ultralow. These provide you an opportunity to select the Actor Pack(s) which best fits your project's target device(s). A higher quality Actor Pack will, as its name implies, produce higher quality acting at the trade-off of being larger and heavier to run in your game. As such, some devices will likely not be able to run the highest quality without notable impact on game performance and instead require a lower quality Actor Pack. We recommend the following heurisitc when selecting your Actor Pack:
+### Module type
+Each actor has multiple _module types_, corresponding to their intended target platform due to size in memory and computational demand. 
 
-- High quality - for PC and Console
-- Mid quality - for low-end PC and high-end mobile / games with a smaller memory/computation budget.
-- Ultralow - for low-end mobile or games with severe budget restrictions on memory/computation.
+Currently, three tiers of module types are available for each Thespeon Actor: _**L**_, _**M**_ and _**XS**_. These provide you an opportunity to select the Actor Pack(s) which best fit the target platform(s) of your project. For instance, an Actor Pack of type _L_ will produce higher quality acting compared to an _XS_ type, at the trade-off of being both larger and more computationally intensive to run in your game. As such, some devices will likely not be able to run the largest modules without notable impact on game performance -- in that case, we recommend trying a different module type. Below are the intended platforms for the currently available module types:
 
-There are 4 different Ethics Levels, one of which each actor will choose. These set restrictions on what game context the Actor may be used in and must be followed by the licensee. They are in order of strictness the following, starting with the least strict. 
+- _**L**_ - for PC and Console
+- _**M**_ - for low-end PC and high-end mobile phones or games with a smaller memory/computation budget.
+- _**XS**_ - for low-end mobile phones or games with severe restrictions on memory/computation.
 
-1. Liberal
+### Ethics Level
+Each actor decides one of four different _Ethics Levels_ -- these set restrictions on what game context the Actor may be used in, and must be followed by the licensee. They are in order of strictness, starting with the least strict: 
+
+1. **_Liberal_**
 	- Any situation and any type of context.
-2. Balanced
+2. **_Balanced_**
 	- No extreme racism.
 	- No major sexual abuse.
 	- No explicit pornographic content or content primarily of a sexual nature.
-3. Strict
+3. **_Strict_**
 	- All Characters must follow the United Nations Universal Declaration of Human Rights.
 	- No synthesizing of criminal activities that could result in imprisonment under Swedish law if carried out in a real world situation.
 	- No synthesizing of actions, speech, or behavior that are illegal or deemed grossly immoral in a majority of countries in the world.
 	- No racism or anti-religious behavior.
 	- No sexual abuse.
 	- No pornographic content or content primarily of a sexual nature.
-4. Case by Case
+4. _**Case by Case**_
 	- Each Character use must be approved by the Actor.
+> [!IMPORTANT]
+> If you wish to use an actor in a context outside the set Ethics Level, you must first seek approval from the Actor through Lingotion.
+> 
+> Lingotion maintains logs of all requests -- any agreement as such takes precedence over the Lingotion Ethics Policy and the Ethics Level chosen by the actor for that specific project.
+> 
+> Please send all ethics requests to the email: casting@lingotion.com.
 
-##### Order and Download
-You may notice that there are two types of Actors available. There are a number of **Starter** Actors as well as **Flex/Fixed** Actors. These tags refer to the Actor's Pricing status which you may find up-to-date information on under the Pricing tab in the Developer Portal. 
+### Order and Download
+The available actors may have one of two pricing types:  
 
-**Starter** Actors have agreed to be available on a free-to-try basis and are completely free to use and play with during development, only incurring a cost once published in a game. These are available to order and download directly in the portal by clicking the Order Now button and following the steps provided. 
+- **_Starter_** - Actors have agreed to be available on a free-to-try basis and are completely free to use and play with during development, only incurring a cost once published in a game. These are available to order and download directly in the portal by clicking the Order Now button and following the steps provided. 
 
-**Fixed/Flex** Actors must be purchased with a flat fee before use. To use one of these you must first contact the Lingotion Sales department at sales@lingotion.com.
+- _**Fixed/Flex**_ - Actors must be purchased with a flat fee before use. To use one of these you must first contact the Lingotion Sales department at sales@lingotion.com.
 
-Upon order you will be asked  to either create or select an already created project if one has not already been selected and you will be notified of the Terms of Service applicable to the use of the selected Actor. Once the order has been completed you can download as many instances of the model as you need, meaning only one order is needed for each game title and can be shared with your colleagues within the limits of the Terms of Service. 
+You may find up-to-date pricing numbers under the Pricing tab. 
+
+Upon order you will be asked to select a project to which the actor will be connected, and you will be notified of the Terms of Service applicable to the use of the selected Actor. Once the order has been completed you may download as many instances of the actor pack as you need, and these can be shared with your project colleagues within the limits of the Lingotion Terms of Service. 
 
 ![select-project screenshot](./data/select-project.png?raw=true "select-project screenshot")
 
-Before download you will be informed about what you are downloading. This will for a selected Actor typically be its Actor Pack file and a number of Language Pack files (one for each supported language) and information as to what they contain. Note that several Actor Packs will reuse the same Language Packs. As such, should you use several Actors speaking the same language, one language pack for each language will likely suffice. You will find more information on that in [Get Started - Unity](./get-started-unity.md). 
+Before download you will be informed about the files that will be downloaded -- this will for an ordered actor be one Actor Pack file and a number of Language Pack files for each supported language. 
 
 ![confirm-download screenshot](./data/confirm-download.png?raw=true "confirm-download screenshot")
 
 
 ---
-## Creating a Project
 
-Upon first order of an Actor or upon first entry to the MyProjects page you will see instructions to guide you through creating your first project and acquiring your first Thespeon Actor. A Project is necessary and will serve as the storage unit for your Actor Packs. Keep in mind that all our Thespeon Licenses are Project specific, meaning ordering a Thespeon Actor necessitates selecting which project to connect it to. The Thespeon Actor may only be used within the project to which its license applies. For use in several projects you must order the Thespeon Actor several times. 
-
----
 ## Next Steps
 
-After download of the package files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](./get-started-unity.md) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com ). 
-
-**Happy Acting!**
+After download of the package files you are ready to start working with the Lingotion Thespeon Engine in Unity. Go to [Get Started - Unity](./get-started-unity.md) for a comprehensive guide in where to go from here and getting set up in Unity. You may also find useful information about Lingotion and the Thespeon Engine on our [website](https://lingotion.com). 
 
 
 

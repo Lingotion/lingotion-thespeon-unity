@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 
 namespace Lingotion.Thespeon.CurvesToUI
@@ -14,21 +12,20 @@ namespace Lingotion.Thespeon.CurvesToUI
         public AnimationCurve loudnessCurve = new AnimationCurve(new Keyframe(0, 1), new Keyframe(1, 1));
 
         [Header("Graph Settings")]
-        public RectTransform graphArea; // UI space for rendering the graph
-        public LineRenderer speedRenderer; // First curve
-        public LineRenderer loudnessRenderer; // Second curve
-        public int resolution = 50; // Number of points to sample
+        public RectTransform graphArea;
+        public LineRenderer speedRenderer;
+        public LineRenderer loudnessRenderer;
+        public int resolution = 50;
         private int lastHash;
         public event Action OnCurvesChanged;
 
 
-        private void Start()
+        void Start()
         {
             lastHash = GetCurvesHash();
         }
-        private void Update()
+        void Update()
         {
-            
             if (graphArea != null)
             {
                 UpdateCurveDisplay(speedRenderer, speedCurve);
@@ -40,10 +37,9 @@ namespace Lingotion.Thespeon.CurvesToUI
                 lastHash = currentHash;
                 OnCurvesChanged?.Invoke();
             }
-
         }
 
-        void UpdateCurveDisplay(LineRenderer lineRenderer, AnimationCurve curve)
+        private void UpdateCurveDisplay(LineRenderer lineRenderer, AnimationCurve curve)
         {
             if (lineRenderer == null || curve == null)
                 return;
@@ -52,39 +48,39 @@ namespace Lingotion.Thespeon.CurvesToUI
 
             for (int i = 0; i < resolution; i++)
             {
-                float t = i / (float)(resolution - 1); // Normalized time (0 to 1)
-                float curveValue = curve.Evaluate(t) * 0.5f; // Get value from AnimationCurve
+                float t = i / (float)(resolution - 1);
+                float curveValue = curve.Evaluate(t) * 0.5f;
 
-                // Directly use local UI coordinates
                 float xPos = Mathf.Lerp(0, graphArea.rect.width, t);
                 float yPos = Mathf.Lerp(0, graphArea.rect.height, curveValue);
 
-                // Assign local positions instead of world space
                 positions[i] = new Vector3(xPos, yPos, 0);
             }
 
             lineRenderer.positionCount = resolution;
             lineRenderer.SetPositions(positions);
         }
-        public void SetAnimationCurve(List<double> values, string index)
+        public void SetAnimationCurve(AnimationCurve curve, string index)
         {
-            AnimationCurve curve = new AnimationCurve();
-            for (int i = 0; i < values.Count; i++)
-            {
-                curve.AddKey(new Keyframe(i / (float)(values.Count - 1), (float) values[i]));
-            }
             if (index == "speed")
             {
-                speedCurve = curve;
+                speedCurve=new AnimationCurve();
+                foreach(Keyframe kf in curve.keys)
+                {
+                    speedCurve.AddKey(kf);
+                }
             }
             else if (index == "loudness")
             {
-                loudnessCurve = curve;
+                loudnessCurve=new AnimationCurve();
+                foreach(Keyframe kf in curve.keys)
+                {
+                    loudnessCurve.AddKey(kf);
+                }
             }
         }
 
-
-        public int GetCurvesHash()
+        private int GetCurvesHash()
         {
             unchecked
             {

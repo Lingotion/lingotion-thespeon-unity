@@ -4,7 +4,8 @@
     "references": [
         "Unity.InferenceEngine",
         "UnityEditor.UI",
-        "lingotion.thespeon.Runtime"
+        "lingotion.thespeon.Runtime",
+        "Unity.EditorCoroutines.Editor"
     ],
     "includePlatforms": [
         "Editor"
