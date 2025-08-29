@@ -118,13 +118,8 @@ namespace Lingotion.Thespeon.ActorPack
             }
 
             JArray languages = (JArray)module["language_options"]?["languages"];
-            // [DevComment] Language looks like this:
-            /* [DevComment] Iso639_2 = iso639_2;
-            [DevComment] Iso639_3 = iso639_3;
-            [DevComment] Glottocode = glottocode;
-            [DevComment] CustomDialect = customDialect;
-            [DevComment] Iso3166_1 = iso3166_1;
-            [DevComment] Iso3166_2 = iso3166_2;*/
+
+
             _langToLangKey = languages?.Select(lang =>
             {
                 ModuleLanguage language = new(

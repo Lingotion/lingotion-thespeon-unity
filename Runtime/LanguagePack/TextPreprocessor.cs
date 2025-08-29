@@ -49,10 +49,10 @@ namespace Lingotion.Thespeon.LanguagePack
         {
             { "eng", new(@"(\d+(\.\d+)?)(st|nd|rd|th)?", RegexOptions.Compiled) },
             { "swe", new(@"(\d+)", RegexOptions.Compiled) }
-            // [DevComment] (\.\d+)?(:a|:e)? for Swedish if we remove : as a delimiter and want to parse decimals too.
-            // [DevComment] old swedish pattern was new(@"(\D*)(\d+)(\D*)") This new one is untested but should capture decimal numbers as well
+
+
         };
-        // [DevComment] Obs this regexp is used again in the NumberConverter
+
         public static readonly Regex WordRegex = new(@"[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*", RegexOptions.Compiled);
 
         /// <summary>
@@ -70,15 +70,24 @@ namespace Lingotion.Thespeon.LanguagePack
             foreach (var segment in input.Segments)
             {
                 string text = segment.Text;
-                // [DevComment] assumes ISO639-2 is always present. langpacks are curretly identified by it and only it.
+
                 string iso639_2 = segment.Language?.Iso639_2 ?? input.DefaultLanguage.Iso639_2;
                 if (string.IsNullOrWhiteSpace(text))
                 {
                     throw new ArgumentException("Segment text cannot be null or whitespace.");
                 }
                 string cleaned = CleanText(text);
-                List<(string Text, bool IsMatch)> parts = PartitionByNumberMatches(cleaned, iso639_2);
-                if (!parts.Any(p => p.IsMatch))
+                List<(string, bool)> parts = PartitionByNumberMatches(cleaned, iso639_2);
+                List<(string, bool, List<float>)> mergedParts;
+                if (segment.Text.Contains(ControlCharacters.AudioSampleRequest) && parts.Any(p => p.Item2))
+                {
+                    mergedParts = MergeMarkerSeparatedNumbers(parts);
+                }
+                else
+                {
+                    mergedParts = parts.Select(p => (p.Item1, p.Item2, (List<float>)null)).ToList();
+                }
+                if (!mergedParts.Any(p => p.Item2))
                 {
                     ThespeonInputSegment segmentCopy = new(segment)
                     {
@@ -99,9 +108,29 @@ namespace Lingotion.Thespeon.LanguagePack
                     Text = string.Empty,
                     IsCustomPronounced = false
                 };
-                foreach (var (part, isMatch) in parts)
+
+
+                foreach (var (part, isMatch, fractions) in mergedParts)
                 {
                     string partText = isMatch ? converter.ConvertNumber(part) : part;
+                    if (fractions != null)
+                    {
+                        var indices = fractions
+                            .Select(f => UnityEngine.Mathf.RoundToInt(Math.Clamp(f, 0.0f, 1.0f) * partText.Length))
+                            .OrderBy(x => x)
+                            .ToList();
+                        var sb = new StringBuilder(partText);
+                        int added = 0;
+                        foreach (var rawIdx in indices)
+                        {
+                            int idx = Math.Clamp(rawIdx, 0, partText.Length) + added;
+                            sb.Insert(idx, ControlCharacters.AudioSampleRequest);
+                            added++;
+                        }
+
+                        partText = sb.ToString();
+                    }
+                    if (currentSegment.Text.All(c => c == ControlCharacters.AudioSampleRequest)) currentSegment.IsCustomPronounced = isMatch;
                     if (currentSegment.IsCustomPronounced == isMatch || !WordRegex.IsMatch(part))
                     {
                         currentSegment.Text += partText;
@@ -138,7 +167,7 @@ namespace Lingotion.Thespeon.LanguagePack
             return builder.ToString();
         }
 
-        private static List<(string Text, bool IsMatch)> PartitionByNumberMatches(string text, string iso639_2)
+        private static List<(string, bool)> PartitionByNumberMatches(string text, string iso639_2)
         {
             var parts = new List<(string, bool)>();
             int index = 0;
@@ -158,6 +187,89 @@ namespace Lingotion.Thespeon.LanguagePack
             }
             return parts;
         }
+
+        /// <summary>
+        /// Merges consecutive number parts separated by only markers into a single segment with associated fractions representing original marker positions.
+        /// </summary>
+        /// <param name="parts">A partition of text into numbers and non numbers (alternating)</param>
+        /// <returns></returns>
+        private static List<(string, bool, List<float>)> MergeMarkerSeparatedNumbers(List<(string Text, bool IsMatch)> parts)
+        {
+            var result = new List<(string, bool, List<float>)>();
+
+            int i = 0;
+            while (i < parts.Count)
+            {
+
+                var (text, isMatch) = parts[i];
+
+                if (!isMatch)
+                {
+                    result.Add((text, false, null));
+                    i++;
+                    continue;
+                }
+
+                int j = i + 1;
+                bool canMerge = false;
+
+                int totalDigitsLen = text.Length;
+                while (j < parts.Count)
+                {
+                    var (t, isM) = parts[j];
+
+                    if (isM)
+                    {
+                        canMerge = true;
+                        totalDigitsLen += t.Length;
+                        j++;
+                    }
+                    else
+                    {
+                        bool markersOnly = t.Length > 0 && t.All(c => c == ControlCharacters.AudioSampleRequest);
+
+                        if (!markersOnly) break;
+                        j++;
+                    }
+                }
+
+                if (!canMerge)
+                {
+                    result.Add((text, true, null));
+                    i++;
+                    continue;
+                }
+
+                var sb = new StringBuilder(text);
+                var fractions = new List<float>();
+                int digitOffset = text.Length;
+
+                for (int k = i + 1; k < j; k++)
+                {
+                    var (t, isM) = parts[k];
+                    if (isM)
+                    {
+                        sb.Append(t);
+                        digitOffset += t.Length;
+                    }
+                    else
+                    {
+                        if (t.Length > 0 && t.All(c => c == ControlCharacters.AudioSampleRequest))
+                        {
+                            float frac = totalDigitsLen == 0 ? 0.0f : Math.Clamp((float)(digitOffset - 0) / totalDigitsLen, 0.0f, 1.0f);
+                            for (int m = 0; m < t.Length; m++)
+                                fractions.Add(frac);
+                        }
+                    }
+                }
+                LingotionLogger.Debug($"Merged number: {sb} with fractions: {string.Join(", ", fractions)}");
+                result.Add((sb.ToString(), true, fractions));
+                i = j;
+            }
+
+            return result;
+        }
+
 
 
     }

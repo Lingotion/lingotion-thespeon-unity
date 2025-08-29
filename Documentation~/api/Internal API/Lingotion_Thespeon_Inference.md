@@ -1,6 +1,6 @@
 # Lingotion.Thespeon.Inference API Documentation
 
-## Class `InferenceSession`
+## Class `InferenceSession<ModelInputType, InputSegmentType>`
 
 Template for a new inference session.
 ### Methods
@@ -26,7 +26,7 @@ Initializes a new instance of the `InferenceWorkload` class with the specified m
 #### `void Dispose()`
 
 Disposes of the worker and releases any resources it holds.
-#### `IEnumerator InferAutoregressive(SessionTensorPool tensorPool, InferenceConfig config, Func<bool> doneCondition, string workloadmd5, bool skipFrames = true, string debugName = null, float budgetAdjustment = 1f)`
+#### `IEnumerator InferAutoregressive(SessionTensorPool tensorPool, InferenceConfig config, Func<int, bool> doneCondition, string workloadmd5, bool skipFrames = true, string debugName = null, float budgetAdjustment = 1f)`
 
 Runs this workload autoregressively until meeting a completion condition.
 
@@ -60,6 +60,11 @@ Runs this workload.
 ## Class `InferenceWorkloadManager`
 
 Singleton that keeps track of workloads. Responsible for disposing.
+### Properties
+
+#### `InferenceWorkloadManager Instance`
+
+Singleton reference.
 ### Methods
 
 #### `void RegisterModule(Module module, InferenceConfig config)`
@@ -116,26 +121,62 @@ Releases and disposes a workload with the given MD5. If the workload is not foun
 ## Class `ModuleHandler`
 
 Handles the registration and management of modules used in inference.
+### Properties
+
+#### `ModuleHandler Instance`
+
+Singleton reference.
 ### Methods
 
+#### `void RegisterModule<T>(ModuleEntry moduleEntry)`
+
+Registers a new module of type T with the provided module entry.
+
+**Parameters:**
+
+- `moduleEntry`: The module entry containing the module information.
+#### `T AcquireModule<T>(ModuleEntry moduleEntry)`
+
+Acquires a module of type T using the provided module entry. If the module is not already registered, it will be created and registered.
+
+**Parameters:**
+
+- `moduleEntry`: The module entry containing the module information.
+
+**Returns:** The acquired module of type T.
+
+**Exceptions:**
+
+- `InvalidCastException`: Thrown when a module with the same ID exists but has a different type.
+#### `T DeregisterModule<T>(ModuleEntry moduleEntry)`
+
+Deregisters and removes a module instance from the available modules.
+
+**Parameters:**
+
+- `moduleEntry`: The entry containing the ID of the module to be removed.
+
+**Returns:** The deregistered module cast to type <typeparamref name="T"/> if found and the type matches; otherwise, returns `default(T)`.
+
+**Exceptions:**
+
+- `InvalidCastException`: Thrown if a module with the specified ID is found, but its actual type does not match the requested type <typeparamref name="T"/>.
+#### `HashSet<string> GetNonOverlappingModelMD5s<T>(T module)`
+
+Returns a set of MD5 hashes of all model files that are not used by any other module of the same type.
+
+**Parameters:**
+
+- `module`: The module to check for overlapping model MD5s.
 #### `HashSet<string> GetNonOverlappingLangModules(ActorModule actorModule)`
 
 Returns a set of language module IDs used by the provided actorModule that are not used by any other actor module.
 
 **Parameters:**
 
-- `moduleEntry`: The module entry containing the module information.
-- `moduleEntry`: The module entry containing the module information.
-- `moduleEntry`: The entry containing the ID of the module to be removed.
-- `module`: The module to check for overlapping model MD5s.
 - `actorModule`: The actor module to check for unused language modules.
 
 **Returns:** A set of unused language module IDs.
-
-**Exceptions:**
-
-- `InvalidCastException`: Thrown when a module with the same ID exists but has a different type.
-- `InvalidCastException`: Thrown if a module with the specified ID is found, but its actual type does not match the requested type <typeparamref name="T"/>.
 #### `void Clear()`
 
 Clears all registered modules.
@@ -201,9 +242,9 @@ Unloads the specified module for the given actor.
 
 - `actorName`: The name of the actor whose module should be unloaded.
 - `moduleType`: The type of module to unload.
-#### `IEnumerator SetupModulesCoroutine(string actorName, ModuleType moduleType, InferenceConfig config)`
+#### `IEnumerator Infer<T>(ThespeonInput input, InferenceConfig config, Action<ThespeonDataPacket<T>> callback, string sessionID, bool asyncDownload = true)`
 
-Sets up the actor and language modules for inference.
+Performs inference on the given ThespeonInput, processing the input and invoking the callback with the result.
 
 **Parameters:**
 
@@ -214,3 +255,6 @@ Sets up the actor and language modules for inference.
 - `asyncDownload`: Whether to download tensors asynchronously.
 
 **Returns:** An IEnumerator for coroutine execution.
+#### `IEnumerator SetupModulesCoroutine(string actorName, ModuleType moduleType, InferenceConfig config)`
+
+Coroutine to set up modules for inference in a coroutine.

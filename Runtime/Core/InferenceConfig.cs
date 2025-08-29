@@ -17,7 +17,7 @@ namespace Lingotion.Thespeon.Core
 #else
         public double TargetBudgetTime { get; set; } = 0.005;
         public double TargetFrameTime { get; set; } = 0.0167d; // 60 FPS
-        public float BufferSeconds { get; set; } = 0.1f; // 100 ms
+        public float BufferSeconds { get; set; } = 0.5f; // 500 ms
 #endif
         public bool UseAdaptiveScheduling { get; set; } = true;
         public float OvershootMargin { get; set; } = 1.4f;

@@ -40,9 +40,9 @@ namespace Lingotion.Thespeon.Engine
         public Action<bool> OnPreloadComplete;
 
 
-        private Queue<float[]> dataQueue = new();
+        private Queue<(float[], PacketMetadata)> dataQueue = new();
         private int currentDataLength = 0;
-        private float bufferSeconds = 0.1f;
+        private float bufferSeconds = 0;
         private bool isRunningSynth = false;
         private Queue<SynthRequest> synthQueue = new();
         private Queue<SynthRequest> warmupQueue = new();
@@ -59,6 +59,7 @@ namespace Lingotion.Thespeon.Engine
                 LingotionLogger.Debug("Processing queued Warmup...");
                 SynthRequest nextRequest = warmupQueue.Dequeue();
                 InferenceConfig config = nextRequest.configOverride == null ? new InferenceConfig() : nextRequest.configOverride.GenerateConfig();
+                config.UseAdaptiveScheduling = false;
                 inferenceSession?.Dispose();
                 inferenceSession = new ThespeonInference();
                 StartCoroutine(RunSynthCoroutine(nextRequest.input, config , nextRequest.sessionID, WarmupPacketHandler));
@@ -241,13 +242,13 @@ namespace Lingotion.Thespeon.Engine
             PacketMetadata metadata = packet.metadata;
             currentDataLength += data.Length;
 
-            dataQueue.Enqueue(data);
+            dataQueue.Enqueue((data, metadata));
             if (isFinalPacket || currentDataLength >= bufferSeconds * 44100)
             {
-                while (dataQueue.TryDequeue(out float[] currentPacket))
+                while (dataQueue.TryDequeue(out (float[], PacketMetadata) currentPacket))
                 {
                     OnAudioReceived ??= DefaultFloatHandler;
-                    OnAudioReceived?.Invoke(currentPacket, metadata);
+                    OnAudioReceived?.Invoke(currentPacket.Item1, currentPacket.Item2);
                 }
                 if (isFinalPacket)
                 {

@@ -13,7 +13,7 @@ namespace Lingotion.Thespeon.Core
     public class ModuleLanguage
     {
 
-        // [DevComment] In actuality this should probably be alternatively required with glottocode or customdialect. i.e. At least 1 of them is required and the others not. 
+
         [JsonProperty("iso639_2", Required = Required.Always)]
         public readonly string Iso639_2;
 #nullable enable
@@ -28,7 +28,9 @@ namespace Lingotion.Thespeon.Core
         [JsonProperty("customdialect", NullValueHandling = NullValueHandling.Ignore)]
         public readonly string? CustomDialect;
 #nullable disable
-        // [DevComment] for JSON deserialization
+        public static readonly string NoLang = "NOLANG";
+
+
         public ModuleLanguage() { }
         public ModuleLanguage(string iso639_2, string iso639_3 = null, string glottocode = null, string customDialect = null, string iso3166_1 = null, string iso3166_2 = null)
         {
@@ -65,47 +67,53 @@ namespace Lingotion.Thespeon.Core
             }
             int bestScore = -1;
             List<ModuleLanguage> bestLangs = new();
-
-            foreach (ModuleLanguage lang in candidateLanguages)
+            if (!language.Equals(NoLang))
             {
-                int langScore = 0;
-                if (string.Equals(lang.CustomDialect, language, StringComparison.OrdinalIgnoreCase))
+                foreach (ModuleLanguage lang in candidateLanguages)
                 {
-                    langScore = 10;
-                }
-                else if (string.Equals(lang.Glottocode, language, StringComparison.OrdinalIgnoreCase))
-                {
-                    langScore = 3;
-                }
-                else if (string.Equals(lang.Iso639_3, language, StringComparison.OrdinalIgnoreCase))
-                {
-                    langScore = 2;
-                }
-                else if (string.Equals(lang.Iso639_2, language, StringComparison.OrdinalIgnoreCase))
-                {
-                    langScore = 1;
-                }
+                    int langScore = 0;
+                    if (string.Equals(lang.CustomDialect, language, StringComparison.OrdinalIgnoreCase))
+                    {
+                        langScore = 10;
+                    }
+                    else if (string.Equals(lang.Glottocode, language, StringComparison.OrdinalIgnoreCase))
+                    {
+                        langScore = 3;
+                    }
+                    else if (string.Equals(lang.Iso639_3, language, StringComparison.OrdinalIgnoreCase))
+                    {
+                        langScore = 2;
+                    }
+                    else if (string.Equals(lang.Iso639_2, language, StringComparison.OrdinalIgnoreCase))
+                    {
+                        langScore = 1;
+                    }
 
-                if (langScore > bestScore)
-                {
-                    bestScore = langScore;
-                    bestLangs.Clear();
-                    bestLangs.Add(lang);
+                    if (langScore > bestScore)
+                    {
+                        bestScore = langScore;
+                        bestLangs.Clear();
+                        bestLangs.Add(lang);
+                    }
+                    else if (langScore == bestScore)
+                    {
+                        bestLangs.Add(lang);
+                    }
                 }
-                else if (langScore == bestScore)
+                if (bestLangs.Count == 0)
                 {
-                    bestLangs.Add(lang);
+                    return candidateLanguages[0];
+                }
+                if (string.IsNullOrEmpty(dialect))
+                {
+                    return bestLangs[0];
                 }
             }
+            else
+            {
+                bestLangs = candidateLanguages;
+            }
 
-            if (bestLangs.Count == 0)
-            {
-                return candidateLanguages[0];
-            }
-            if (string.IsNullOrEmpty(dialect))
-            {
-                return bestLangs[0];
-            }
 
             ModuleLanguage bestLang = null;
             bestScore = -1;

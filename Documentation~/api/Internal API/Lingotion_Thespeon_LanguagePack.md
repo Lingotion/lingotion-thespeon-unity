@@ -102,6 +102,11 @@ Gets the ID of the lookup table file.
 ## Class `LookupTableHandler`
 
 Singleton that manages and registers runtime lookup tables for language modules.
+### Properties
+
+#### `LookupTableHandler Instance`
+
+Singleton reference.
 ### Methods
 
 #### `void RegisterLookupTable(LanguageModule module)`

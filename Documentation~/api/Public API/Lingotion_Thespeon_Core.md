@@ -115,8 +115,13 @@ Configuration settings for the inference engine.
 ## Class `LingotionLogger`
 
 Static class for logging messages with different verbosity levels.
+### Properties
 
-## Class `ModelInput`
+#### `VerbosityLevel CurrentLevel`
+
+Current verbosity level for logging. Can be manually set for global logging control outside of Inference and Preload calls. Will be overridden by the InferenceConfig on inference or preload calls.
+
+## Class `ModelInput<ModelInputType, InputSegmentType>`
 
 Base class for model inputs, providing common properties and methods for all model inputs.
 ### Constructors
@@ -309,6 +314,11 @@ Abstract class for converting numbers to a specific format. This class is intend
 ## Class `PackManifestHandler`
 
 Singleton that handles parsing and distributing information found in the pack manifest file.
+### Properties
+
+#### `PackManifestHandler Instance`
+
+Singleton reference.
 ### Methods
 
 #### `void UpdateMappings()`
@@ -459,21 +469,46 @@ Scans the manifest for all installed languages and returns a map of the language
 
 ## Struct `PacketMetadata`
 
-Metadata for Thespeon data packets. This includes its origin session ID, and which character name and module type was used.
-### Constructors
+Metadata for Thespeon data packets. This includes its origin session ID, and which character name and module type was used, and any eventual requested audio indices.
+### Properties
 
-#### `PacketMetadata(string sessionID, string characterName = null, ModuleType moduleType = ModuleType.None)`
+#### `string sessionID`
+
+The session ID associated with the session the packet originates from.
+#### `string characterName`
+
+The name of the character/actor used during the session.
+#### `ModuleType moduleType`
 
 The module type used during the session.
+#### `Queue<int> requestedAudioIndices`
 
-## Struct `ThespeonDataPacket`
-
-Represents a data packet from Thespeon synthesis containing raw data, metadata and a flag for if it is the final packet of a synthesis.
+A queue of audio indices corresponding to requested positions in input text in chronological order. Is null if none were requested.
 ### Constructors
 
-#### `ThespeonDataPacket(T[] data, string sessionID, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None)`
+#### `PacketMetadata(string sessionID, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
 
-Metadata associated with the packet, including session ID, character name, and module type.
+Initializes a new instance of the `PacketMetadata` struct.
+
+## Struct `ThespeonDataPacket<T>`
+
+Represents a data packet from Thespeon synthesis containing raw data, metadata and a flag for if it is the final packet of a synthesis.
+### Properties
+
+#### `T[] data`
+
+The raw data contained in the packet.
+#### `bool isFinalPacket`
+
+Indicates if this is the final packet of a synthesis.
+#### `PacketMetadata metadata`
+
+Metadata associated with the packet, including session ID, character name, module type and any eventual requested audio indices.
+### Constructors
+
+#### `ThespeonDataPacket(T[] data, string sessionID, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
+
+Initializes a new instance of the `ThespeonDataPacket{T}` struct.
 
 ## Enum `VerbosityLevel`
 

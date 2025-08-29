@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6.0",
@@ -14,7 +14,7 @@
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [1.0.0] - 2025-08-19\n## Added\n* First major release of Lingotion Thespeon."
+    "changelog": "# [1.1.0] - 2025-08-29\n## Added\n* Precise mid-sentence callbacks are now possible through the AudioSampleRequest control character, allowing for events to be synchronized to the playback of a specific letter in the input text.\n* Audio Callback sample showcasing how the mid-sentence callbacks can be used.\n## [Changed]\n* Rewrote the Thespeon Tools Manual and DemoGUI Sample Guide documentation.\n* Removed old entries from the Known Issues documentation.\n## [Fixed]\n* Fixed pack import crashing when the Unity project is on a separate disk from the pack file.\n* Fixed API documentation not properly showing generic methods and classes.\n* Fixed dialect selection not being possible without selecting language first.\n* Selecting a dialect in a specific segment should now only affect that segment.\n* Fixed audio stutters in the beginning of synthesized audio."
     },
    "keywords": [
       "AI",
@@ -32,6 +32,7 @@
     { "displayName": "Minimal Character", "description": "A script showing the bare minimum required to get started with Thespeon.", "path": "Samples~/Minimal Character" },
     { "displayName": "Simple Character", "description": "A script showcasing the basics of using Thespeon.", "path": "Samples~/Simple Character" },
     { "displayName": "Configuration Example", "description": "A script showing how to finely control Thespeon performance and resource consumption.", "path": "Samples~/Configuration Example" },
-    { "displayName": "Advanced Character", "description": "A script showcasing advanced usage of Thespeon.", "path": "Samples~/Advanced Character" }
+    { "displayName": "Advanced Character", "description": "A script showcasing advanced usage of Thespeon.", "path": "Samples~/Advanced Character" },
+    { "displayName": "Audio Callback", "description": "A script showcasing how audio sample requests can be used for trigger events based on audio output.", "path": "Samples~/Audio Callback" }
     ]
   }

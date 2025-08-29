@@ -33,6 +33,17 @@ Locally controls the verbosity level of the package logger called, LingotionLogg
 ## Class `ThespeonEngine`
 
 The ThespeonEngine class is responsible for managing the Thespeon synthesis and acts as an API endpoint to the Thespeon user. It provides methods to synthesize audio from ThespeonInput, preload and unload actors. The engine supports various inference configurations which combine to control Thespeons performance and resource allocation.
+### Properties
+
+#### `Action<float[], PacketMetadata> OnAudioReceived`
+
+Event triggered when audio data is received. Action takes the current audio packet as a float array and its associated metadata as arguments.
+#### `Action<PacketMetadata> OnSynthesisComplete`
+
+Event triggered when synthesis is complete. Action takes the final packet Metadata as an argument. This means OnAudioReceived has been called with the final packet.
+#### `Action<bool> OnPreloadComplete`
+
+Event triggered when TryPreloadCoroutine is complete. Action takes bool result of preload as an argument.
 ### Methods
 
 #### `void Synthesize(ThespeonInput input, string sessionID = "", InferenceConfigOverride configOverride = null)`

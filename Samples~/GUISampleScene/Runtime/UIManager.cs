@@ -159,7 +159,7 @@ public class UIManager : MonoBehaviour
         List<ThespeonInputSegment> updatedSegments = new();
         if (string.IsNullOrEmpty(visualText))
         {
-            // [DevComment] earmark empty segment with special symbol
+
             updatedSegments.Add(new ThespeonInputSegment("\u00D8"));
         }
         else

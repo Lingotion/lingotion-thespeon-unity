@@ -85,21 +85,29 @@ namespace Lingotion.Thespeon.Core
             }
             if (string.IsNullOrEmpty(defaultLanguage) && !string.IsNullOrEmpty(defaultDialect))
             {
-                LingotionLogger.Warning("You are trying to set a default dialect without providing a parent language. Trying to default to first available language with ISO3166 matching chosen dialect.");
-                defaultLanguage = availableLangs.Where(lang => string.Equals(lang.Iso3166_1, defaultDialect, System.StringComparison.OrdinalIgnoreCase) || string.Equals(lang.Iso3166_2, defaultDialect, System.StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Iso639_2 ?? "eng";
+                defaultLanguage = ModuleLanguage.NoLang;
             }
             DefaultLanguage = ModuleLanguage.BestMatch(availableLangs, defaultLanguage, defaultDialect);
+            if (DefaultLanguage == null)
+            {
+                LingotionLogger.Warning("You selected no default language. Defaulting to first available language: " + availableLangs[0]);
+                DefaultLanguage = availableLangs[0];
+            }
             foreach (InputSegmentType segment in Segments)
             {
                 if (segment.Language != null && segment.Language.Iso639_2 != null)
                 {
-                     // [DevComment] Change later to use segment.Language object here
+
                     segment.Language = ModuleLanguage.BestMatch(availableLangs, segment.Language.Iso639_2, segment.Language.Iso3166_1);
+                    if (segment.Language.Equals(DefaultLanguage))
+                    {
+                        segment.Language = null;
+                    }
                 }
             }
         }
 
-        // [DevComment] No xml tag as ModuleLanguage is meant to be a non-front-facing class.
+
         public ModelInput(List<InputSegmentType> segments, string actorName = null, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, ModuleLanguage defaultLanguage = null)
         {
             if (segments == null || segments.Count == 0)

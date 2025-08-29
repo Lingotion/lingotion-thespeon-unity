@@ -13,7 +13,13 @@ namespace Lingotion.Thespeon.Inputs
     [CreateAssetMenu(fileName = "NewThespeonCharacter", menuName = "Lingotion Thespeon/Character Asset")]
     public class ThespeonCharacterAsset : ScriptableObject
     {
+        /// <summary>
+        /// The name of the actor.
+        /// </summary>
         public string actorName;
+        /// <summary>
+        /// The module type associated with the actor.
+        /// </summary>
         public ModuleType moduleType;
     }
 
@@ -22,7 +28,15 @@ namespace Lingotion.Thespeon.Inputs
     /// </summary>
     public static class ControlCharacters
     {
+        /// <summary>
+        /// This character tells Thespeon to insert a short pause of silence in the generated dialogue.
+        /// </summary>
         public const char Pause = '⏸';
+        /// <summary>
+        /// Thespeon is able to find the audio sample which best corresponds to a position in the input text. This character marks one such position to request
+        /// its corresponding audio sample. The first received packet will contain a Queue<int> with all such samples in the current synthesis from left to right.
+        /// </summary>
+        public const char AudioSampleRequest = '◎';
     }
 
     /// <summary>

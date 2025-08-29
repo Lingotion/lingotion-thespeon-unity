@@ -73,7 +73,7 @@ namespace Lingotion.Thespeon.Inference
                 if (!InferenceWorkloadManager.Instance.TryDeregisterModuleWorkloads(actorModule))
                 {
                     LingotionLogger.Warning($"Failed to deregister module {actorName} of type {moduleType} as it is still in use.");
-                    // [DevComment] re-registers the module on fail to keep the module handler in a consistent state.
+
                     ModuleHandler.Instance.RegisterModule<ActorModule>(targetModuleInfo);
                     return false;
                 }
@@ -122,7 +122,7 @@ namespace Lingotion.Thespeon.Inference
         /// <returns>An IEnumerator for coroutine execution.</returns>
         public override IEnumerator Infer<T>(ThespeonInput input, InferenceConfig config, Action<ThespeonDataPacket<T>> callback, string sessionID, bool asyncDownload = true)
         {
-            // [DevComment] This is here because editor calls Infer directly
+
             LingotionLogger.CurrentLevel = config.Verbosity;
             double timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
             double timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
@@ -137,6 +137,7 @@ namespace Lingotion.Thespeon.Inference
             Dictionary<string, LanguageModule> languageModules;
             ThespeonInput processedInput;
             Dictionary<string, List<string>> unknownWordsByLanguage;
+            List<List<float>> markerPositionsBySegment;
             int nbrWordsNotInLookup;
             try
             {
@@ -149,7 +150,7 @@ namespace Lingotion.Thespeon.Inference
                 processedInput = TextPreprocessor.PreprocessInput(input);
                 Profiler.EndSample();
                 Profiler.BeginSample("Thespeon Find unkown words");
-                unknownWordsByLanguage = FindUnknownWords(processedInput, actorModule, languageModules);
+                (unknownWordsByLanguage, markerPositionsBySegment) = FindUnknownWordsAndMarkerPositions(processedInput, actorModule, languageModules);
                 nbrWordsNotInLookup = unknownWordsByLanguage.Values.Sum(x => x.Count);
                 Profiler.EndSample();
             }
@@ -166,13 +167,15 @@ namespace Lingotion.Thespeon.Inference
                 yield return RunPhonemizerModel(unknownWordsByLanguage, actorModule, languageModules, config);
             }
             Profiler.BeginSample("Thespeon Encoder preparation");
-
+            List<int> markerTensorPositions;
             try
             {
                 List<string> originalTexts = processedInput.Segments.Select(segment => segment.Text).ToList();
-                Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage = PhonemizeInput(ref processedInput, actorModule, languageModules);
+                (Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage, List<int> globalMarkerPositions) = PhonemizeInput(ref processedInput, actorModule, languageModules, markerPositionsBySegment);
 
+                markerTensorPositions = globalMarkerPositions.Select(val => (val + 1) * 2).ToList();
                 LingotionLogger.Debug($"Phonemized input: {processedInput.ToJson()}");
+                LingotionLogger.Debug($"Marker tensor positions: {string.Join(", ", markerTensorPositions)}");
                 SetEncoderTensors(actorModule, processedInput, lengthChangesByLanguage, originalTexts);
             }
             catch (Exception e)
@@ -192,6 +195,9 @@ namespace Lingotion.Thespeon.Inference
             double budgetConsumed = 0d;
             yield return encoderStep.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Encoder", budgetConsumed: budgetConsumed, budgetAdjustment: 0.7f);
             if (CheckInferenceAbort(targetModel)) yield break;
+            Tensor<float> alignmentTensor = tensorPool.GetTensor("alignment") as Tensor<float>;
+            alignmentTensor.ReadbackRequest();
+
             InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
             targetModel = actorModule.GetInternalModelID("decoder_preprocess");
             InferenceWorkload decoderPreprocessStep = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
@@ -221,11 +227,10 @@ namespace Lingotion.Thespeon.Inference
             tensorPool.SetTensor("boundary_clone_alpha", boundaryAlpha);
 
             string decoderChunkedID = actorModule.GetInternalModelID("decoder_chunked");
-
             int chunkIdx = 0;
+            const int melFrameLength = 512;
             while (chunkIdx < nbrChunks)
             {
-
                 Tensor<int> currentChunkTensor = new(new TensorShape(1), new[] { chunkIdx });
                 tensorPool.SetTensor("chunk_index", currentChunkTensor);
                 if (chunkIdx == 0)
@@ -261,7 +266,18 @@ namespace Lingotion.Thespeon.Inference
                     Profiler.BeginSample("Thespeon download first audio");
                     float[] vocoderData = tensor.DownloadToArray();
                     Profiler.EndSample();
-                    callback?.Invoke(new ThespeonDataPacket<T>(vocoderData as T[], sessionID, characterName: input.ActorName, moduleType: input.ModuleType));
+                    if (!alignmentTensor.IsReadbackRequestDone())
+                    {
+                        yield return new WaitUntil(alignmentTensor.IsReadbackRequestDone);
+                        yield return new WaitForEndOfFrame();
+                    }
+                    int[] alignmentArray = CumulativeRoundSum(alignmentTensor.DownloadToArray()).ToArray();
+                    Queue<int> triggerAudioIndices = markerTensorPositions.Count > 0 ? new() : null;
+                    foreach (int idx in markerTensorPositions)
+                    {
+                        triggerAudioIndices.Enqueue(alignmentArray[idx] * melFrameLength);
+                    }
+                    callback?.Invoke(new ThespeonDataPacket<T>(vocoderData as T[], sessionID, characterName: input.ActorName, moduleType: input.ModuleType, requestedAudioIndices: triggerAudioIndices));
 
                     boundaryAlpha = new(new TensorShape(1), new[] { 1.0f });
                     tensorPool.SetTensor("boundary_clone_alpha", boundaryAlpha);
@@ -334,8 +350,6 @@ namespace Lingotion.Thespeon.Inference
                     Profiler.EndSample();
                     callback?.Invoke(new ThespeonDataPacket<T>(vocoderData as T[], sessionID, characterName: input.ActorName, moduleType: input.ModuleType));
                 }
-
-
                 chunkIdx++;
             }
             tensorPool.Dispose();
@@ -385,6 +399,10 @@ namespace Lingotion.Thespeon.Inference
 
             return (actorModule, languageModules);
         }
+
+        /// <summary>
+        /// Coroutine to set up modules for inference in a coroutine.
+        /// </summary>
         public static IEnumerator SetupModulesCoroutine(string actorName, ModuleType moduleType, InferenceConfig config)
         {
             yield return new WaitForEndOfFrame();
@@ -453,7 +471,7 @@ namespace Lingotion.Thespeon.Inference
                     startTime = Time.realtimeSinceStartupAsDouble;
                 }
                 yield return LookupTableHandler.Instance.RegisterLookupTableCoroutine(langModule,
-                    () =>  CheckFrameBreak(startTime, config),
+                    () => CheckFrameBreak(startTime, config),
                     () => startTime = Time.realtimeSinceStartupAsDouble);
                 Profiler.BeginSample($"Thespeon Loading {actorName} {moduleType}");
             }
@@ -478,13 +496,20 @@ namespace Lingotion.Thespeon.Inference
             return timeLeftOfFrame < 0 || timeLeftOfBudget < 0;
         }
 
-        private Dictionary<string, Dictionary<string, int>> PhonemizeInput(ref ThespeonInput processedInput, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules)
+        private (Dictionary<string, Dictionary<string, int>>, List<int>) PhonemizeInput(ref ThespeonInput processedInput, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules, List<List<float>> markerPositionsBySegment)
         {
             Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage = new();
+            int segIdx = 0;
+            List<int> globalMarkerPositions = new();
+            int globalLengthCount = 0;
             foreach (ThespeonInputSegment segment in processedInput.Segments)
             {
+                List<float> markerPositions = markerPositionsBySegment[segIdx++];
                 if (segment.IsCustomPronounced)
                 {
+
+                    globalMarkerPositions.AddRange(markerPositions.Select(pos => Mathf.RoundToInt(globalLengthCount + pos)));
+                    globalLengthCount += segment.Text.Length;
                     continue;
                 }
                 ModuleLanguage segmentLanguage = segment.Language ?? processedInput.DefaultLanguage;
@@ -497,12 +522,14 @@ namespace Lingotion.Thespeon.Inference
                 {
                     throw new FileNotFoundException($"Language pack for Language '{langPackLanguage.ToJson()}' was never imported. Please import a language pack for each language you intend to use.");
                 }
-                // [DevComment] wonky af - languageModules[actorModule.languageModuleIDs[langPackLanguage.ToJson()]].GetLookupTable() is technically sufficient - this just checks makes sure that it has been registered...
+
                 RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(languageModules[actorModule.languageModuleIDs[langPackLanguage.ToJson()]].GetLookupTableID());
 
                 MatchCollection matches = TextPreprocessor.WordRegex.Matches(segment.Text);
                 StringBuilder sb = new(segment.Text);
                 int offset = 0;
+                int wordCount = 0;
+                int markerIdx = 0;
                 foreach (Match match in matches)
                 {
                     string word = match.Value;
@@ -516,19 +543,39 @@ namespace Lingotion.Thespeon.Inference
                         {
                             lengthChangesByLanguage[segmentLanguage.ToJson()][word] = phonemizedWord.Length;
                         }
+                        wordCount++;
+                        if (markerIdx < markerPositions.Count && wordCount > markerPositions[markerIdx])
+                        {
+                            int globalPosition = globalLengthCount + index + Mathf.RoundToInt(phonemizedWord.Length * (markerPositions[markerIdx] - (float)Math.Truncate(markerPositions[markerIdx])));
+                            LingotionLogger.Debug($"Adding audio sample request marker at global position {globalPosition} for segment {segIdx - 1}, word '{phonemizedWord}'");
+                            globalMarkerPositions.Add(globalPosition);
+                            markerIdx++;
+                        }
                     }
                 }
+
                 segment.Text = sb.ToString();
+                globalLengthCount += segment.Text.Length;
+                while (markerIdx != markerPositions.Count)
+                {
+                    globalMarkerPositions.Add(globalLengthCount);
+                    markerIdx++;
+                }
             }
-            return lengthChangesByLanguage;
+            return (lengthChangesByLanguage, globalMarkerPositions);
         }
-        private Dictionary<string, List<string>> FindUnknownWords(ThespeonInput input, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules)
+        private (Dictionary<string, List<string>>, List<List<float>>) FindUnknownWordsAndMarkerPositions(ThespeonInput input, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules)
         {
             Dictionary<string, List<string>> unknownWordsByLanguage = new();
+            List<List<float>> markerPositionsBySegment = new();
             foreach (ThespeonInputSegment segment in input.Segments)
             {
                 if (segment.IsCustomPronounced)
                 {
+                    (string cleanedPhonemizedText, List<int> markerPhonemizedIdx) = StripMarkers(segment.Text);
+                    segment.Text = cleanedPhonemizedText;
+
+                    markerPositionsBySegment.Add(markerPhonemizedIdx.Select(i => (float)i).ToList());
                     continue;
                 }
                 ModuleLanguage segmentLanguage = segment.Language ?? input.DefaultLanguage;
@@ -538,7 +585,8 @@ namespace Lingotion.Thespeon.Inference
                     throw new FileNotFoundException($"Language pack for Language '{langPackLanguage.ToJson()}' was never imported. Please import a language pack for each language you intend to use.");
                 }
                 RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(languageModules[actorModule.languageModuleIDs[langPackLanguage.ToJson()]].GetLookupTableID());
-                MatchCollection matches = TextPreprocessor.WordRegex.Matches(segment.Text);
+                (string cleanedText, List<int> markerCleanIdx) = StripMarkers(segment.Text);
+                MatchCollection matches = TextPreprocessor.WordRegex.Matches(cleanedText);
                 foreach (Match match in matches)
                 {
                     string word = match.Value;
@@ -553,8 +601,10 @@ namespace Lingotion.Thespeon.Inference
                         unknownWordsByLanguage[langPackLanguage.ToJson()].Add(word);
                     }
                 }
+                segment.Text = cleanedText;
+                markerPositionsBySegment.Add(ComputeMarkerPositions(matches, markerCleanIdx));
             }
-            return unknownWordsByLanguage;
+            return (unknownWordsByLanguage, markerPositionsBySegment);
         }
 
         private IEnumerator RunPhonemizerModel(Dictionary<string, List<string>> unknownWordsByLanguage, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules, InferenceConfig config)
@@ -577,11 +627,45 @@ namespace Lingotion.Thespeon.Inference
                 string phonemizerMD5 = currentLanguageModule.GetInternalModelID("phonemizer");
                 InferenceWorkload phonemizerWorkLoad = InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerMD5);
 
-                bool PhonemizerDoneCondition()
+                bool PhonemizerDoneCondition(int currentIteration)
                 {
+
+                    Tensor<int> srcTensor = tensorPool.GetTensor("src") as Tensor<int>;
+                    TensorShape graphemesShape = srcTensor.shape;
+
+                    int phonemizedLimit = graphemesShape[1] * 5;
+
+                    if (currentIteration >= phonemizedLimit || currentIteration >= 200)
+                    {
+                        LingotionLogger.Warning($"Phonemizer reached max number of iterations {currentIteration}, forcing completion.");
+
+                        Tensor<int> finished_indicesTensor = tensorPool.GetTensor("finished_indices") as Tensor<int>;
+                        int[] finished_indices = finished_indicesTensor.DownloadToArray();
+                        List<int> new_finished_indices = new();
+
+                        foreach (int index in finished_indices)
+                        {
+                            if (index <= 0)
+                            {
+                                new_finished_indices.Add(currentIteration);
+                            }
+                            else
+                            {
+                                new_finished_indices.Add(index);
+                            }
+
+                        }
+
+                        tensorPool.SetTensor("finished_indices", new Tensor<int>(finished_indicesTensor.shape, new_finished_indices.ToArray()));
+                        return true;
+                    }
+                    
                     Tensor<int> num_finishedTensor = tensorPool.GetTensor("num_finished") as Tensor<int>;
-                    return num_finishedTensor.DownloadToArray().Last() < batchSize;
+                    int[] numFinished = num_finishedTensor.DownloadToArray();
+
+                    return numFinished.Last() >= batchSize;
                 }
+
                 Profiler.EndSample();
                 yield return null;
                 yield return new WaitForEndOfFrame();
@@ -749,11 +833,11 @@ namespace Lingotion.Thespeon.Inference
         }
         private (List<float> speed, List<float> loudness) BuildRLECurves(ThespeonInput input, Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage, List<string> originalSegmentTexts)
         {
-            // [DevComment] sos
+
             List<float> speed = new() { input.Speed.Evaluate(0) };
-            // [DevComment] sos
+
             List<float> loudness = new() { input.Loudness.Evaluate(0) };
-            // [DevComment] without sos and eos
+
             int totalLength = originalSegmentTexts.Sum(text => text.Length);
             int segmentStart = 0;
             for (int i = 0; i < input.Segments.Count; i++)
@@ -795,9 +879,9 @@ namespace Lingotion.Thespeon.Inference
                 }
                 segmentStart += originalSegmentTexts[i].Length;
             }
-            // [DevComment] eos
+
             speed.Add(input.Speed.Evaluate(1));
-            // [DevComment] eos
+
             loudness.Add(input.Loudness.Evaluate(1));
             return (speed, loudness);
         }
@@ -835,6 +919,64 @@ namespace Lingotion.Thespeon.Inference
                 return true;
             }
             return false;
-        }   
+        }
+
+        private static IEnumerable<int> CumulativeRoundSum(float[] sequence)
+        {
+            int sum = 0;
+            foreach (var item in sequence)
+            {
+                sum += Mathf.RoundToInt(item);
+                yield return sum;
+            }
+        }
+        private static (string cleaned, List<int> markerCleanIdx) StripMarkers(string text)
+        {
+            var sb = new StringBuilder(text.Length);
+            var idxs = new List<int>();
+            int cleanIndex = 0;
+
+            foreach (char ch in text)
+            {
+                if (ch == ControlCharacters.AudioSampleRequest) { idxs.Add(cleanIndex); continue; }
+                sb.Append(ch);
+                cleanIndex++;
+            }
+            return (sb.ToString(), idxs);
+        }
+
+        private static List<float> ComputeMarkerPositions(MatchCollection matches, List<int> markerIdx)
+        {
+            List<float> positions = new(markerIdx.Count);
+            int mi = 0;
+            int wordCountBefore = 0;
+
+            foreach (int idx in markerIdx)
+            {
+                while (mi < matches.Count &&
+                    (matches[mi].Index + matches[mi].Length) < idx)
+                {
+                    wordCountBefore++;
+                    mi++;
+                }
+                if (mi < matches.Count)
+                {
+                    var m = matches[mi];
+                    int start = m.Index;
+                    int end   = m.Index + m.Length;
+
+                    if (start <= idx && idx <= end)
+                    {
+                        float frac = (idx - start) / (float)m.Length;
+                        positions.Add(wordCountBefore + frac);
+                        continue;
+                    }
+                }
+                positions.Add(wordCountBefore);
+            }
+
+            return positions;
+        }
+
     }
 }

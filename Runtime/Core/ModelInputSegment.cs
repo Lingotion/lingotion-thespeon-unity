@@ -51,23 +51,21 @@ namespace Lingotion.Thespeon.Core
             }
             Text = text;
             Emotion = emotion;
+            IsCustomPronounced = isCustomPronounced;
+
             if (string.IsNullOrEmpty(language))
             {
-                if (!string.IsNullOrEmpty(dialect))
+                if (string.IsNullOrEmpty(dialect))
                 {
-                    LingotionLogger.Warning("Dialect provided without language in segment. Will set Language to default.");
+                    Language = null;
+                    return;
                 }
-                Language = null;
+                language = ModuleLanguage.NoLang;
             }
-            else
-            {
-                LingotionLogger.Debug($"Creating ModelInputSegment with language: {language}, dialect: {dialect} and emotion: {emotion}");
-                Language = new ModuleLanguage(language, null, null, null, dialect, null);
-            }
-            IsCustomPronounced = isCustomPronounced;
+            Language = new ModuleLanguage(language, null, null, null, dialect, null);
         }
 
-        // [DevComment] No xml tag as ModuleLanguage is meant to be a non-front-facing class.
+
         public ModelInputSegment(string text, ModuleLanguage language, Emotion emotion = Emotion.None, bool isCustomPronounced = false)
         {
             if (string.IsNullOrEmpty(text))
@@ -115,7 +113,7 @@ namespace Lingotion.Thespeon.Core
     /// <summary>
     /// Enumeration representing various emotions that can be associated with a segment. Also contains a None as a special null-like value.
     /// </summary>
-    // [DevComment] move this into a file collecting all our core enums.
+
     public enum Emotion
     {
         /// <summary>

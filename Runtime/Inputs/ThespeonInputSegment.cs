@@ -38,7 +38,7 @@ namespace Lingotion.Thespeon.Inputs
 
         }
 
-        // [DevComment] No xml tag as ModuleLanguage is meant to be a non-front-facing class.
+
         public ThespeonInputSegment(string text, ModuleLanguage language, Emotion emotion = Emotion.None, bool isCustomPronounced = false) : base(text, language, emotion, isCustomPronounced)
         {
 

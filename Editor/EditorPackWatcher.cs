@@ -113,7 +113,7 @@ namespace Lingotion.Thespeon.Editor
             if (fileName.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)|| fileName.EndsWith(".sentis", StringComparison.OrdinalIgnoreCase) || (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && fileName != RuntimeFileLoader.ManifestFileName))
                 return;
             
-            // [DevComment] Watchers are threaded, force this to execute on main thread to avoid big issues
+
             EditorApplication.delayCall += () =>
             {
                 UpdatePackMappingsInfo();
@@ -294,7 +294,7 @@ namespace Lingotion.Thespeon.Editor
 
                                 languages[languageName] = currentLanguage;
                             }
-                            // [DevComment] Remove the last " / "
+
                             frontFacingName.Remove(frontFacingName.Length - 3, 3); 
                             int major, minor, patch;
                             major = module["model_options"]["version"]["major"].Value<int>();
@@ -349,7 +349,7 @@ namespace Lingotion.Thespeon.Editor
                                 };
                                 ((JArray)languages[nameInEnglish]).Add(language);
                             }
-                            // [DevComment] Remove the last " - "
+
                             frontFacingName.Remove(frontFacingName.Length - 3, 3); 
 
 

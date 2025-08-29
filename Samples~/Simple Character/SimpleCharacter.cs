@@ -53,12 +53,9 @@ public class SimpleCharacter : MonoBehaviour
         if (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.sKey.wasPressedThisFrame)
         {
             List<ThespeonInputSegment> segments = new() {
-            new("Hi! This is my voice "),
-            new("generated in real time!", emotion: Emotion.Interest),
-            new($"{ControlCharacters.Pause}A wizard gave me a ring which says {ControlCharacters.Pause}", emotion: Emotion.Interest),
-            new($"aːʃ naːhh dʊːrbɑɑtʊlʊːk {ControlCharacters.Pause} aːʃ naːhh ɡɪːmbɑːtʊːl {ControlCharacters.Pause} aːʃ naːhh θθrɑːkɑːtʊːlʊːk, ahh bʊʊrzʊʊm ɪʃɪ krɪmpɑtʊːl", isCustomPronounced: true, emotion: Emotion.Anger)
+            new("Hi! This is my voice generated in real time!"),
         };
-            ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType, defaultEmotion: Emotion.Joy, defaultLanguage: "eng");
+            ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType);
             engine.Synthesize(input, sessionID: "SampleSynthesisSession");
         }
     }

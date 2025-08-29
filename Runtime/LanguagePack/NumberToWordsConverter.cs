@@ -84,7 +84,7 @@ namespace Lingotion.Thespeon.LanguagePack
             }
             else
             {
-                // [DevComment] For decimal numbers, handle the "integer part" + "point" + digit-by-digit readout
+
                 string[] parts = number.Split('.');
                 string integerPartStr = parts[0];
                 string decimalPartStr = parts[1];
@@ -115,13 +115,13 @@ namespace Lingotion.Thespeon.LanguagePack
                 return "zˈiəɹoʊ";
             }
 
-            // [DevComment] Currently we dont handle - signs in text. so this is unused.
+
             if (number < 0)
             {
                 return "minus " + ConvertWholeNumberToWords(Math.Abs(number));
             }
 
-            // [DevComment] Break the number into groups of three digits (e.g., for "1,234,567")
+
             List<string> words = new();
             int scaleIndex = 0;
 
@@ -169,7 +169,7 @@ namespace Lingotion.Thespeon.LanguagePack
                 string hundredsPart = LessThanTwenty[hundreds] + " hˈʌndɹəd";
                 if (remainder > 0)
                 {
-                    //  [DevComment] We can omit "and" if we prefer ("one hundred twenty-three")
+
                     return hundredsPart + " ˈænd " + ConvertTens(remainder);
                 }
                 else
@@ -219,7 +219,7 @@ namespace Lingotion.Thespeon.LanguagePack
 
             if (ordinal.EndsWith("ti"))
             {
-                // [DevComment] e.g., "twenty" -> "twentieth"
+
                 return ordinal + "əθ";
             }
             int lastDigit = nbr % 10;

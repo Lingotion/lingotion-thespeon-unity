@@ -94,8 +94,8 @@ namespace Lingotion.Thespeon.LanguagePack
                         continue;
 
                     case "grapheme_ivocab":
-                        // [DevComment] Inverse grapheme vocabulary is not used in this module, but can be useful for debugging. Not used in production.
-                        // /*[DevComment]*/ _IDToGrapheme = vocab.ToObject<Dictionary<int, string>>();
+
+                        // _IDToGrapheme = vocab.ToObject<Dictionary<int, string>>();
                         continue;
 
                     case "phoneme_vocab":

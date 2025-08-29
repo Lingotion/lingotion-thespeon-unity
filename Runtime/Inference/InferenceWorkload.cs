@@ -54,14 +54,14 @@ namespace Lingotion.Thespeon.Inference
         /// <param name="skipFrames">Whether to let the coroutine yield during inference or run in a single frame.</param>  
         /// <param name="debugName">Optional debug name for the workload, used for profiling.</param>
         /// <param name="budgetAdjustment">Adjustment factor for the budget, used for adaptive scheduling and yielding logic.</param>
-        public IEnumerator InferAutoregressive(SessionTensorPool tensorPool, InferenceConfig config, Func<bool> doneCondition, string workloadmd5, bool skipFrames = true, string debugName = null, float budgetAdjustment = 1f)
+        public IEnumerator InferAutoregressive(SessionTensorPool tensorPool, InferenceConfig config, Func<int, bool> doneCondition, string workloadmd5, bool skipFrames = true, string debugName = null, float budgetAdjustment = 1f)
         {
             IEnumerator schedule;
-            bool autoregNotDone = true;
+            bool autoregDone = false;
             int autoregCount = 0;
             double budgetConsumed = 0;
             double startTime = Time.realtimeSinceStartupAsDouble;
-            while (autoregNotDone)
+            while (!autoregDone)
             {
                 int frame = 1;
                 UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {debugName} {++autoregCount} autoregressive {frame}");
@@ -108,7 +108,7 @@ namespace Lingotion.Thespeon.Inference
                         yield break;
                     }
                 }
-                autoregNotDone = doneCondition();
+                autoregDone = doneCondition(autoregCount);
                 UnityEngine.Profiling.Profiler.EndSample();
             }
             yield return null;
@@ -175,7 +175,7 @@ namespace Lingotion.Thespeon.Inference
                         layerCounter++;
                         currentElapsedTime = Time.realtimeSinceStartupAsDouble - startTime;
                         #if UNITY_EDITOR
-                            // [DevComment] frame time calculation is unreliable in editor, so ignore it.
+
                             double timeSinceFrameStart = 0d;
                         #else
                             double timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
@@ -195,8 +195,8 @@ namespace Lingotion.Thespeon.Inference
                                     AddHeavyLayer(layerCounter - 1, config.MaxSkipLayers);
                                 }
                             }
-                            // /*[DevComment]*/if (hasLayersLeft) UnityEngine.Profiling.Profiler.BeginSample($"autoregressive break \n Elapsed {currentElapsedTime}, Consumed {budgetConsumed + currentElapsedTime}\nBudget {inferSpecificBudget}, left {timeLeftOfBudget} \nFrame {timeSinceFrameStart}, left {timeLeftOfFrame} || {heavyLayers.Contains(layerCounter)}");
-                            // /*[DevComment]*/if (hasLayersLeft) UnityEngine.Profiling.Profiler.EndSample();
+                            //if (hasLayersLeft) UnityEngine.Profiling.Profiler.BeginSample($"autoregressive break \n Elapsed {currentElapsedTime}, Consumed {budgetConsumed + currentElapsedTime}\nBudget {inferSpecificBudget}, left {timeLeftOfBudget} \nFrame {timeSinceFrameStart}, left {timeLeftOfFrame} || {heavyLayers.Contains(layerCounter)}");
+                            //if (hasLayersLeft) UnityEngine.Profiling.Profiler.EndSample();
                             breakFrame = true;
                             break;
                         }
@@ -216,19 +216,19 @@ namespace Lingotion.Thespeon.Inference
                 {
                     Tensor currentOutput = null;
                     _worker.CopyOutput(output.name, ref currentOutput);
-                    double completeJobElapsedTime = Time.realtimeSinceStartupAsDouble - startTime + budgetConsumed;
-                    if (config.UseAdaptiveScheduling && completeJobElapsedTime > inferSpecificBudget * config.OvershootMargin)
-                    {
-                        if (heavyLayers.Contains(layerCounter - 1))
-                        {
-                            AddHeavyLayer(layerCounter - 2, config.MaxSkipLayers);
-                        }
-                        else
-                        {
-                            AddHeavyLayer(layerCounter - 1, config.MaxSkipLayers);
-                        }
-                    }
                     tensorPool.SetTensor(output.name, currentOutput);
+                }
+                double completeJobElapsedTime = Time.realtimeSinceStartupAsDouble - startTime + budgetConsumed;
+                if (config.UseAdaptiveScheduling && completeJobElapsedTime > inferSpecificBudget * config.OvershootMargin)
+                {
+                    if (heavyLayers.Contains(layerCounter - 1))
+                    {
+                        AddHeavyLayer(layerCounter - 2, config.MaxSkipLayers);
+                    }
+                    else
+                    {
+                        AddHeavyLayer(layerCounter - 1, config.MaxSkipLayers);
+                    }
                 }
             }
             catch (Exception e)
@@ -241,9 +241,10 @@ namespace Lingotion.Thespeon.Inference
             if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
             OnFinished?.Invoke((float)Math.Max(0, Time.realtimeSinceStartupAsDouble - startTime + budgetConsumed));
         }
-        
+
         private void AddHeavyLayer(int layerIndex, int maxSkipLayers)
-        {       
+        {
+            if (heavyLayers.Contains(layerIndex)) return;
             if (heavyLayers.Count >= maxSkipLayers)
             {
                 int rand = Mathf.RoundToInt(UnityEngine.Random.Range(0, maxSkipLayers));
@@ -255,8 +256,6 @@ namespace Lingotion.Thespeon.Inference
             }
         }
 
-
     }
-
 }
 

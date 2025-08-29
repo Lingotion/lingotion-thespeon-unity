@@ -3,6 +3,26 @@
 ## Class `RuntimeFileLoader`
 
 Static class that fetches files for the Thespeon Package.
+### Properties
+
+#### `string ActorPackSubdirectory`
+
+Actorpack subdirectory name.
+#### `string LanguagePackSubdirectory`
+
+Languagepack subdirectory name.
+#### `string ManifestFileName`
+
+Manifest file name.
+#### `string PackManifestPath`
+
+Path to the pack manifest.
+#### `string RuntimeFiles`
+
+Path to the runtime files used by the package.
+#### `string RelativeRuntimeFiles`
+
+Unity-relative path to the runtime files used by the package.
 ### Methods
 
 #### `string TrimPackFilePath(string packFilePath)`
@@ -80,6 +100,32 @@ Loads a file and returns it as a Stream.
 - `filePath`: The absolute path to the file.
 
 **Returns:** A Stream (FileStream or MemoryStream) if the file is successfully loaded; otherwise, null.
+#### `void MoveDirectory(string src, string dest, bool isUnityFile = false)`
+
+Moves a directory from a source to a destination.
+
+**Parameters:**
+
+- `src`: Source directory file path
+- `dest`: Destination directory file path
+- `isUnityFile`: If a corresponding .meta file should be affected as well.
+#### `void CopyDirectory(string src, string dest, bool isUnityFile = false)`
+
+Recursively copies a directory from a source to a destination.
+
+**Parameters:**
+
+- `src`: Source directory file path
+- `dest`: Destination directory file path
+- `isUnityFile`: If a corresponding .meta file should be affected as well.
+#### `void DeleteDirectory(string filePath, bool isUnityFile = false)`
+
+Deletes a directory.
+
+**Parameters:**
+
+- `filePath`: Target directory path to delete.
+- `isUnityFile`: If a corresponding .meta file should be affected as well.
 #### `string LoadFileAsString(string filePath)`
 
 Loads a specifed file as a string.

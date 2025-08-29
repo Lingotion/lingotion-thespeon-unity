@@ -3,10 +3,26 @@
 ## Class `ControlCharacters`
 
 Collection of control characters used in Thespeon.
+### Properties
+
+#### `char Pause`
+
+This character tells Thespeon to insert a short pause of silence in the generated dialogue.
+#### `char AudioSampleRequest`
+
+Thespeon is able to find the audio sample which best corresponds to a position in the input text. This character marks one such position to request its corresponding audio sample. The first received packet will contain a Queue<int> with all such samples in the current synthesis from left to right.
 
 ## Class `ThespeonCharacterAsset`
 
 This class is used to define characters and their associated modules.
+### Properties
+
+#### `string actorName`
+
+The name of the actor.
+#### `ModuleType moduleType`
+
+The module type associated with the actor.
 
 ## Class `ThespeonCharacterHelper`
 

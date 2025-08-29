@@ -86,8 +86,8 @@ namespace Lingotion.Thespeon.Inference
             }
             foreach (string md5 in workersToClear)
             {
-                // [DevComment] this check should already be done above, but just to be sure.
-                // [DevComment] will mean it disposes until it fails though and then leave the rest undisposed.
+
+
                 if (!TryDispose(md5)) return false;
             }
             return true;
@@ -171,7 +171,7 @@ namespace Lingotion.Thespeon.Inference
             }
         }
 
-        // [DevComment] Attempts to dispose workloads with the given MD5s. Skips those that are in use. Unclear when these are disposed then.
+
         private bool TryDispose(string md5)
         {
             if (workersInUse.Contains(md5))

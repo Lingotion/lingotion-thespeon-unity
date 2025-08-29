@@ -24,140 +24,135 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         public static void ImportThespeonPack()
         {
-            string zipPath = EditorUtility.OpenFilePanel("Select Lingotion Pack", "", "lingotion");
-            if (string.IsNullOrEmpty(zipPath))
-            {
-                return;
-            }
-
-            string tempExtractPath = Path.Combine(Application.persistentDataPath, "LingotionTempExtract");
-            if (Directory.Exists(tempExtractPath))
-            {
-                Directory.Delete(tempExtractPath, true);
-                File.Delete(tempExtractPath + ".meta");
-            }
-
             try
             {
-                ZipFile.ExtractToDirectory(zipPath, tempExtractPath, true);
-                AssetDatabase.Refresh();
-            }
-            catch (Exception ex)
-            {
-                LingotionLogger.Error($"Extraction failed: {ex.Message}");
-                return;
-            }
-
-            string[] configFiles = Directory.GetFiles(tempExtractPath, "lingotion-*.json", SearchOption.AllDirectories);
-            if (configFiles.Length == 0)
-            {
-                LingotionLogger.Error("No 'lingotion-' config file was found in the extracted archive.");
-                Cleanup(tempExtractPath);
-                return;
-            }
-
-            string configFilePath = configFiles[0];
-            string jsonContent = RuntimeFileLoader.LoadFileAsString(configFilePath);
-            var config = JsonConvert.DeserializeObject<JObject>(jsonContent);
-
-            if (!config.TryGetValue("name", out var configNameToken) ||
-                !config.TryGetValue("platform", out var platformTok) ||
-                !config.TryGetValue("type", out var configTypeToken))
-            {
-                LingotionLogger.Error($"Config file at '{configFilePath}' is missing required fields.");
-                Cleanup(tempExtractPath);
-                return;
-            }
-
-            if (!string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
-            {
-                EditorUtility.DisplayDialog(
-                    "Unsupported Platform",
-                    "This pack was built for another platform and can't be imported.\n\nRequired: platform = \"sentis\"",
-                    "OK");
-                Cleanup(tempExtractPath);
-                return;
-            }
-
-            string configType = configTypeToken.ToString();
-            string configName = configNameToken.ToString();
-            Version packVersion = new Version(
-                config["version"]["major"].Value<int>(),
-                config["version"]["minor"].Value<int>(),
-                config["version"]["patch"].Value<int>());
-            
-            string finalFolderPath;
-
-            switch (configType)
-            {
-                case "ACTORPACK":
-                    if (!Directory.Exists(RuntimeFileLoader.GetActorPacksPath()))
-                        Directory.CreateDirectory(RuntimeFileLoader.GetActorPacksPath());
-
-                    finalFolderPath = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), configName);
-
-                    if (ActorCollisionDetected(config, configName, packVersion, out string packToDelete))
-                    {
-                        Cleanup(tempExtractPath);
-                        return;
-                    }
-                    break;
 
 
-                case "LANGUAGEPACK":
-                    if (!Directory.Exists(RuntimeFileLoader.GetLanguagePacksPath()))
-                        Directory.CreateDirectory(RuntimeFileLoader.GetLanguagePacksPath());
-
-                    finalFolderPath = Path.Combine(RuntimeFileLoader.GetLanguagePacksPath(), configName);
-
-                    if (LanguagePackCollisionDetected(config, configName, out string langPackToDelete))
-                    {
-                        Cleanup(tempExtractPath);
-                        return;
-                    }
-                    if (!string.IsNullOrEmpty(langPackToDelete))
-                    {
-                        DeletePack(langPackToDelete);
-                    }
-                    break;
-
-
-                default:
-                    LingotionLogger.Error($"Selected archive \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
-                    Cleanup(tempExtractPath);
+                string zipPath = EditorUtility.OpenFilePanel("Select Lingotion Pack", "", "lingotion");
+                if (string.IsNullOrEmpty(zipPath))
+                {
                     return;
-            }
+                }
 
-            if (!VerifyPackFiles(config, tempExtractPath))
+                string tempExtractPath = Path.Combine(Application.dataPath, "LingotionTempExtract");
+
+                RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+
+                ZipFile.ExtractToDirectory(zipPath, tempExtractPath, true);
+
+
+                string[] configFiles = Directory.GetFiles(tempExtractPath, "lingotion-*.json", SearchOption.AllDirectories);
+                if (configFiles.Length == 0)
+                {
+                    LingotionLogger.Error("No 'lingotion-' config file was found in the extracted archive.");
+                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                    return;
+                }
+
+                string configFilePath = configFiles[0];
+                string jsonContent = RuntimeFileLoader.LoadFileAsString(configFilePath);
+                var config = JsonConvert.DeserializeObject<JObject>(jsonContent);
+
+                if (!config.TryGetValue("name", out var configNameToken) ||
+                    !config.TryGetValue("platform", out var platformTok) ||
+                    !config.TryGetValue("type", out var configTypeToken))
+                {
+                    LingotionLogger.Error($"Config file at '{configFilePath}' is missing required fields.");
+                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                    return;
+                }
+
+                if (!string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
+                {
+                    EditorUtility.DisplayDialog(
+                        "Unsupported Platform",
+                        "This pack was built for another platform and can't be imported.\n\nRequired: platform = \"sentis\"",
+                        "OK");
+                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                    return;
+                }
+
+                string configType = configTypeToken.ToString();
+                string configName = configNameToken.ToString();
+                Version packVersion = new Version(
+                    config["version"]["major"].Value<int>(),
+                    config["version"]["minor"].Value<int>(),
+                    config["version"]["patch"].Value<int>());
+
+                string finalFolderPath;
+
+                switch (configType)
+                {
+                    case "ACTORPACK":
+                        if (!Directory.Exists(RuntimeFileLoader.GetActorPacksPath()))
+                            Directory.CreateDirectory(RuntimeFileLoader.GetActorPacksPath());
+
+                        finalFolderPath = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), configName);
+
+                        if (ActorCollisionDetected(config, configName, packVersion, out string packToDelete))
+                        {
+                            RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                            return;
+                        }
+                        break;
+
+
+                    case "LANGUAGEPACK":
+                        if (!Directory.Exists(RuntimeFileLoader.GetLanguagePacksPath()))
+                            Directory.CreateDirectory(RuntimeFileLoader.GetLanguagePacksPath());
+
+                        finalFolderPath = Path.Combine(RuntimeFileLoader.GetLanguagePacksPath(), configName);
+
+                        if (LanguagePackCollisionDetected(config, configName, out string langPackToDelete))
+                        {
+                            RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                            return;
+                        }
+                        if (!string.IsNullOrEmpty(langPackToDelete))
+                        {
+                            DeletePack(langPackToDelete);
+                        }
+                        break;
+
+
+                    default:
+                        LingotionLogger.Error($"Selected archive \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
+                        RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                        return;
+                }
+
+                if (!VerifyPackFiles(config, tempExtractPath))
+                {
+                    LingotionLogger.Error($"Pack verification failed for {zipPath}. The pack is invalid due to missing files.");
+                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                    return;
+                }
+
+
+                RuntimeFileLoader.DeleteDirectory(finalFolderPath, true);
+
+
+                if (Path.GetPathRoot(tempExtractPath) == Path.GetPathRoot(finalFolderPath))
+                {
+                    RuntimeFileLoader.MoveDirectory(tempExtractPath, finalFolderPath, true);
+                }
+                else
+                {
+                    RuntimeFileLoader.CopyDirectory(tempExtractPath, finalFolderPath);
+                }
+
+
+                RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+
+                AssetDatabase.Refresh();
+
+                LingotionLogger.Info($"Successfully imported {configType.ToLower()}: {configName}");
+            }
+            catch (Exception e)
             {
-                LingotionLogger.Error($"Pack verification failed for {zipPath}. The pack is invalid due to missing files.");
-                Cleanup(tempExtractPath);
-                return;
+                LingotionLogger.Error($"Pack import failed with error: {e.Message}");
+                throw e;
             }
-
-            if (Directory.Exists(finalFolderPath))
-            {
-                Directory.Delete(finalFolderPath, true);
-            }
-
-            if (Path.GetPathRoot(tempExtractPath) == Path.GetPathRoot(finalFolderPath))
-            {
-                Directory.Move(tempExtractPath, finalFolderPath);
-            }
-            else
-            {
-                CopyFolder(tempExtractPath, finalFolderPath);
-            }
-
-            if (Directory.Exists(tempExtractPath))
-            {
-                Directory.Delete(tempExtractPath, true);
-                File.Delete(tempExtractPath + ".meta");
-            }
-
-            AssetDatabase.Refresh();
-
-            LingotionLogger.Info($"Successfully imported {configType.ToLower()}: {configName}");
         }
 
         /// <summary>
@@ -167,7 +162,8 @@ namespace Lingotion.Thespeon.Editor
         public static void DeletePack(string packName)
         {
             string packPath = PackManifestHandler.Instance.GetPackDirectory(packName);
-            Cleanup(packPath);
+            RuntimeFileLoader.DeleteDirectory(packPath, true);
+            AssetDatabase.Refresh();
         }
 
         /// <summary>
@@ -400,34 +396,5 @@ namespace Lingotion.Thespeon.Editor
             return false;
         }
 
-        private static void CopyFolder(string src, string dest)
-        {
-            Directory.CreateDirectory(dest);
-            foreach (var srcFile in Directory.GetFiles(src))
-            {
-                var destFile = Path.Combine(dest, Path.GetFileName(srcFile));
-                File.Copy(srcFile, destFile, overwrite: true);
-            }
-
-            foreach (var srcDir in Directory.GetDirectories(src))
-            {
-                var destSubdir = Path.Combine(dest, Path.GetFileName(srcDir));
-                CopyFolder(srcDir, destSubdir);
-            }
-        }
-
-        private static void Cleanup(string targetPath)
-        {
-            if (Directory.Exists(targetPath))
-            {
-                Directory.Delete(targetPath, true);
-            }
-            string metaFile = targetPath + ".meta";
-            if (File.Exists(metaFile))
-            {
-                File.Delete(metaFile);
-            }
-            AssetDatabase.Refresh();
-        }
     }
 }

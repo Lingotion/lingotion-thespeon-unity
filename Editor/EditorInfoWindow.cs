@@ -27,7 +27,7 @@ namespace Lingotion.Thespeon.Editor
         private Dictionary<string, EditorInputContainer> _editorInputs = new();
         private List<float> _audioData = new();
         private bool _isSynthesizing = false;
-        // [DevComment] Dynamically updated fields based on PackManifestHandler
+
         private ListView _actorPackListView;
         private ListView _languagePackListView; 
         private ListView _actorListView;
@@ -182,7 +182,7 @@ namespace Lingotion.Thespeon.Editor
             _downloadGuideHelpBox.text = "To download Actor Packs and Language Packs, please click here or go to: https://portal.lingotion.com/";
             _downloadGuideHelpBox.messageType = HelpBoxMessageType.Info;
 
-            // [DevComment] Make helpbox a clickable link
+
             var helpBoxInternalLabel = _downloadGuideHelpBox.Query<Label>().Class(HelpBox.labelUssClassName).First();
             _downloadGuideHelpBox.pickingMode = PickingMode.Position;
             _downloadGuideHelpBox.RegisterCallback<MouseEnterEvent>(_ => helpBoxInternalLabel.style.color = new Color(0.4f, 0.7f, 1f, 1f));
@@ -210,7 +210,7 @@ namespace Lingotion.Thespeon.Editor
                 {
                     selectedPackName = _languagePackListView.selectedItem as string;
 
-                    // [DevComment] Get the Foldout (visual element) for the selected index
+
                     rootElement = _languagePackListView.GetRootElementForIndex(selectedLanguageIndex);
                 }
                 else if (selectedActorIndex >= 0 && selectedActorIndex <= _actorPackListView.itemsSource.Count)
@@ -230,7 +230,7 @@ namespace Lingotion.Thespeon.Editor
                     return;
                 }
 
-                // [DevComment] Collect all label texts inside the foldout, skipping the foldout header.
+
                 var labelTexts = container.Query<Label>().ToList()
                     .Skip(1)
                     .Select(label => label.text)
@@ -421,7 +421,7 @@ namespace Lingotion.Thespeon.Editor
                 }
             };
 
-            // [DevComment] Actor tab is divided into two semi-separate panes, the actor list + info, and the audio test lab
+
             TwoPaneSplitView actorListEditorSplit = new()
             {
                 orientation = TwoPaneSplitViewOrientation.Vertical
@@ -446,7 +446,7 @@ namespace Lingotion.Thespeon.Editor
             });
             segmentEditor.Add(segmentEditorToolbar);
 
-            // [DevComment] The inference editor pane will change depending on what is selected in the actor list
+
             VisualElement inferenceEditorPane = new();
             TwoPaneSplitView actorInfoPane = CreateActorInfoPane(inferenceEditorPane);
 
@@ -490,13 +490,13 @@ namespace Lingotion.Thespeon.Editor
             
             actorMaskField.RegisterValueChangedCallback(evt =>
             {
-                // [DevComment] bitmask the selected values
+
                 var selectedTypes = Enum.GetValues(typeof(ModuleType))
                 .Cast<ModuleType>()
                 .Skip(1)
                 .Where(t => (evt.newValue & (1 << (int)t)) != 0)
                 .ToList();
-                // [DevComment] filter based on bitmask
+
                 var filtered = PackManifestHandler.Instance.GetAllActors()
                 .Where(actor =>
                 {

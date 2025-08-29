@@ -126,4 +126,8 @@ You shuold hear the speed and loudness of the speech varying as the actor speaks
 > The curves may range beteen 0.5 and 2 for speed and 0.1 and 2 for loudness and will be clamped to fit inside those ranges.
 
 ## Next Steps
-See the [Configuration and Performance Tuning Manual](./thespeon-configuration.md) to learn more about how to control Thespeon's resource consumption and performance.
+Check out the [Configuration and Performance Tuning Manual](./thespeon-configuration.md) to learn more about how to control Thespeon's resource consumption and performance.
+
+See the [Thespeon Tools Manual](./thespeon-tools.md) for to learn about more features such as mid-sentence callbacks and inserting pauses in a line.
+
+See the [DemoGUI Sample Guide](./using-the-demogui-sample.md) for a walkthrough of how to use the GUI sample to control your actor interactively.

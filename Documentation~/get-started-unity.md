@@ -94,7 +94,7 @@ The _MinimalCharacter.cs_ script shows how easy it is to run Thespeon by only pr
 > The Unity InferenceEngine GPUCompute backend does not work properly on Windows from Unity version 6000.0.53f1 and forward due to a buffer allocation issue in the DirectX pipeline. This issue has been reported to the Unity team, and we will update the package as soon as a fix is released.
 > 
 > Until then, please use a Unity Editor version lower than 6000.0.53f1 for full functionality. 
-> A workaround is to not use the CPUCompute backend when synthesizing.
+> A workaround is to not use the GPUCompute backend when synthesizing.
 
 Now that we have imported the actor and language packs, we can start interfacing with the package. Enter play mode and press the **Space**, **Enter** or **S** key to initiate a synthesis and you should hear the imported actor speak.
 

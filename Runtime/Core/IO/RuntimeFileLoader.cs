@@ -159,7 +159,7 @@ namespace Lingotion.Thespeon.Core.IO
         /// <returns>A Stream (FileStream or MemoryStream) if the file is successfully loaded; otherwise, null.</returns>
         public static Stream LoadFileAsStream(string filePath)
         {
-            // [DevComment] Magic spell to make windows not cut off paths longer than 260 chars
+
             string path = Path.GetFullPath(filePath);
 
             if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer)
@@ -174,7 +174,7 @@ namespace Lingotion.Thespeon.Core.IO
 
                 while (!request.isDone)
                 {
-                    // [DevComment] Wait for the request to complete
+
                 }
 
                 if (request.result == UnityWebRequest.Result.Success)
@@ -210,6 +210,84 @@ namespace Lingotion.Thespeon.Core.IO
                 }
             }
         }
+
+        /// <summary>
+        /// Moves a directory from a source to a destination.
+        /// </summary>
+        /// <param name="src">Source directory file path</param>
+        /// <param name="dest">Destination directory file path</param>
+        /// <param name="isUnityFile">If a corresponding .meta file should be affected as well.</param>
+        public static void MoveDirectory(string src, string dest, bool isUnityFile = false)
+        {
+            CopyDirectory(src, dest, isUnityFile);
+            DeleteDirectory(src, isUnityFile);
+        }
+
+        /// <summary>
+        /// Recursively copies a directory from a source to a destination.
+        /// </summary>
+        /// <param name="src">Source directory file path</param>
+        /// <param name="dest">Destination directory file path</param>
+        /// <param name="isUnityFile">If a corresponding .meta file should be affected as well.</param>
+        public static void CopyDirectory(string src, string dest, bool isUnityFile = false)
+        {
+            Directory.CreateDirectory(dest);
+            foreach (var srcFile in Directory.GetFiles(src))
+            {
+                var destFile = Path.Combine(dest, Path.GetFileName(srcFile));
+
+                File.Copy(srcFile, destFile, overwrite: true);
+                if (isUnityFile)
+                {
+                    string metaSrc = srcFile + ".meta";
+                    string metaDest = destFile + ".meta";
+                    if (File.Exists(metaSrc))
+                    {
+                        File.Copy(metaSrc, metaDest, overwrite: true);
+                    }
+                }
+            }
+
+            foreach (var srcDir in Directory.GetDirectories(src))
+            {
+                var destSubdir = Path.Combine(dest, Path.GetFileName(srcDir));
+                CopyDirectory(srcDir, destSubdir, isUnityFile);
+
+                if (isUnityFile)
+                {
+                    string metaSrc = srcDir + ".meta";
+                    string metaDest = destSubdir + ".meta";
+                    if (File.Exists(metaSrc))
+                    {
+                        File.Copy(metaSrc, metaDest, overwrite: true);
+                    }
+                }
+            }
+            
+            
+        }
+
+        /// <summary>
+        /// Deletes a directory.
+        /// </summary>
+        /// <param name="filePath">Target directory path to delete.</param>
+        /// <param name="isUnityFile">If a corresponding .meta file should be affected as well.</param>
+        public static void DeleteDirectory(string filePath, bool isUnityFile = false)
+        {
+            if (Directory.Exists(filePath))
+            {
+                Directory.Delete(filePath, true);
+            }
+            if (isUnityFile)
+            {
+                string metaFile = filePath + ".meta";
+                if (File.Exists(metaFile))
+                {
+                    File.Delete(metaFile);
+                }
+            }
+        }
+
         /// <summary>
         /// Loads a specifed file as a string.
         /// </summary>

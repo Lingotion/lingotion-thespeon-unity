@@ -38,7 +38,7 @@ namespace Lingotion.Thespeon.Inputs
             Speed = new AnimationCurve();
             if (speed != null)
             {
-                // [DevComment] Speed.CopyFrom(speed); for some reason this has broken hence the for loops with AddKey.
+
                 foreach(Keyframe key in speed.keys)
                 {
                     Speed.AddKey(key);
@@ -85,7 +85,7 @@ namespace Lingotion.Thespeon.Inputs
         }
 
 
-        // [DevComment] No xml tag as ModuleLanguage is meant to be a non-front-facing class.
+
         public ThespeonInput(string actorName, List<ThespeonInputSegment> segments, ModuleLanguage defaultLanguage, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, AnimationCurve speed = null, AnimationCurve loudness = null)
             : base(segments, actorName, defaultEmotion, moduleType, defaultLanguage)
         {
@@ -198,7 +198,7 @@ namespace Lingotion.Thespeon.Inputs
             }
             if (Speed != null && Speed.keys.Count() > 0)
             {
-                // [DevComment] these lose the tangent information though.
+
                 json["speed"] = new JArray(Speed.keys.ToList().Select(key => key.value));
             }
             if (Loudness != null && Loudness.keys.Count() > 0)
