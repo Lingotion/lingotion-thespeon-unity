@@ -5,7 +5,6 @@ using UnityEditor;
 using UnityEngine;
 using Lingotion.Thespeon.Engine;
 using Lingotion.Thespeon.Inference;
-using Lingotion.Thespeon.LanguagePack;
 
 namespace Lingotion.Thespeon.Editor
 {
@@ -42,10 +41,7 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         public static void CleanupResources()
         {
-            InferenceWorkloadManager.Instance.ReleaseAllWorkloads();
-            InferenceWorkloadManager.Instance.DisposeAndClearAll();
-            ModuleHandler.Instance.Clear();
-            LookupTableHandler.Instance.DisposeAndClear();
+            InferenceResourceCleanup.CleanupResources();
         }
     }
 }

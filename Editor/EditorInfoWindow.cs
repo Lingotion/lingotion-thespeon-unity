@@ -1004,7 +1004,7 @@ namespace Lingotion.Thespeon.Editor
                 _audioData.Clear();
 
 
-                EditorResourceCleanup.CleanupResources();
+                InferenceResourceCleanup.CleanupResources();
                 LingotionLogger.Debug("final audio data packet received, audio synthesis complete.");
                 _isSynthesizing = false;
             }

@@ -120,10 +120,51 @@ List<ThespeonInputSegment> segments = new() {
 };
   ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType, defaultEmotion: Emotion.Joy, defaultLanguage: "eng", speed: speed, loudness: loudness);
 ```
-You shuold hear the speed and loudness of the speech varying as the actor speaks.
+You should hear the speed and loudness of the speech varying as the actor speaks.
 
 > [!NOTE]
 > The curves may range beteen 0.5 and 2 for speed and 0.1 and 2 for loudness and will be clamped to fit inside those ranges.
+
+## Controlling the speed and loudness of a specific word or segment
+At runtime, the *speed* and *loudness* curves are mapped to each specific character in the ThespeonInput - meaning that if we would like to make a specific region be spoken in a different manner, we have to find the corresponding start and end time relative to the whole input. Using AnimationCurves, we can create different kinds of functions mapping over the whole input. For example, the code below will create a rectangular AnimationCurve in order to modify a single word:
+
+```csharp
+string inputText = "Hi! This is my voice generated in real time!";
+List<ThespeonInputSegment> segments = new() {
+new(inputText),
+};
+AnimationCurve speed = AnimationCurve.Constant(0, 1, 1);
+
+AnimationCurve loudness = AnimationCurve.Constant(0, 1, 1);
+
+string targetWord = "generated";
+
+// find indices of the specific word
+int startIndex = inputText.IndexOf(targetWord);
+int endIndex = startIndex + targetWord.Length - 1;
+
+// convert indices to a normalized keyframe time between first and last character
+float normStartTime = (float)startIndex / (float)(inputText.Length - 1);
+float normEndTime = (float)endIndex / (float)(inputText.Length - 1);
+
+// make the specific word half as slow, and half as loud
+Keyframe startKeyFrame = new(normStartTime, 0.5f);
+Keyframe endKeyFrame = new(normEndTime, 1f);
+// modify tangents so that the keyframes do not affect the speed and loudness of surrounding words
+startKeyFrame.inTangent = float.PositiveInfinity;
+startKeyFrame.outTangent = 0f;
+endKeyFrame.inTangent = float.PositiveInfinity;
+endKeyFrame.outTangent = 0f;
+// insert keys 
+speed.AddKey(startKeyFrame);
+speed.AddKey(endKeyFrame);
+loudness.AddKey(startKeyFrame);
+loudness.AddKey(endKeyFrame);
+
+ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType, speed: speed, loudness: loudness);
+```
+> [!NOTE]
+> The mapping of specific characters includes **all** characters, including non-audible characters and blank spaces. If an output does not seem to match a substring, verify that surrounding special characters are included in the substring. 
 
 ## Next Steps
 Check out the [Configuration and Performance Tuning Manual](./thespeon-configuration.md) to learn more about how to control Thespeon's resource consumption and performance.

@@ -1,5 +1,14 @@
 # Lingotion.Thespeon.Inference API Documentation
 
+## Class `InferenceResourceCleanup`
+
+Handles the cleanup of resources and disposing of tensors/workers when Application.Quit() is called.
+### Methods
+
+#### `void CleanupResources()`
+
+Cleans up and disposes all resources used by Thespeon.
+
 ## Class `InferenceSession<ModelInputType, InputSegmentType>`
 
 Template for a new inference session.
