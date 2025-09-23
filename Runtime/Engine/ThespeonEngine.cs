@@ -39,6 +39,11 @@ namespace Lingotion.Thespeon.Engine
         /// </summary>
         public Action<bool> OnPreloadComplete;
 
+        /// <summary>
+        /// Event triggered when synthesis has failed.
+        /// </summary>
+        public Action<string> OnSynthesisFailed;
+
 
         private Queue<(float[], PacketMetadata)> dataQueue = new();
         private int currentDataLength = 0;
@@ -79,6 +84,7 @@ namespace Lingotion.Thespeon.Engine
             if (config.PreferredBackendType == Unity.InferenceEngine.BackendType.GPUPixel)
             {
                 LingotionLogger.Error("GPUPixel backend is not supported yet. Please use a different backend.");
+                OnSynthesisFailed?.Invoke(sessionID);
                 return;
             }
             if (isRunningSynth)
@@ -227,6 +233,12 @@ namespace Lingotion.Thespeon.Engine
 
         private void PacketHandler<T>(ThespeonDataPacket<T> packet) where T : unmanaged
         {
+            if (packet.metadata.status == DataPacketStatus.FAILED)
+            {
+                LingotionLogger.Error($"Inference failed.");
+                OnSynthesisFailed?.Invoke(packet.metadata.sessionID);
+                return;
+            }
             if (typeof(T) != typeof(float))
             {
                 LingotionLogger.Error($"Packet data type {typeof(T)} is not supported. Expected float.");

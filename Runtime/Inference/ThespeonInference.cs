@@ -159,12 +159,102 @@ namespace Lingotion.Thespeon.Inference
                 LingotionLogger.Error($"Error during inference preparation: {e.Message}");
                 tensorPool.Dispose();
                 Profiler.EndSample();
+                callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
                 yield break;
             }
             Profiler.EndSample();
             if (nbrWordsNotInLookup > 0)
             {
-                yield return RunPhonemizerModel(unknownWordsByLanguage, actorModule, languageModules, config);
+                // Run phonemizer
+                foreach ((string languageAsJson, List<string> uniqueWords) in unknownWordsByLanguage)
+                {
+                    ModuleLanguage language = JsonConvert.DeserializeObject<ModuleLanguage>(languageAsJson);
+                    Profiler.BeginSample("Thespeon Phonemizer preparation " + language.Iso639_2);
+                    LanguageModule currentLanguageModule = languageModules[actorModule.languageModuleIDs[languageAsJson]];
+                    int maxInLength = 0;
+                    List<List<int>> phonemizerInputs = uniqueWords.Select(word => currentLanguageModule.EncodeGraphemes(word)).ToList();
+
+                    phonemizerInputs.ForEach(wordIDs =>
+                    {
+                        currentLanguageModule.InsertStringBoundaries(wordIDs);
+                        maxInLength = Math.Max(maxInLength, wordIDs.Count);
+                    });
+
+                    int batchSize = BuildPhonemizerTensors(maxInLength, phonemizerInputs, currentLanguageModule.EncodePhonemes("<sos>")[0]);
+                    string phonemizerMD5 = currentLanguageModule.GetInternalModelID("phonemizer");
+                    InferenceWorkload phonemizerWorkLoad = null;
+
+                    Profiler.EndSample();
+                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerMD5, ref phonemizerWorkLoad))
+                    {
+                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerMD5, ref phonemizerWorkLoad));
+                        yield return new WaitForEndOfFrame();
+                    }
+
+                    bool PhonemizerDoneCondition(int currentIteration)
+                    {
+
+                        Tensor<int> srcTensor = tensorPool.GetTensor("src") as Tensor<int>;
+                        TensorShape graphemesShape = srcTensor.shape;
+
+                        int phonemizedLimit = graphemesShape[1] * 5;
+
+                        if (currentIteration >= phonemizedLimit || currentIteration >= 200)
+                        {
+                            LingotionLogger.Warning($"Phonemizer reached max number of iterations {currentIteration}, forcing completion.");
+
+                            Tensor<int> finished_indicesTensor = tensorPool.GetTensor("finished_indices") as Tensor<int>;
+                            int[] finished_indices = finished_indicesTensor.DownloadToArray();
+                            List<int> new_finished_indices = new();
+
+                            foreach (int index in finished_indices)
+                            {
+                                if (index <= 0)
+                                {
+                                    new_finished_indices.Add(currentIteration);
+                                }
+                                else
+                                {
+                                    new_finished_indices.Add(index);
+                                }
+
+                            }
+
+                            tensorPool.SetTensor("finished_indices", new Tensor<int>(finished_indicesTensor.shape, new_finished_indices.ToArray()));
+                            return true;
+                        }
+
+                        Tensor<int> num_finishedTensor = tensorPool.GetTensor("num_finished") as Tensor<int>;
+                        int[] numFinished = num_finishedTensor.DownloadToArray();
+
+                        return numFinished.Last() >= batchSize;
+                    }
+
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    yield return phonemizerWorkLoad.InferAutoregressive(tensorPool, config, PhonemizerDoneCondition, phonemizerMD5, debugName: "phonemizer", budgetAdjustment: 1f);
+
+                    InferenceWorkloadManager.Instance.ReleaseWorkload(phonemizerMD5);
+                    if (CheckInferenceAbort(phonemizerMD5))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status: DataPacketStatus.FAILED));
+                        yield break;
+                    }
+                    try
+                    {
+                        Profiler.BeginSample("Thespeon Phonemizer resolution");
+                        ResolvePhonemizerResult(currentLanguageModule, uniqueWords);
+                        Profiler.EndSample();
+                    }
+                    catch (Exception e)
+                    {
+                        LingotionLogger.Error($"Error resolving phonemizer result: {e.Message} {e.StackTrace}");
+                        tensorPool.Dispose();
+                        Profiler.EndSample();
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status: DataPacketStatus.FAILED));
+                        yield break;
+                    }
+                }
             }
             Profiler.BeginSample("Thespeon Encoder preparation");
             List<int> markerTensorPositions;
@@ -183,6 +273,7 @@ namespace Lingotion.Thespeon.Inference
                 LingotionLogger.Error($"Error preparing tensors for encoder inference: {e.Message}");
                 tensorPool.Dispose();
                 Profiler.EndSample();
+                callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
                 yield break;
             }
             Profiler.EndSample();
@@ -190,20 +281,36 @@ namespace Lingotion.Thespeon.Inference
             yield return new WaitForEndOfFrame();
             string targetModel = actorModule.GetInternalModelID("encoder");
             LingotionLogger.Debug($"Starting inference for {targetModel} with input: {processedInput.ToJson()}");
-            InferenceWorkload encoderStep = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+            InferenceWorkload encoderStep = null;
+            if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref encoderStep))
+            {
+                yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref encoderStep));
+                yield return new WaitForEndOfFrame();
+            }
             double budgetConsumed = 0d;
             yield return encoderStep.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Encoder", budgetConsumed: budgetConsumed, budgetAdjustment: 0.7f);
-            if (CheckInferenceAbort(targetModel)) yield break;
+            if (CheckInferenceAbort(targetModel))
+            {
+                callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                yield break;
+            } 
             Tensor<float> alignmentTensor = tensorPool.GetTensor("alignment") as Tensor<float>;
             alignmentTensor.ReadbackRequest();
 
             InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
             targetModel = actorModule.GetInternalModelID("decoder_preprocess");
-            InferenceWorkload decoderPreprocessStep = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+            InferenceWorkload decoderPreprocessStep = null;
+            if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderPreprocessStep))
+            {
+                yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderPreprocessStep));
+                yield return new WaitForEndOfFrame();
+            }
             yield return decoderPreprocessStep.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Decoder preprocess", budgetConsumed: budgetConsumed);
-            if (CheckInferenceAbort(targetModel)) yield break;
+            if (CheckInferenceAbort(targetModel))
+            {
+                callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                yield break;
+            } 
 
             InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
 
@@ -233,6 +340,14 @@ namespace Lingotion.Thespeon.Inference
             {
                 Tensor<int> currentChunkTensor = new(new TensorShape(1), new[] { chunkIdx });
                 tensorPool.SetTensor("chunk_index", currentChunkTensor);
+                
+                targetModel = actorModule.GetInternalModelID("decoder_chunked");
+                InferenceWorkload decoderChunked = null;
+                if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderChunked))
+                {
+                    yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderChunked));
+                    yield return new WaitForEndOfFrame();
+                }
                 if (chunkIdx == 0)
                 {
                     if (chunkIdx == nbrChunks - 1)
@@ -241,17 +356,27 @@ namespace Lingotion.Thespeon.Inference
                         break;
                     }
 
-                    InferenceWorkload decoderChunked = InferenceWorkloadManager.Instance.AcquireWorkload(decoderChunkedID);
-
                     yield return decoderChunked.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Decoder Chunked", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-
+                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("vocoder_first");
-                    InferenceWorkload vocoderFirstChunk = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+                    InferenceWorkload vocoderFirstChunk = null;
+                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderFirstChunk))
+                    {
+                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderFirstChunk));
+                        yield return new WaitForEndOfFrame();
+                    }
                     yield return vocoderFirstChunk.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Vocoder first", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
 
                     Tensor<float> tensor = tensorPool.GetTensor("vocoder_audio") as Tensor<float>;
@@ -285,24 +410,43 @@ namespace Lingotion.Thespeon.Inference
                 }
                 else if (chunkIdx == nbrChunks - 1)
                 {
-                    InferenceWorkload decoderChunked = InferenceWorkloadManager.Instance.AcquireWorkload(decoderChunkedID);
 
                     yield return decoderChunked.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Decoder Chunked", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-
+                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("decoder_postprocess");
-                    InferenceWorkload decoderPostProcess = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+                    InferenceWorkload decoderPostProcess = null;
+                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderPostProcess))
+                    {
+                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderPostProcess));
+                        yield return new WaitForEndOfFrame();
+                    }
                     yield return decoderPostProcess.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, skipFrames: false, debugName: "Decoder Postprocess", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
 
                     targetModel = actorModule.GetInternalModelID("vocoder_last");
-                    InferenceWorkload vocoderLastChunk = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+                    InferenceWorkload vocoderLastChunk = null;
+                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderLastChunk))
+                    {
+                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderLastChunk));
+                        yield return new WaitForEndOfFrame();
+                    }
                     yield return vocoderLastChunk.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Vocoder last", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
 
                     Tensor<float> tensor = tensorPool.GetTensor("vocoder_audio") as Tensor<float>;
@@ -317,23 +461,34 @@ namespace Lingotion.Thespeon.Inference
                     Profiler.BeginSample("Thespeon download last audio");
                     float[] vocoderData = tensor.DownloadToArray();
                     Profiler.EndSample();
-                    callback?.Invoke(new ThespeonDataPacket<T>(vocoderData as T[], sessionID, true, input.ActorName, input.ModuleType));
+                    callback?.Invoke(new ThespeonDataPacket<T>(vocoderData as T[], sessionID, isFinalPacket: true, characterName: input.ActorName, moduleType: input.ModuleType));
 
                 }
                 else
                 {
-                    InferenceWorkload decoderChunked = InferenceWorkloadManager.Instance.AcquireWorkload(decoderChunkedID);
 
                     yield return decoderChunked.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Decoder Chunked", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-
+                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("vocoder_middle");
-                    InferenceWorkload vocoderMiddleChunk = InferenceWorkloadManager.Instance.AcquireWorkload(targetModel);
-
+                    InferenceWorkload vocoderMiddleChunk = null;
+                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderMiddleChunk))
+                    {
+                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderMiddleChunk));
+                        yield return new WaitForEndOfFrame();
+                    }
                     yield return vocoderMiddleChunk.Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, debugName: "Vocoder middle", budgetConsumed: budgetConsumed);
-                    if (CheckInferenceAbort(targetModel)) yield break;
+                    if (CheckInferenceAbort(targetModel))
+                    {
+                        callback?.Invoke(new ThespeonDataPacket<T>(null, sessionID, status:DataPacketStatus.FAILED));
+                        yield break;
+                    } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(targetModel);
 
                     Tensor<float> tensor = tensorPool.GetTensor("vocoder_audio") as Tensor<float>;
@@ -607,87 +762,6 @@ namespace Lingotion.Thespeon.Inference
             return (unknownWordsByLanguage, markerPositionsBySegment);
         }
 
-        private IEnumerator RunPhonemizerModel(Dictionary<string, List<string>> unknownWordsByLanguage, ActorModule actorModule, Dictionary<string, LanguageModule> languageModules, InferenceConfig config)
-        {
-            foreach ((string languageAsJson, List<string> uniqueWords) in unknownWordsByLanguage)
-            {
-                ModuleLanguage language = JsonConvert.DeserializeObject<ModuleLanguage>(languageAsJson);
-                Profiler.BeginSample("Thespeon Phonemizer preparation " + language.Iso639_2);
-                LanguageModule currentLanguageModule = languageModules[actorModule.languageModuleIDs[languageAsJson]];
-                int maxInLength = 0;
-                List<List<int>> phonemizerInputs = uniqueWords.Select(word => currentLanguageModule.EncodeGraphemes(word)).ToList();
-
-                phonemizerInputs.ForEach(wordIDs =>
-                {
-                    currentLanguageModule.InsertStringBoundaries(wordIDs);
-                    maxInLength = Math.Max(maxInLength, wordIDs.Count);
-                });
-
-                int batchSize = BuildPhonemizerTensors(maxInLength, phonemizerInputs, currentLanguageModule.EncodePhonemes("<sos>")[0]);
-                string phonemizerMD5 = currentLanguageModule.GetInternalModelID("phonemizer");
-                InferenceWorkload phonemizerWorkLoad = InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerMD5);
-
-                bool PhonemizerDoneCondition(int currentIteration)
-                {
-
-                    Tensor<int> srcTensor = tensorPool.GetTensor("src") as Tensor<int>;
-                    TensorShape graphemesShape = srcTensor.shape;
-
-                    int phonemizedLimit = graphemesShape[1] * 5;
-
-                    if (currentIteration >= phonemizedLimit || currentIteration >= 200)
-                    {
-                        LingotionLogger.Warning($"Phonemizer reached max number of iterations {currentIteration}, forcing completion.");
-
-                        Tensor<int> finished_indicesTensor = tensorPool.GetTensor("finished_indices") as Tensor<int>;
-                        int[] finished_indices = finished_indicesTensor.DownloadToArray();
-                        List<int> new_finished_indices = new();
-
-                        foreach (int index in finished_indices)
-                        {
-                            if (index <= 0)
-                            {
-                                new_finished_indices.Add(currentIteration);
-                            }
-                            else
-                            {
-                                new_finished_indices.Add(index);
-                            }
-
-                        }
-
-                        tensorPool.SetTensor("finished_indices", new Tensor<int>(finished_indicesTensor.shape, new_finished_indices.ToArray()));
-                        return true;
-                    }
-                    
-                    Tensor<int> num_finishedTensor = tensorPool.GetTensor("num_finished") as Tensor<int>;
-                    int[] numFinished = num_finishedTensor.DownloadToArray();
-
-                    return numFinished.Last() >= batchSize;
-                }
-
-                Profiler.EndSample();
-                yield return null;
-                yield return new WaitForEndOfFrame();
-                yield return phonemizerWorkLoad.InferAutoregressive(tensorPool, config, PhonemizerDoneCondition, phonemizerMD5, debugName: "phonemizer", budgetAdjustment: 1f);
-
-                InferenceWorkloadManager.Instance.ReleaseWorkload(phonemizerMD5);
-                if (CheckInferenceAbort(phonemizerMD5)) yield break;
-                try
-                {
-                    Profiler.BeginSample("Thespeon Phonemizer resolution");
-                    ResolvePhonemizerResult(currentLanguageModule, uniqueWords);
-                    Profiler.EndSample();
-                }
-                catch (Exception e)
-                {
-                    LingotionLogger.Error($"Error resolving phonemizer result: {e.Message} {e.StackTrace}");
-                    tensorPool.Dispose();
-                    Profiler.EndSample();
-                    yield break;
-                }
-            }
-        }
         private int BuildPhonemizerTensors(int maxInLength, List<List<int>> phonemizerInputs, int sosID)
         {
             try

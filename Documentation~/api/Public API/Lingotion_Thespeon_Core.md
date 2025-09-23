@@ -1,5 +1,13 @@
 # Lingotion.Thespeon.Core API Documentation
 
+## Enum `DataPacketStatus`
+
+Enum denoting if the inference succeeded or not.
+### Members
+
+#### `OK`
+#### `FAILED`
+
 ## Enum `Emotion`
 
 Enumeration representing various emotions that can be associated with a segment. Also contains a None as a special null-like value.
@@ -475,6 +483,9 @@ Metadata for Thespeon data packets. This includes its origin session ID, and whi
 #### `string sessionID`
 
 The session ID associated with the session the packet originates from.
+#### `DataPacketStatus status`
+
+Status symbol indicating if the synthesis succeeded or not.
 #### `string characterName`
 
 The name of the character/actor used during the session.
@@ -486,7 +497,7 @@ The module type used during the session.
 A queue of audio indices corresponding to requested positions in input text in chronological order. Is null if none were requested.
 ### Constructors
 
-#### `PacketMetadata(string sessionID, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
+#### `PacketMetadata(string sessionID, DataPacketStatus status, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
 
 Initializes a new instance of the `PacketMetadata` struct.
 
@@ -506,7 +517,7 @@ Indicates if this is the final packet of a synthesis.
 Metadata associated with the packet, including session ID, character name, module type and any eventual requested audio indices.
 ### Constructors
 
-#### `ThespeonDataPacket(T[] data, string sessionID, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
+#### `ThespeonDataPacket(T[] data, string sessionID, DataPacketStatus status = DataPacketStatus.OK, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)`
 
 Initializes a new instance of the `ThespeonDataPacket{T}` struct.
 

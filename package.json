@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6.0",
@@ -14,8 +14,7 @@
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [1.1.1] - 2025-09-17\n## Added\n* New section to the Actor Control Guide, detailing how speed and loudness can be set for individual words or regions of an input.\n## Fixed\n* Fixed a crash from disposing GPU tensors after the GPU is uninitialized."
-    },
+    "changelog": "# [1.2.0] - 2025-09-22\n## Added\n* New `OnSynthesisFailed` callback for ThespeonEngine.\n## Fixed\n* Synthesis of multiple simultaneous engines no longer results in resource collisions.\n* Thespeon now properly waits until the end of the frame during synthesis.\n* Inference failure in the ThespeonInfoWindow no longer results in a non-responsive UI."    },
    "keywords": [
       "AI",
       "Lingotion",

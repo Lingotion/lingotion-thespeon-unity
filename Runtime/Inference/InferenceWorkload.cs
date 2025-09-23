@@ -7,6 +7,9 @@ using System.Collections.Generic;
 using Lingotion.Thespeon.Core;
 using Unity.InferenceEngine;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Lingotion.Thespeon.Inference
 {
@@ -153,8 +156,11 @@ namespace Lingotion.Thespeon.Inference
             double currentElapsedTime = 0d;
             bool hasLayersLeft = true;
             int frameCount = 1;
-            bool breakFrame = false;
             double inferSpecificBudget = config.TargetBudgetTime * budgetAdjustment;
+            double timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
+            double timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
+            double timeLeftOfBudget = inferSpecificBudget - budgetConsumed - currentElapsedTime;
+            bool breakFrame = timeLeftOfBudget <= 0 || timeLeftOfFrame <= 0;
             while (hasLayersLeft)
             {
                 if (skipFrames && breakFrame)
@@ -176,13 +182,19 @@ namespace Lingotion.Thespeon.Inference
                         currentElapsedTime = Time.realtimeSinceStartupAsDouble - startTime;
                         #if UNITY_EDITOR
 
-                            double timeSinceFrameStart = 0d;
+                            if (!EditorApplication.isPlaying)
+                            {
+                                timeSinceFrameStart = 0d;
+                            } else 
+                            {
+                                timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
+                            }
                         #else
-                            double timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
+                            timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
                         #endif
-                        double timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
-                        double timeLeftOfBudget = inferSpecificBudget - budgetConsumed - currentElapsedTime;
-                        if (!hasLayersLeft || timeLeftOfBudget < 0 || timeLeftOfFrame < 0 || (config.UseAdaptiveScheduling && heavyLayers.Contains(layerCounter)))
+                        timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
+                        timeLeftOfBudget = inferSpecificBudget - budgetConsumed - currentElapsedTime;
+                        if (!hasLayersLeft || timeLeftOfBudget <= 0 || timeLeftOfFrame <= 0 || (config.UseAdaptiveScheduling && heavyLayers.Contains(layerCounter)))
                         {
                             if (config.UseAdaptiveScheduling && budgetConsumed + currentElapsedTime > inferSpecificBudget * config.OvershootMargin)
                             {

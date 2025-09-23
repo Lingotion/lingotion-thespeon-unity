@@ -44,6 +44,9 @@ Event triggered when synthesis is complete. Action takes the final packet Metada
 #### `Action<bool> OnPreloadComplete`
 
 Event triggered when TryPreloadCoroutine is complete. Action takes bool result of preload as an argument.
+#### `Action<string> OnSynthesisFailed`
+
+Event triggered when synthesis has failed.
 ### Methods
 
 #### `void Synthesize(ThespeonInput input, string sessionID = "", InferenceConfigOverride configOverride = null)`

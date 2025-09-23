@@ -5,6 +5,15 @@ using System.Collections.Generic;
 namespace Lingotion.Thespeon.Core
 {
     /// <summary>
+    /// Enum denoting if the inference succeeded or not.
+    /// </summary>
+    public enum DataPacketStatus
+    {
+        OK,
+        FAILED
+    }
+    
+    /// <summary>
     /// Represents a data packet from Thespeon synthesis containing raw data, metadata and a flag for if it is the final packet of a synthesis.
     /// </summary>
     public struct ThespeonDataPacket<T>
@@ -25,11 +34,11 @@ namespace Lingotion.Thespeon.Core
         /// <summary>
         /// Initializes a new instance of the <see cref="ThespeonDataPacket{T}"/> struct.
         /// </summary>
-        public ThespeonDataPacket(T[] data, string sessionID, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)
+        public ThespeonDataPacket(T[] data, string sessionID, DataPacketStatus status = DataPacketStatus.OK, bool isFinalPacket = false, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)
         {
             this.data = data;
             this.isFinalPacket = isFinalPacket;
-            metadata = new PacketMetadata(sessionID, characterName, moduleType, requestedAudioIndices);
+            metadata = new PacketMetadata(sessionID, status, characterName, moduleType, requestedAudioIndices);
         }
     }
 
@@ -43,6 +52,12 @@ namespace Lingotion.Thespeon.Core
         /// The session ID associated with the session the packet originates from.
         /// </summary>
         public string sessionID;
+        
+        /// <summary>
+        /// Status symbol indicating if the synthesis succeeded or not. 
+        /// </summary>
+        public DataPacketStatus status;
+
         /// <summary>
         /// The name of the character/actor used during the session.
         /// </summary>
@@ -56,13 +71,13 @@ namespace Lingotion.Thespeon.Core
         /// A queue of audio indices corresponding to requested positions in input text in chronological order. Is null if none were requested.
         /// </summary>
         public Queue<int> requestedAudioIndices;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="PacketMetadata"/> struct.
         /// </summary>
-        public PacketMetadata(string sessionID, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)
+        public PacketMetadata(string sessionID, DataPacketStatus status, string characterName = null, ModuleType moduleType = ModuleType.None, Queue<int> requestedAudioIndices = null)
         {
             this.sessionID = sessionID;
+            this.status = status;
             this.characterName = characterName;
             this.moduleType = moduleType;
             this.requestedAudioIndices = requestedAudioIndices;

@@ -102,7 +102,7 @@ Checks if a module is registered.
 - `module`: Module to check.
 
 **Returns:** True if the module is registered, false otherwise.
-#### `InferenceWorkload AcquireWorkload(string md5)`
+#### `bool AcquireWorkload(string md5, ref InferenceWorkload acquiredWorkload)`
 
 Flags workload as in use and returns a reference to it.
 

@@ -997,6 +997,11 @@ namespace Lingotion.Thespeon.Editor
 
         private void HandleAudioOutput(ThespeonDataPacket<float> data)
         {
+            if (data.metadata.status == DataPacketStatus.FAILED)
+            {
+                HandleSynthFailed();
+                return;
+            }
             _audioData.AddRange(data.data);
             if (data.isFinalPacket)
             {
@@ -1008,6 +1013,13 @@ namespace Lingotion.Thespeon.Editor
                 LingotionLogger.Debug("final audio data packet received, audio synthesis complete.");
                 _isSynthesizing = false;
             }
+        }
+
+        private void HandleSynthFailed()
+        {
+                _audioData.Clear();
+                InferenceResourceCleanup.CleanupResources();
+                _isSynthesizing = false;
         }
 
         private static void CreateAndSelectWav(float[] data)

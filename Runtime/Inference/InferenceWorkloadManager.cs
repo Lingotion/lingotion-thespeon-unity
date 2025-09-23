@@ -81,7 +81,7 @@ namespace Lingotion.Thespeon.Inference
             HashSet<string> currentMD5s = module.GetAllFileMD5s();
             if (workersToClear.Any(md5 => workersInUse.Contains(md5)))
             {
-                LingotionLogger.Warning($"Cannot deregister module {module.ModuleID} as it is still in use.");
+                LingotionLogger.Warning($"Cannot deregister workloads from module {module.ModuleID} as it is still in use.");
                 return false;
             }
             foreach (string md5 in workersToClear)
@@ -108,15 +108,17 @@ namespace Lingotion.Thespeon.Inference
         /// </summary>
         /// <param name="md5">Target workload to request.</param>
         /// <returns></returns>
-        public InferenceWorkload AcquireWorkload(string md5)
+        public bool AcquireWorkload(string md5, ref InferenceWorkload acquiredWorkload)
         {
             if (workersInUse.Contains(md5))
             {
-                LingotionLogger.Error($"Worker {md5} already in use.");
-                return null;
+                LingotionLogger.Debug($"Workload {md5} already in use.");
+                acquiredWorkload = null;
+                return false;
             }
             workersInUse.Add(md5);
-            return _availableWorkers[md5];
+            acquiredWorkload = _availableWorkers[md5];
+            return true;
         }
 
         /// <summary>
