@@ -6,6 +6,9 @@ using Lingotion.Thespeon.Inputs;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+#if UNITY_EDITOR
+using Unity.Burst;
+#endif
 /// <summary>
 /// A minimal character controller that uses the Thespeon engine for real-time voice synthesis.
 /// This example demonstrates the minimal functionality of the Thespeon engine without any additional features.
@@ -20,6 +23,12 @@ public class MinimalCharacter : MonoBehaviour
     private AudioClip audioClip;
     void Start()
     {
+#if UNITY_EDITOR
+        if (BurstCompiler.Options.EnableBurstDebug)
+        {
+            Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
+        }
+#endif
         engine = GetComponent<ThespeonEngine>();
         // Connect callback when audio is received from Thespeon
         engine.OnAudioReceived += OnAudioPacketReceive;

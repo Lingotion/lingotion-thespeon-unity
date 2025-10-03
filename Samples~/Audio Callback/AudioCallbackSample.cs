@@ -9,6 +9,10 @@ using UnityEngine.InputSystem;
 using System.Linq;
 using System.Threading;
 
+#if UNITY_EDITOR
+using Unity.Burst;
+#endif
+
 [RequireComponent(typeof(ThespeonEngine))]
 [RequireComponent(typeof(AudioSource))]
 [RequireComponent(typeof(TextMeshProUGUI))]
@@ -33,6 +37,12 @@ public class AudioCallbackSample : MonoBehaviour
 
     void Start()
     {
+#if UNITY_EDITOR
+        if (BurstCompiler.Options.EnableBurstDebug)
+        {
+            Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
+        }
+#endif
         _engine = GetComponent<ThespeonEngine>();
         // Connect callback when audio is received from Thespeon
         _engine.OnAudioReceived += OnAudioPacketReceive;

@@ -300,19 +300,6 @@ namespace Lingotion.Thespeon.Core
         }
 
         /// <summary>
-        /// Fetches the language codes of all languages
-        /// </summary>
-        /// <returns>An IEnumerator containing all installed language codes.</returns>
-        public IEnumerable<string> GetAllLanguageCodes()
-        {
-            return GetAllLanguagesPerModule()
-                .Values
-                .SelectMany(list => list)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(code => code);
-        }
-
-        /// <summary>
         /// Finds a specific actor module.
         /// </summary>
         /// <param name="actorName">Target actor name.</param>
@@ -377,43 +364,6 @@ namespace Lingotion.Thespeon.Core
         }
 
         /// <summary>
-        /// Fetches the information about a language spoken by an actor.
-        /// </summary>
-        /// <param name="actorName">Target actor name.</param>
-        /// <param name="iso639_2">Language of which to find parameters for.</param>
-        /// <returns>A list of ModuleLanguages for that specific actor and language.</returns>
-        public List<ModuleLanguage> GetAccentsForActorAndLanguage(string actorName, string iso639_2)
-        {
-
-            return packManifestData["actorpack_modules"].Children<JProperty>()
-                .Where(p =>
-                {
-                    var module = p.Value;
-                    var actors = module["actors"]?.Values<string>() ?? Enumerable.Empty<string>();
-
-                    return actors.Contains(actorName);
-                })
-                .SelectMany(p =>
-                {
-                    if (p.Value["languages"] is not JObject languages)
-                        return Enumerable.Empty<ModuleLanguage>();
-
-                    return languages.Properties().SelectMany(lang =>
-                    {
-                        if (lang.Value["dialects"] is not JObject dialects)
-                            return Enumerable.Empty<ModuleLanguage>();
-
-                        return dialects.Properties().Select(dialect =>
-                        {
-                            var langEntry = dialect.Value.ToObject<ModuleLanguage>();
-                            return langEntry;
-                        });
-                    });
-                })
-                .ToList();
-        }
-
-        /// <summary>
         /// Fetches all available actor pack names.
         /// </summary>
         /// <returns>List of all actor pack names.</returns>
@@ -445,19 +395,6 @@ namespace Lingotion.Thespeon.Core
                 .Select(module => module.Value["packname"].ToString())
                 .Distinct()
                 .ToList();
-        }
-
-        /// <summary>
-        /// Fetches all available pack names.
-        /// </summary>
-        /// <returns>List of all pack names.</returns>
-        public List<string> GetAllPackNames()
-        {
-            List<string> actorPackNames = GetAllActorPackNames();
-            List<string> languagePackNames = GetAllLanguagePackNames();
-            actorPackNames.AddRange(languagePackNames);
-
-            return actorPackNames.Distinct().ToList();
         }
 
         /// <summary>
@@ -543,24 +480,6 @@ namespace Lingotion.Thespeon.Core
         }
 
         /// <summary>
-        /// Fetches all installed language modules and their languages.
-        /// </summary>
-        /// <returns>A dictionary of module name to language names.</returns>
-        public IReadOnlyDictionary<string, List<string>> GetAllLanguagesPerModule()
-        {
-            return packManifestData["languagepack_modules"]
-                .Children<JProperty>()
-                .ToDictionary(
-                    p => p.Name,
-                    p => p.Value["languages"]
-                              .Values<string>()
-                              .Distinct(StringComparer.OrdinalIgnoreCase)
-                              .ToList(),
-                    StringComparer.OrdinalIgnoreCase
-                );
-        }
-        
-        /// <summary>
         /// Scans the manifest for all installed languages and returns a map of the language code to its pack information.
         /// </summary>
         /// <returns>A dictionary mapping a language's ISO 639-2 code to a tuple containing the pack name and version.</returns>
@@ -620,6 +539,17 @@ namespace Lingotion.Thespeon.Core
             return languageMap;
         }
 
+        public List<string> GetAllModuleIDs()
+        {
+            HashSet<string> actorModuleIDs = packManifestData["actorpack_modules"].Children<JProperty>()
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> languageModuleIDs = packManifestData["languagepack_modules"].Children<JProperty>()
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            actorModuleIDs.UnionWith(languageModuleIDs);
+            return actorModuleIDs.ToList();
+        }
     }
 
 }

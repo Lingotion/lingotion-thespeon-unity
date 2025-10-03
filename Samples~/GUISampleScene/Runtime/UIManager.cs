@@ -11,6 +11,10 @@ using System.IO;
 using System.Collections;
 using Unity.InferenceEngine;
 
+#if UNITY_EDITOR
+using Unity.Burst;
+#endif
+
 
 /// <summary>
 /// UIManager is responsible for managing the UI elements in the Thespeon sample scene.
@@ -36,6 +40,12 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
+#if UNITY_EDITOR
+        if (BurstCompiler.Options.EnableBurstDebug)
+        {
+            Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
+        }
+#endif
         npc = GameObject.Find("NPC Object").GetComponent<NPCActor>();
         modelSelectorHandler = GameObject.Find("Model Selector").GetComponent<DropdownHandler>();
         qualitySelectorHandler = GameObject.Find("Quality Selector").GetComponent<DropdownHandler>();
@@ -76,23 +86,23 @@ public class UIManager : MonoBehaviour
         {
             if (curvesToUI == null || string.IsNullOrEmpty(textAnnotator.GetPureText()))
                 return;
-            if(curvesToUI.speedCurve!=null)
+            if (curvesToUI.speedCurve != null)
             {
                 AnimationCurve newSpeed = new();
-                foreach(Keyframe kf in curvesToUI.speedCurve.keys)
+                foreach (Keyframe kf in curvesToUI.speedCurve.keys)
                 {
                     newSpeed.AddKey(kf);
                 }
-                currentInput.Speed=newSpeed;
+                currentInput.Speed = newSpeed;
             }
-            if(curvesToUI.loudnessCurve!=null)
+            if (curvesToUI.loudnessCurve != null)
             {
                 AnimationCurve newLoudness = new();
-                foreach(Keyframe kf in curvesToUI.loudnessCurve.keys)
+                foreach (Keyframe kf in curvesToUI.loudnessCurve.keys)
                 {
                     newLoudness.AddKey(kf);
                 }
-                currentInput.Loudness=newLoudness;
+                currentInput.Loudness = newLoudness;
             }
             visualizerManager.UpdateVisualizer(currentInput.ToJson());
         };

@@ -263,8 +263,6 @@ namespace Lingotion.Thespeon.Core.IO
                     }
                 }
             }
-            
-            
         }
 
         /// <summary>

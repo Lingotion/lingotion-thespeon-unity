@@ -385,11 +385,6 @@ Fetches all supported language codes for a given actor and module type.
 - `type`: The module type to fetch languages for.
 
 **Returns:** A Dictionary mapping the English name of the language to the ISO639-2 language code.
-#### `IEnumerable<string> GetAllLanguageCodes()`
-
-Fetches the language codes of all languages
-
-**Returns:** An IEnumerator containing all installed language codes.
 #### `ModuleEntry GetActorPackModuleEntry(string actorName, ModuleType type)`
 
 Finds a specific actor module.
@@ -409,16 +404,6 @@ Finds a specific language module.
 - `moduleName`: Target module name.
 
 **Returns:** A module entry of the corresponding language pack.
-#### `List<ModuleLanguage> GetAccentsForActorAndLanguage(string actorName, string iso639_2)`
-
-Fetches the information about a language spoken by an actor.
-
-**Parameters:**
-
-- `actorName`: Target actor name.
-- `iso639_2`: Language of which to find parameters for.
-
-**Returns:** A list of ModuleLanguages for that specific actor and language.
 #### `List<string> GetAllActorPackNames()`
 
 Fetches all available actor pack names.
@@ -438,11 +423,6 @@ Returns the location of a pack
 Fetches all available language pack names.
 
 **Returns:** List of all language pack names.
-#### `List<string> GetAllPackNames()`
-
-Fetches all available pack names.
-
-**Returns:** List of all pack names.
 #### `List<string> GetAllModuleInfoInActorPack(string packName)`
 
 Summarizes all module info inside an actor pack.
@@ -464,11 +444,6 @@ Summarizes all module info inside an language pack.
 #### `List<string> GetMissingLanguagePacks()`
 
 Fetches all missing language packs that are required by the actor packs. This is useful for identifying which language packs need to be installed for the actor packs to function correctly.
-#### `IReadOnlyDictionary<string, List<string>> GetAllLanguagesPerModule()`
-
-Fetches all installed language modules and their languages.
-
-**Returns:** A dictionary of module name to language names.
 #### `Dictionary<string, (string packName, Version version)> GetAllLanguagesAndTheirPacks()`
 
 Scans the manifest for all installed languages and returns a map of the language code to its pack information.

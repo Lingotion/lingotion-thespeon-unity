@@ -43,8 +43,12 @@ A project is a representation of a game title, and can have multiple actors tied
 
 ![create-project screenshot](./data/create-project.png?raw=true "create-project screenshot")
 
+Once created take care to copy the license key displayed in your project card under the _My Projects_ tab. You will need this later to get started in your engine of choice.
+![license-key screenshot](./data/project-license-key.png?raw=true "license-key screenshot")
+
 > [!IMPORTANT]
-> The Thespeon Actor may only be used within the project to which its license applies. For use in several projects you must order the Thespeon Actor to each individual project. 
+> The Thespeon Actor may only be used within the game title to which its license applies. For use in several titles you must order the Thespeon Actor to each individual title. You will need the license key shown in your project card to validate your engine project and unlock Thespeon.
+
 
 ---
 ## Finding the Perfect Actor

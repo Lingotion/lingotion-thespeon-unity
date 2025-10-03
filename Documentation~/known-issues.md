@@ -1,3 +1,6 @@
+> [!TIP]
+> If you are experiencing very slow synthesis when running Thespeon with BackendType CPU but only when running in Editor - consider turning off Burst Native Debug Mode Compilation.
+
 # Known Issues and Limitations  
 **These issues are known and are currently being addressed by the Lingotion development team. If you find any other issues, please create a new issue through the [GitHub repository](https://github.com/Lingotion/lingotion-thespeon-unity/issues/new).**
 * The Unity InferenceEngine GPUCompute backend does not work properly on Windows from Unity version 6000.0.53f1 and forward due to a buffer allocation issue in the DirectX pipeline. This issue has been reported to the Unity team, and we will update the package as soon as a fix is released. Until then, please use a Unity Editor version lower than 6000.0.53f1 to use the GPU backend. On higher versions, please use the CPU backend when synthesizing.

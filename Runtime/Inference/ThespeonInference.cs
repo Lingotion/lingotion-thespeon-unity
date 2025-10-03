@@ -363,7 +363,6 @@ namespace Lingotion.Thespeon.Inference
                         yield break;
                     } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("vocoder_first");
                     InferenceWorkload vocoderFirstChunk = null;
                     if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderFirstChunk))
@@ -418,7 +417,6 @@ namespace Lingotion.Thespeon.Inference
                         yield break;
                     } 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("decoder_postprocess");
                     InferenceWorkload decoderPostProcess = null;
                     if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref decoderPostProcess))
@@ -475,7 +473,6 @@ namespace Lingotion.Thespeon.Inference
                     } 
 
                     InferenceWorkloadManager.Instance.ReleaseWorkload(decoderChunkedID);
-                    yield return new WaitForEndOfFrame();
                     targetModel = actorModule.GetInternalModelID("vocoder_middle");
                     InferenceWorkload vocoderMiddleChunk = null;
                     if (!InferenceWorkloadManager.Instance.AcquireWorkload(targetModel, ref vocoderMiddleChunk))

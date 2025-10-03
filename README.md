@@ -11,7 +11,7 @@
 **Lingotion Thespeon** is an on-device AI engine designed to generate real-time character acting and voiceovers.
 The package runs entirely offline on the player’s device, eliminating cloud costs and network dependencies.
 
-This is version 1.2.0 of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Get in touch with the Lingotion developers and Thespeon users on our discord](https://discord.gg/9f2HFyu5gF)!
+This is version 1.3.0 of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Get in touch with the Lingotion developers and Thespeon users on our discord](https://discord.gg/9f2HFyu5gF)!
 
 [Please report any encountered issues to the Issues page](https://github.com/Lingotion/unity-package/issues) or in the Support section of the [Lingotion Discord](https://discord.gg/9f2HFyu5gF).
 
@@ -48,3 +48,11 @@ See [known-issues.md](./Documentation~/known-issues.md) for a list of known issu
 
 This project is licensed according to the Terms of Service found at [lingotion.com/terms-of-service/](https://lingotion.com/terms-of-service/).
 
+# Uninstalling Lingotion Thespeon 
+Simply uninstalling the package using the Package Manager will not remove all Thespeon related files. To completely remove Thepeon from your project you will also have to remove the following: 
+
+```
+Folder: Assets > LingotionThespeon
+Folder: StreamingAssets > LingotionRuntimeFiles
+File: ProjectSettings > Lingotion.Thespeon.license
+```

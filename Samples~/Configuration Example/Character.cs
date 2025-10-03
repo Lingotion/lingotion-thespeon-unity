@@ -7,6 +7,10 @@ using Unity.InferenceEngine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+#if UNITY_EDITOR
+using Unity.Burst;
+#endif
+
 /// <summary>
 /// A character controller that demonstrates how to use the inference config override to customize the Thespeon engine's behavior.
 /// It includes settings for backend type, target frame time, overshoot margin, max skip layers,
@@ -42,6 +46,12 @@ public class Character : MonoBehaviour
     };
     void Start()
     {
+#if UNITY_EDITOR
+        if (BurstCompiler.Options.EnableBurstDebug)
+        {
+            Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
+        }
+#endif
         engine = GetComponent<ThespeonEngine>();
         engine.OnAudioReceived += OnAudioPacketReceive;
 

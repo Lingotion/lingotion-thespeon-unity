@@ -6,6 +6,10 @@ using Lingotion.Thespeon.Inputs;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+#if UNITY_EDITOR
+using Unity.Burst;
+#endif
+
 /// <summary>
 /// An advanced character controller that uses the Thespeon engine for real-time voice synthesis.
 /// This example demonstrates how to use advanced features such as custom speed, loudness, and language switching.
@@ -24,6 +28,12 @@ public class AdvancedNarrator : MonoBehaviour
 
     void Start()
     {
+#if UNITY_EDITOR
+        if (BurstCompiler.Options.EnableBurstDebug)
+        {
+            Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
+        }
+#endif
         engine = GetComponent<ThespeonEngine>();
         // Register audio receive callback and final package callback
         engine.OnAudioReceived += OnAudioPacketReceive;

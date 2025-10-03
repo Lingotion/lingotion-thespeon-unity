@@ -67,15 +67,22 @@ Thespeon has its own information window that displays an overview of installed a
 
 1. To find the _Thespeon Info Window_, go to **Window > Lingotion > Thespeon Info** from the top menu. 
 
+
+2. Add your project's [license key](./get-started-webportal.md#creating-a-project) to the text box and press enter.
+
+![Thespeon info license key](./data/license-key.png?raw=true "Thespeon info license key")
+> [!IMPORTANT] 
+> To do this step you need an internet connection.
+> 
+
+3. Press the **Import Pack** button and select your downloaded actor pack from the webportal. The imported actor(s) will show up under the **Imported Actor Packs** list.
+
 ![Thespeon info empty screenshot](./data/thespeon-info-empty.png?raw=true "Thespeon info empty screenshot")
-
-2. Press the **Import Pack** button and select your downloaded actor pack from the webportal. The imported actor(s) will show up under the **Imported Actor Packs** list.
-
 ![import-actor screenshot](./data/import-actor.png?raw=true "import-actor screenshot")
 
    Note the warning - this means that we need to import a corresponding language pack as well.
 
-3.  Now, press the "**Import Pack**" button again and select your downloaded language pack(s). The imported languages can be seen in the **Imported Language Packs** list.
+4.  Now, press the "**Import Pack**" button again and select your downloaded language pack(s). The imported languages can be seen in the **Imported Language Packs** list.
 
 ![import-language screenshot](./data/import-language.png?raw=true "import-language screenshot")
 

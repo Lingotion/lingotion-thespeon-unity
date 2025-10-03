@@ -13,6 +13,7 @@ using Lingotion.Thespeon.Inference;
 using Unity.EditorCoroutines.Editor;
 using System.IO;
 using System.Linq;
+using Lingotion.Thespeon.Core.IO;
 
 namespace Lingotion.Thespeon.Editor
 {
@@ -31,21 +32,29 @@ namespace Lingotion.Thespeon.Editor
         private ListView _actorPackListView;
         private ListView _languagePackListView; 
         private ListView _actorListView;
+        private TextField _licenseField;
+        private VisualElement _functionalRoot; // everything except the license field
+        private VisualElement _licenseRoot;
+
 
         private HelpBox _missingPackHelpBox;
         private HelpBox _downloadGuideHelpBox;
-        
+
         private Dictionary<string, ModuleLanguage> languageMappings = new();
 
         private void OnEnable()
         {
             PackManifestHandler.OnDataChanged -= UpdateDynamicData;
             PackManifestHandler.OnDataChanged += UpdateDynamicData;
+            EditorLicenseKeyValidator.OnValidationComplete -= GateValidationResult;
+            EditorLicenseKeyValidator.OnValidationComplete += GateValidationResult;
+
         }
 
         private void OnDisable()
         {
             PackManifestHandler.OnDataChanged -= UpdateDynamicData;
+            EditorLicenseKeyValidator.OnValidationComplete -= GateValidationResult;
         }
 
         /// <summary>
@@ -72,6 +81,7 @@ namespace Lingotion.Thespeon.Editor
 
             SetupGUI();
             UpdateDynamicData();
+            EditorApplication.delayCall += ValidateAndGate;
         }
 
         /// <summary>
@@ -81,6 +91,38 @@ namespace Lingotion.Thespeon.Editor
         {
             rootVisualElement.style.flexGrow = 1;
             rootVisualElement.style.flexDirection = FlexDirection.Column;
+
+            // --- License key root alternative to Thespeon Info Window functionality ---
+            _licenseRoot = new VisualElement { style = { flexDirection = FlexDirection.Column } };
+
+            _licenseField = new TextField("License Key")
+            {
+                isPasswordField = false, // set true if you want to hide characters
+                tooltip = "Add your Lingotion Project's license key here. Your license key is required to use Lingotion Thespeon."
+            };
+            _licenseField.SetValueWithoutNotify(EditorLicenseKeyValidator.LoadLicenseFromFile());
+
+            _licenseField.RegisterCallback<FocusOutEvent>(_ =>
+            {
+                ValidateAndGate();
+            });
+
+            var licenseKeyHelpBox = new HelpBox("Add your Lingotion Project's license key below. Your license key is required to use Lingotion Thespeon. \nTo get one please click here or go to https://portal.lingotion.com/", HelpBoxMessageType.Error);
+
+
+            var licenseKeyHelpBoxInternalLabel = licenseKeyHelpBox.Query<Label>().Class(HelpBox.labelUssClassName).First();
+            licenseKeyHelpBox.pickingMode = PickingMode.Position;
+            licenseKeyHelpBox.RegisterCallback<MouseEnterEvent>(_ => licenseKeyHelpBoxInternalLabel.style.color = new Color(0.4f, 0.7f, 1f, 1f));
+            licenseKeyHelpBox.RegisterCallback<MouseLeaveEvent>(_ => licenseKeyHelpBoxInternalLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f));
+            licenseKeyHelpBox.RegisterCallback<MouseUpEvent>(_ => Application.OpenURL("https://portal.lingotion.com/"));
+
+            _licenseRoot.Add(licenseKeyHelpBox);
+            _licenseRoot.Add(_licenseField);
+            rootVisualElement.Add(_licenseRoot);
+
+
+            // --- Thespeon Info Window Functionality appears only if License Key is Valid ---
+            _functionalRoot = new VisualElement { name = "FunctionalRoot", style = { flexGrow = 1, flexDirection = FlexDirection.Column } };
 
             var thespeonWindowToolbar = new Toolbar();
             var togglePackOverviewTab = new ToolbarToggle { text = "Installed Packs" };
@@ -133,8 +175,10 @@ namespace Lingotion.Thespeon.Editor
             thespeonWindowToolbar.Add(togglePackOverviewTab);
             thespeonWindowToolbar.Add(toggleActorsTab);
 
-            rootVisualElement.Add(thespeonWindowToolbar);
-            rootVisualElement.Add(thespeonWindowContent);
+            _functionalRoot.Add(thespeonWindowToolbar);
+            _functionalRoot.Add(thespeonWindowContent);
+
+            rootVisualElement.Add(_functionalRoot);
 
         }
         
@@ -1066,6 +1110,37 @@ namespace Lingotion.Thespeon.Editor
             labelText += '\u200B'; 
             result.SetValueWithoutNotify(labelText);
             return result;
+        }
+        private void ToggleValid(bool enabled)
+        {
+            // _functionalRoot?.SetEnabled(enabled);
+            _functionalRoot.style.display = enabled ? DisplayStyle.Flex : DisplayStyle.None;
+            _licenseRoot.style.display = enabled ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private void GateValidationResult(EditorLicenseKeyValidator.ValidationResult result)
+        {
+            switch (result)
+            {
+                case EditorLicenseKeyValidator.ValidationResult.Valid:
+                    ToggleValid(true);
+                    break;
+
+                case EditorLicenseKeyValidator.ValidationResult.Invalid:
+                    ToggleValid(false);
+                    break;
+
+                case EditorLicenseKeyValidator.ValidationResult.Indeterminate:
+                    // Do nothing — keep current state (e.g., connectivity/server issue)
+                    break;
+            }
+        }
+        private async void ValidateAndGate()
+        {
+            string licenseKey = _licenseField.value;
+            EditorLicenseKeyValidator.SaveLicenseToFile(licenseKey);
+            var result = await EditorLicenseKeyValidator.ValidateLicenseAsync(licenseKey);
+            GateValidationResult(result);
         }
 
         private struct LanguageOption
