@@ -205,8 +205,7 @@ namespace Lingotion.Thespeon.Core.IO
                 else
                 {
 
-                    LingotionLogger.Error($"File not found: {path}");
-                    return null;
+                    throw new FileNotFoundException($"File not found: {path}");
                 }
             }
         }

@@ -156,7 +156,6 @@ namespace Lingotion.Thespeon.LanguagePack
 
         private static string CleanText(string input)
         {
-            input = Regex.Replace(input, @"<<<\d+>>>", string.Empty);
             input = input.ToLowerInvariant();
             input = Regex.Replace(input, @"\s+", " ");
             var builder = new StringBuilder(input.Length);
