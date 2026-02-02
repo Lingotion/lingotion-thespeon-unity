@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using UnityEngine;
 using Lingotion.Thespeon.Core.IO;
@@ -19,14 +19,19 @@ namespace Lingotion.Thespeon.Editor
     /// </summary>
     public class EditorPackImporter
     {
+        private const string TempExtractDir = "LingotionTempExtract";
+        private const string TempCollectDir = "LingotionTempCollect";
+        private const string ConfigNamePattern = "lingotion-*.json";
+        private const string ConfigsSubDir = "configs";
+        private const string BinariesSubDir = "binaries";
         /// <summary>
-        /// Extracts, verifies and imports a Lingotion Pack.
+        /// Routes importer to fit model version.
         /// </summary>
-        public static void ImportThespeonPack()
+        public static void RouteImporter()
         {
+
             try
             {
-
 
                 string zipPath = EditorUtility.OpenFilePanel("Select Lingotion Pack", "", "lingotion");
                 if (string.IsNullOrEmpty(zipPath))
@@ -34,124 +39,206 @@ namespace Lingotion.Thespeon.Editor
                     return;
                 }
 
-                string tempExtractPath = Path.Combine(Application.dataPath, "LingotionTempExtract");
+                string tempExtractPath = Path.Combine(Application.dataPath, TempExtractDir);
 
                 RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
 
                 ZipFile.ExtractToDirectory(zipPath, tempExtractPath, true);
 
-
-                string[] configFiles = Directory.GetFiles(tempExtractPath, "lingotion-*.json", SearchOption.AllDirectories);
+                string[] configFiles = Directory.GetFiles(tempExtractPath, ConfigNamePattern, SearchOption.AllDirectories);
+                bool useBinariesSubDir = false;
                 if (configFiles.Length == 0)
                 {
-                    LingotionLogger.Error("No 'lingotion-' config file was found in the extracted archive.");
-                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                    return;
-                }
+                    string configsPath = Path.Combine(tempExtractPath, ConfigsSubDir);
+                    string binariesPath = Path.Combine(tempExtractPath, BinariesSubDir);
 
-                string configFilePath = configFiles[0];
-                string jsonContent = RuntimeFileLoader.LoadFileAsString(configFilePath);
-                var config = JsonConvert.DeserializeObject<JObject>(jsonContent);
-
-                if (!config.TryGetValue("name", out var configNameToken) ||
-                    !config.TryGetValue("platform", out var platformTok) ||
-                    !config.TryGetValue("type", out var configTypeToken))
-                {
-                    LingotionLogger.Error($"Config file at '{configFilePath}' is missing required fields.");
-                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                    return;
-                }
-
-                if (!string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
-                {
-                    EditorUtility.DisplayDialog(
-                        "Unsupported Platform",
-                        "This pack was built for another platform and can't be imported.\n\nRequired: platform = \"sentis\"",
-                        "OK");
-                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                    return;
-                }
-
-                string configType = configTypeToken.ToString();
-                string configName = configNameToken.ToString();
-                Version packVersion = new Version(
-                    config["version"]["major"].Value<int>(),
-                    config["version"]["minor"].Value<int>(),
-                    config["version"]["patch"].Value<int>());
-
-                string finalFolderPath;
-
-                switch (configType)
-                {
-                    case "ACTORPACK":
-                        if (!Directory.Exists(RuntimeFileLoader.GetActorPacksPath()))
-                            Directory.CreateDirectory(RuntimeFileLoader.GetActorPacksPath());
-
-                        finalFolderPath = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), configName);
-
-                        if (ActorCollisionDetected(config, configName, packVersion, out string packToDelete))
-                        {
-                            RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                            return;
-                        }
-                        break;
-
-
-                    case "LANGUAGEPACK":
-                        if (!Directory.Exists(RuntimeFileLoader.GetLanguagePacksPath()))
-                            Directory.CreateDirectory(RuntimeFileLoader.GetLanguagePacksPath());
-
-                        finalFolderPath = Path.Combine(RuntimeFileLoader.GetLanguagePacksPath(), configName);
-
-                        if (LanguagePackCollisionDetected(config, configName, out string langPackToDelete))
-                        {
-                            RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                            return;
-                        }
-                        if (!string.IsNullOrEmpty(langPackToDelete))
-                        {
-                            DeletePack(langPackToDelete);
-                        }
-                        break;
-
-
-                    default:
-                        LingotionLogger.Error($"Selected archive \"{zipPath}\" is corrupt or not a Lingotion Pack archive.");
+                    if (!Directory.Exists(configsPath) || !Directory.Exists(binariesPath))
+                    {
+                        LingotionLogger.Error("Selected Lingotion file is corrupt. Try re-downloading the file.");
                         RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
                         return;
-                }
-
-                if (!VerifyPackFiles(config, tempExtractPath))
-                {
-                    LingotionLogger.Error($"Pack verification failed for {zipPath}. The pack is invalid due to missing files.");
-                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                    return;
-                }
-
-
-                RuntimeFileLoader.DeleteDirectory(finalFolderPath, true);
-
-
-                if (Path.GetPathRoot(tempExtractPath) == Path.GetPathRoot(finalFolderPath))
-                {
-                    RuntimeFileLoader.MoveDirectory(tempExtractPath, finalFolderPath, true);
+                    }
+                    configFiles = Directory.GetFiles(configsPath, "*.json", SearchOption.TopDirectoryOnly);
+                    if (configFiles.Length == 0)
+                    {
+                        LingotionLogger.Error("Selected Lingotion file is corrupt. Try re-downloading the file.");
+                        RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                        return;
+                    }
+                    useBinariesSubDir = true;
                 }
                 else
                 {
-                    RuntimeFileLoader.CopyDirectory(tempExtractPath, finalFolderPath);
+                    configFiles = new string[] { configFiles[0] };
                 }
 
+                ImportThespeonPack(tempExtractPath, configFiles, useBinariesSubDir);
 
-                RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-
-                AssetDatabase.Refresh();
-
-                LingotionLogger.Info($"Successfully imported {configType.ToLower()}: {configName}");
             }
             catch (Exception e)
             {
                 LingotionLogger.Error($"Pack import failed with error: {e.Message}");
-                throw e;
+                throw;
+            }
+        }
+        /// <summary>
+        /// Extracts, verifies and imports a Lingotion Pack.
+        /// </summary>
+        private static void ImportThespeonPack(string tempRootExtractPath, string[] configFiles, bool useBinariesSubDir)
+        {
+            try
+            {
+                if (configFiles.Length == 0)
+                {
+                    LingotionLogger.Error("No 'lingotion-' config file was found in the .lingotion file.");
+                    RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                    return;
+                }
+
+                string tempCollectPath = Path.Combine(tempRootExtractPath, TempCollectDir);
+                foreach (string configFilePath in configFiles)
+                {
+                    RuntimeFileLoader.DeleteDirectory(tempCollectPath, true);
+                    string jsonContent = RuntimeFileLoader.LoadFileAsString(configFilePath);
+                    var config = JsonConvert.DeserializeObject<JObject>(jsonContent);
+
+                    if (!config.TryGetValue("name", out var configNameToken) ||
+                        !config.TryGetValue("platform", out var platformTok) ||
+                        !config.TryGetValue("type", out var configTypeToken))
+                    {
+                        LingotionLogger.Error($"Config file at '{configFilePath}' is missing required fields.");
+                        RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                        return;
+                    }
+
+                    if (!string.Equals(platformTok.ToString(), "sentis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        EditorUtility.DisplayDialog(
+                            "Unsupported Platform",
+                            "This pack was built for another platform and can't be imported.\n\nRequired: platform = \"sentis\"",
+                            "OK");
+                        RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                        return;
+                    }
+
+                    string configType = configTypeToken.ToString();
+                    string configName = configNameToken.ToString();
+                    Version packVersion = new Version(
+                        config["version"]["major"].Value<int>(),
+                        config["version"]["minor"].Value<int>(),
+                        config["version"]["patch"].Value<int>());
+
+                    string finalFolderPath;
+
+                    switch (configType)
+                    {
+                        case "ACTORPACK":
+                            if (!Directory.Exists(RuntimeFileLoader.GetActorPacksPath()))
+                                Directory.CreateDirectory(RuntimeFileLoader.GetActorPacksPath());
+
+                            finalFolderPath = Path.Combine(RuntimeFileLoader.GetActorPacksPath(), configName);
+
+                            if (ActorCollisionDetected(config, configName, packVersion, out string packToDelete))
+                            {
+                                continue;
+                            }
+                            break;
+
+
+                        case "LANGUAGEPACK":
+                            if (!Directory.Exists(RuntimeFileLoader.GetLanguagePacksPath()))
+                                Directory.CreateDirectory(RuntimeFileLoader.GetLanguagePacksPath());
+
+                            finalFolderPath = Path.Combine(RuntimeFileLoader.GetLanguagePacksPath(), configName);
+
+                            if (LanguagePackCollisionDetected(config, configName, out string langPackToDelete))
+                            {
+                                continue;
+                            }
+                            if (!string.IsNullOrEmpty(langPackToDelete))
+                            {
+                                DeletePack(langPackToDelete);
+                            }
+                            break;
+
+
+                        default:
+                            LingotionLogger.Error($"Selected Lingotion file is corrupt. Try re-downloading the file.");
+                            RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                            return;
+                    }
+
+                    if (config["files"] is not JObject filesObj)
+                    {
+                        LingotionLogger.Error("Config has no \"files\" section.");
+                        RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                        return;
+                    }
+
+                    HashSet<string> configBinaryFiles = new HashSet<string>();
+                    foreach (var kv in filesObj.Properties())
+                    {
+                        string fname = kv.Value?["filename"]?.ToString();
+                        if (!string.IsNullOrEmpty(fname))
+                        {
+                            configBinaryFiles.Add(fname);
+                        }
+                    }
+
+                    if (!VerifyPackFiles(configBinaryFiles, tempRootExtractPath))
+                    {
+                        LingotionLogger.Error($"Pack verification failed. The pack is invalid due to missing files.");
+                        RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+                        return;
+                    }
+
+                    foreach (string filename in configBinaryFiles)
+                    {
+                        string sourceFilePath;
+                        if (useBinariesSubDir)
+                        {
+                            sourceFilePath = Path.Combine(tempRootExtractPath, BinariesSubDir, filename);
+                        }
+                        else
+                        {
+                            sourceFilePath = Path.Combine(tempRootExtractPath, filename);
+                        }
+
+                        string destFilePath = Path.Combine(tempCollectPath, filename);
+
+                        if (!Directory.Exists(tempCollectPath))
+                        {
+                            Directory.CreateDirectory(tempCollectPath);
+                        }
+
+                        File.Copy(sourceFilePath, destFilePath, overwrite: true);
+                    }
+                    File.Copy(configFilePath, Path.Combine(tempCollectPath, $"{configName}.json"), overwrite: true);
+
+
+                    RuntimeFileLoader.DeleteDirectory(finalFolderPath, true);
+
+
+                    if (Path.GetPathRoot(tempCollectPath) == Path.GetPathRoot(finalFolderPath))
+                    {
+                        RuntimeFileLoader.MoveDirectory(tempCollectPath, finalFolderPath, true);
+                    }
+                    else
+                    {
+                        RuntimeFileLoader.CopyDirectory(tempCollectPath, finalFolderPath);
+                    }
+                    LingotionLogger.Info($"Successfully imported {configType.ToLower()}: {configName}");
+                }
+
+                RuntimeFileLoader.DeleteDirectory(tempRootExtractPath, true);
+
+                AssetDatabase.Refresh();
+
+            }
+            catch (Exception e)
+            {
+                LingotionLogger.Error($"Pack import failed with error: {e.Message}");
+                throw;
             }
         }
 
@@ -172,30 +259,11 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="configRoot"> The config to be verified</param>
         /// <param name="extractRoot"> The directory where the files were extracted.</param>
         /// <returns> true if the files are valid, otherwise false.</returns>
-        private static bool VerifyPackFiles(JObject configRoot, string extractRoot)
+        private static bool VerifyPackFiles(HashSet<string> expectedNames, string extractRoot)
         {
-            string error = "";
-            if (configRoot["files"] is not JObject filesObj)
-            {
-                error = "Config has no \"files\" section.";
-                LingotionLogger.Error(error);
-                return false;
-            }
-
-            HashSet<string> expectedNames = new HashSet<string>();
-            foreach (var kv in filesObj.Properties())
-            {
-                string fname = kv.Value?["filename"]?.ToString();
-                if (!string.IsNullOrEmpty(fname))
-                {
-                    expectedNames.Add(fname);
-                }
-            }
-
             if (expectedNames.Count == 0)
             {
-                error = "\"files\" section contains no filenames.";
-                LingotionLogger.Error(error);
+                LingotionLogger.Error("Selected Lingotion file is corrupt. Try re-downloading the file.");
                 return false;
             }
 
@@ -216,8 +284,7 @@ namespace Lingotion.Thespeon.Editor
             string preview = string.Join("\n• ", missing.Take(PREVIEW));
             if (missing.Count > PREVIEW) preview += $"\n… and {missing.Count - PREVIEW} more";
 
-            error = "Error! The pack is unvalid due files missing, contact Lingotion support";
-            LingotionLogger.Error(error);
+            LingotionLogger.Error("Selected Lingotion file is corrupt. Try re-downloading the file.");
             return false;
         }
 
@@ -318,7 +385,7 @@ namespace Lingotion.Thespeon.Editor
 
                 collisionModules.Add(($"{incomingModule.Username}-{incomingModule.ModuleType}", existingVersion));
             }
-            if(collisionModules.Count != 0)
+            if (collisionModules.Count != 0)
             {
                 bool importIncoming = EditorUtility.DisplayDialog(
                         "Actor Pack Import Conflict",

@@ -1,5 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service found at www.lingotion.com.
-
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections;
@@ -219,7 +218,7 @@ namespace Lingotion.Thespeon.Inference
                     if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
                     LingotionLogger.Error($"Error during layer processing: {e.Message}");
                     tensorPool.Dispose();
-                    throw e;
+                    throw;
                 }
             }
             try

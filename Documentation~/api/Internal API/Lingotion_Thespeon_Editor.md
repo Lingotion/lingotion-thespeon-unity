@@ -21,9 +21,9 @@ Scriptable object for Thespeon inputs. For use in Editor Window.
 Allows for importing and verification of packs.
 ### Methods
 
-#### `void ImportThespeonPack()`
+#### `void RouteImporter()`
 
-Extracts, verifies and imports a Lingotion Pack.
+Routes importer to fit model version.
 #### `void DeletePack(string packName)`
 
 Deletes a pack by its name, including its meta file.

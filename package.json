@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6.0",
@@ -10,11 +10,11 @@
     "licensesUrl": "https://lingotion.com/terms-of-service/",
     "dependencies": {
       "com.unity.nuget.newtonsoft-json": "3.2.1",
-      "com.unity.ai.inference": "2.3.0",
+      "com.unity.ai.inference": "2.5.0",
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [1.3.1] - 2025-10-22\n## Fixed\n* GUI Sample Runtime assembly now contains the correct references."},
+    "changelog": "# [1.3.2] - 2026-02-02\n### Changed\n * Updated package dependency to Sentis version 2.5.0. \n## Fixed \n* Error messages now correctly shows the stack trace."},
    "keywords": [ 
       "AI",
       "Lingotion",
