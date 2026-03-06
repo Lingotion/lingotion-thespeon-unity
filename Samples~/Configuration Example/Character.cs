@@ -16,11 +16,11 @@ using Unity.Burst;
 /// It includes settings for backend type, target frame time, overshoot margin, max skip layers,
 /// and verbosity level.
 /// </summary>
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 [RequireComponent(typeof(AudioSource))]
 public class Character : MonoBehaviour
 {
-    private ThespeonEngine engine;
+    private ThespeonComponent engine;
     private AudioSource audioSource;
     private List<float> audioData = new();
     private AudioClip audioClip;
@@ -52,7 +52,7 @@ public class Character : MonoBehaviour
             Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
         }
 #endif
-        engine = GetComponent<ThespeonEngine>();
+        engine = GetComponent<ThespeonComponent>();
         engine.OnAudioReceived += OnAudioPacketReceive;
 
         audioClip = AudioClip.Create("ThespeonClip", 1024, 1, 44100, true, OnAudioRead);
@@ -67,24 +67,24 @@ public class Character : MonoBehaviour
         if (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.sKey.wasPressedThisFrame)
         {
             ThespeonInput input = new(new List<ThespeonInputSegment>() { new("Hi! This is my voice generated in real time!") });
-            void handler(bool result)
+            void handler(bool result, string characterName, ModuleType moduleType, BackendType backend)
             {
                 if (!result)
                 {
                     LingotionLogger.CurrentLevel = VerbosityLevel.Warning;
-                    LingotionLogger.Warning("Preload failed, will reattempt.");
+                    LingotionLogger.Warning($"Preload failed for character {characterName} with module type {moduleType} on backend {backend}, will reattempt.");
                     LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
                 }
                 engine.Synthesize(input, configOverride: configOverride);
                 engine.OnPreloadComplete -= handler;
             }
             engine.OnPreloadComplete += handler;
-            StartCoroutine(engine.TryPreloadActorCoroutine(input.ActorName, input.ModuleType, configOverride: configOverride));
+            StartCoroutine(engine.TryPreloadCharacterCoroutine(input.CharacterName, input.ModuleType, configOverride: configOverride));
         }
     }
 
     // Simply add the received data to the audio buffer. 
-    void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
+    void OnAudioPacketReceive(string sessionID, float[] data)
     {
         lock (audioData)
         {

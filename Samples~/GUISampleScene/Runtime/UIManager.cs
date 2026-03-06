@@ -20,7 +20,7 @@ using Unity.Burst;
 /// UIManager is responsible for managing the UI elements in the Thespeon sample scene.
 /// It handles dropdown selections for model, quality, language, and input files,
 /// and updates the visualizer and text annotator accordingly.
-/// It also manages the backend selection and preloads actors for the Thespeon engine.
+/// It also manages the backend selection and preloads characters for the Thespeon engine.
 /// </summary>
 public class UIManager : MonoBehaviour
 {
@@ -34,7 +34,7 @@ public class UIManager : MonoBehaviour
     public CurvesToUI curvesToUI;
     private ThespeonInput currentInput;
     private NPCActor npc;
-    private ThespeonEngine engine;
+    private ThespeonComponent engine;
     private BackendType currentBackend;
     public float targetFrameTimeMs { get; set; } = 0.005f;
 
@@ -53,14 +53,14 @@ public class UIManager : MonoBehaviour
         loadPredefinedInputHandler = GameObject.Find("Input Selector").GetComponent<DropdownHandler>();
         BackendSelectorHandler = GameObject.Find("Backend Selector").GetComponent<DropdownHandler>();
 
-        List<string> allActorNames = PackManifestHandler.Instance.GetAllActors();
+        List<string> allCharacterNames = ManifestHandler.Instance.GetAllCharacters();
 
-        if (allActorNames.Count == 0)
+        if (allCharacterNames.Count == 0)
         {
-            LingotionLogger.Error("You have not imported any Actor Packs. See Window >> Lingotion >> Thespeon Info for details.");
+            LingotionLogger.Error("You have not imported any Character Packs. See Window >> Lingotion >> Thespeon Info for details.");
             return;
         }
-        modelSelectorHandler.SetOptions(allActorNames);
+        modelSelectorHandler.SetOptions(allCharacterNames);
 
         loadPredefinedInputHandler.SetOptions(GetJsonFileList());
 
@@ -115,17 +115,17 @@ public class UIManager : MonoBehaviour
         };
 
 
-        string firstActor = modelSelectorHandler.GetNonDefaultOptions().FirstOrDefault();
-        ModuleType firstModuleType = PackManifestHandler.Instance.GetAllModuleTypesForActor(firstActor).FirstOrDefault();
+        string firstCharacter = modelSelectorHandler.GetNonDefaultOptions().FirstOrDefault();
+        ModuleType firstModuleType = ManifestHandler.Instance.GetAllModuleTypesForCharacter(firstCharacter).FirstOrDefault();
         string text = textAnnotator.GetPureText();
-        List<ModuleLanguage> supportedLanguages = PackManifestHandler.Instance.GetAllSupportedLanguages(firstActor, firstModuleType);
+        List<ModuleLanguage> supportedLanguages = ManifestHandler.Instance.GetAllSupportedLanguages(firstCharacter, firstModuleType);
         if (supportedLanguages.Count == 0)
         {
-            throw new FileNotFoundException($"No supported languages found for actor '{firstActor}' with module type '{firstModuleType}'. Please import a language pack for this actor.");
+            throw new FileNotFoundException($"No supported languages found for character '{firstCharacter}' with module type '{firstModuleType}'. Please import a language pack for this character.");
         }
         ModuleLanguage firstlang = supportedLanguages[0];
-        LingotionLogger.Debug($"Start First actor: {firstActor}, ModuleType: {firstModuleType}, Language: {firstlang.Iso639_2}, {firstlang.Iso3166_1}");
-        currentInput = new ThespeonInput(new List<ThespeonInputSegment> { new(text) }, firstActor, moduleType: firstModuleType, defaultLanguage: firstlang.Iso639_2, defaultDialect: firstlang.Iso3166_1, defaultEmotion: Emotion.Interest);
+        LingotionLogger.Debug($"Start First character: {firstCharacter}, ModuleType: {firstModuleType}, Language: {firstlang.Iso639_2}, {firstlang.Iso3166_1}");
+        currentInput = new ThespeonInput(new List<ThespeonInputSegment> { new(text) }, firstCharacter, moduleType: firstModuleType, defaultLanguage: firstlang.Iso639_2, defaultDialect: firstlang.Iso3166_1, defaultEmotion: Emotion.Interest);
         LingotionLogger.Debug("Input created: " + currentInput.ToJson());
         visualizerManager.UpdateVisualizer(currentInput.ToJson());
         StartCoroutine(textAnnotator.DeferredDrawUnderlines(currentInput));
@@ -133,15 +133,18 @@ public class UIManager : MonoBehaviour
 
 
 
-        engine = npc.GetComponent<ThespeonEngine>();
-        UnityEngine.Profiling.Profiler.BeginSample("Thespeon Preloading Actors");
-        foreach (string actor in modelSelectorHandler.GetNonDefaultOptions())
+        engine = npc.GetComponent<ThespeonComponent>();
+        UnityEngine.Profiling.Profiler.BeginSample("Thespeon Preloading Characters");
+        foreach (string character in modelSelectorHandler.GetNonDefaultOptions())
         {
-            List<ModuleType> moduleTypes = PackManifestHandler.Instance.GetAllModuleTypesForActor(actor);
+            List<ModuleType> moduleTypes = ManifestHandler.Instance.GetAllModuleTypesForCharacter(character);
             foreach (ModuleType moduleType in moduleTypes)
             {
                 if (moduleType == ModuleType.None) continue;
-                engine.TryPreloadActor(actor, moduleType, new() { PreferredBackendType = currentBackend });
+                foreach (BackendType backend in availableBackends)
+                {
+                    engine.TryPreloadCharacter(character, moduleType, new() { PreferredBackendType = backend });
+                }
             }
         }
         UnityEngine.Profiling.Profiler.EndSample();
@@ -151,10 +154,10 @@ public class UIManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(1f);
-            List<string> actorOptions = PackManifestHandler.Instance.GetAllActors();
-            if (!actorOptions.SequenceEqual(modelSelectorHandler.GetNonDefaultOptions()))
+            List<string> characterOptions = ManifestHandler.Instance.GetAllCharacters();
+            if (!characterOptions.SequenceEqual(modelSelectorHandler.GetNonDefaultOptions()))
             {
-                modelSelectorHandler.SetOptions(actorOptions);
+                modelSelectorHandler.SetOptions(characterOptions);
             }
         }
     }
@@ -266,7 +269,7 @@ public class UIManager : MonoBehaviour
     {
         if (currentInput == null) return;
         (int startSegment, int endSegment) = manualSegmentRange == default ? textAnnotator.GetSelectedSegments() : manualSegmentRange;
-        List<ModuleLanguage> candidateLanguages = PackManifestHandler.Instance.GetAllSupportedLanguages(currentInput.ActorName, currentInput.ModuleType);
+        List<ModuleLanguage> candidateLanguages = ManifestHandler.Instance.GetAllSupportedLanguages(currentInput.CharacterName, currentInput.ModuleType);
         if (startSegment < 0 || endSegment >= currentInput.Segments.Count || startSegment > endSegment)
         {
             if (currentInput.Segments.Count == 1 && currentInput.Segments[0].Text == "\u00D8")
@@ -478,15 +481,15 @@ public class UIManager : MonoBehaviour
     #region Dropdown Listeners
     private void OnModelSelected(string selectedModel)
     {
-        currentInput.ActorName = selectedModel;
+        currentInput.CharacterName = selectedModel;
 
-        List<ModuleType> moduleTypes = PackManifestHandler.Instance.GetAllModuleTypesForActor(selectedModel);
+        List<ModuleType> moduleTypes = ManifestHandler.Instance.GetAllModuleTypesForCharacter(selectedModel);
         qualitySelectorHandler.SetOptions(moduleTypes.Select(m => m.ToString()).ToList());
         if (!moduleTypes.Contains(currentInput.ModuleType))
         {
             currentInput.ModuleType = moduleTypes.FirstOrDefault();
         }
-        List<ModuleLanguage> supportedLangauges = PackManifestHandler.Instance.GetAllSupportedLanguages(currentInput.ActorName, currentInput.ModuleType);
+        List<ModuleLanguage> supportedLangauges = ManifestHandler.Instance.GetAllSupportedLanguages(currentInput.CharacterName, currentInput.ModuleType);
         languageSelectorHandler.SetOptions(MakeLanguageOptions(supportedLangauges));
         if (!supportedLangauges.Any(lang => lang.Equals(currentInput.DefaultLanguage)))
         {
@@ -502,7 +505,7 @@ public class UIManager : MonoBehaviour
     private void OnQualitySelected(string selectedQuality)
     {
         currentInput.ModuleType = Enum.Parse<ModuleType>(selectedQuality);
-        List<ModuleLanguage> supportedLangauges = PackManifestHandler.Instance.GetAllSupportedLanguages(currentInput.ActorName, currentInput.ModuleType);
+        List<ModuleLanguage> supportedLangauges = ManifestHandler.Instance.GetAllSupportedLanguages(currentInput.CharacterName, currentInput.ModuleType);
 
         if (!supportedLangauges.Any(lang => lang.Equals(currentInput.DefaultLanguage)))
         {
@@ -516,9 +519,9 @@ public class UIManager : MonoBehaviour
         visualizerManager.UpdateVisualizer(currentInput.ToJson());
     }
 
-    private List<string> MakeLanguageOptions(List<ModuleLanguage> languagesForActor)
+    private List<string> MakeLanguageOptions(List<ModuleLanguage> languagesForCharacter)
     {
-        return languagesForActor.Select(lang => $"{lang.Iso639_2} ({lang.Iso3166_1})").ToList();
+        return languagesForCharacter.Select(lang => $"{lang.Iso639_2} ({lang.Iso3166_1})").ToList();
     }
 
     private void OnLanguageSelected(string selectedLanguage)
@@ -545,26 +548,26 @@ public class UIManager : MonoBehaviour
                 curvesToUI.SetAnimationCurve(new AnimationCurve(new Keyframe(0, 1)), "loudness");
             }
 
-            string actorName = modelSelectorHandler.GetSelectedOption();
-            if (string.IsNullOrEmpty(actorName))
+            string characterName = modelSelectorHandler.GetSelectedOption();
+            if (string.IsNullOrEmpty(characterName))
             {
-                actorName = modelSelectorHandler.GetNonDefaultOptions().FirstOrDefault();
+                characterName = modelSelectorHandler.GetNonDefaultOptions().FirstOrDefault();
 
             }
-            currentInput.ActorName = actorName;
+            currentInput.CharacterName = characterName;
 
 
             string typeTag = qualitySelectorHandler.GetSelectedOption();
 
             if (string.IsNullOrEmpty(typeTag))
             {
-                typeTag = PackManifestHandler.Instance.GetAllModuleTypesForActor(actorName).FirstOrDefault().ToString();
+                typeTag = ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName).FirstOrDefault().ToString();
             }
             currentInput.ModuleType = Enum.Parse<ModuleType>(typeTag);
 
             string selectedLang = languageSelectorHandler.GetSelectedOption();
             List<string> languageOptions = MakeLanguageOptions(
-                PackManifestHandler.Instance.GetAllSupportedLanguages(actorName, currentInput.ModuleType));
+                ManifestHandler.Instance.GetAllSupportedLanguages(characterName, currentInput.ModuleType));
             if (!languageOptions.Contains(selectedLang)) selectedLang = languageOptions.FirstOrDefault();
             string iso639_2 = selectedLang.Split(' ')[0];
             string iso3166_1 = selectedLang.Split(' ')[1].Trim('(', ')');
@@ -596,25 +599,7 @@ public class UIManager : MonoBehaviour
             LingotionLogger.Error($"Failed to parse backend type: {selectedBackend}");
             return;
         }
-        if (currentBackend == backend)
-        {
-            LingotionLogger.Debug($"Backend {backend} is already selected. No changes made.");
-            return;
-        }
         currentBackend = backend;
-        engine.TryUnloadAll();
-        LingotionLogger.Debug($"Backend changed to {currentBackend}. Preloading actors for the new backend.");
-        UnityEngine.Profiling.Profiler.BeginSample("Thespeon Reloading Actors");
-        foreach (string actor in modelSelectorHandler.GetNonDefaultOptions())
-        {
-            List<ModuleType> moduleTypes = PackManifestHandler.Instance.GetAllModuleTypesForActor(actor);
-            foreach (ModuleType moduleType in moduleTypes)
-            {
-                if (moduleType == ModuleType.None) continue;
-                engine.TryPreloadActor(actor, moduleType, new() { PreferredBackendType = currentBackend });
-            }
-        }
-        UnityEngine.Profiling.Profiler.EndSample();
     }
 
     #endregion

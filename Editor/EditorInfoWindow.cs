@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -19,7 +19,7 @@ namespace Lingotion.Thespeon.Editor
 {
 
     /// <summary>
-    /// Allows user to import, delete, and see an overview of imported packs.
+    /// Allows user to import, delete, and see an overview of imported files.
     /// </summary>
     /// 
     [Serializable]
@@ -29,23 +29,23 @@ namespace Lingotion.Thespeon.Editor
         private List<float> _audioData = new();
         private bool _isSynthesizing = false;
 
-        private ListView _actorPackListView;
-        private ListView _languagePackListView; 
-        private ListView _actorListView;
+        private ListView _importedCharacterListView;
+        private ListView _importedLanguageListView; 
+        private ListView _characterListView;
         private TextField _licenseField;
         private VisualElement _functionalRoot; // everything except the license field
         private VisualElement _licenseRoot;
 
 
-        private HelpBox _missingPackHelpBox;
+        private HelpBox _missingLanguageHelpBox;
         private HelpBox _downloadGuideHelpBox;
 
         private Dictionary<string, ModuleLanguage> languageMappings = new();
 
         private void OnEnable()
         {
-            PackManifestHandler.OnDataChanged -= UpdateDynamicData;
-            PackManifestHandler.OnDataChanged += UpdateDynamicData;
+            ManifestHandler.OnDataChanged -= UpdateDynamicData;
+            ManifestHandler.OnDataChanged += UpdateDynamicData;
             EditorLicenseKeyValidator.OnValidationComplete -= GateValidationResult;
             EditorLicenseKeyValidator.OnValidationComplete += GateValidationResult;
 
@@ -53,7 +53,7 @@ namespace Lingotion.Thespeon.Editor
 
         private void OnDisable()
         {
-            PackManifestHandler.OnDataChanged -= UpdateDynamicData;
+            ManifestHandler.OnDataChanged -= UpdateDynamicData;
             EditorLicenseKeyValidator.OnValidationComplete -= GateValidationResult;
         }
 
@@ -73,10 +73,10 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         public void CreateGUI()
         {
-            _actorPackListView = new();
-            _languagePackListView = new();
-            _actorListView = new();
-            _missingPackHelpBox = new();
+            _importedCharacterListView = new();
+            _importedLanguageListView = new();
+            _characterListView = new();
+            _missingLanguageHelpBox = new();
             _downloadGuideHelpBox = new();
 
             SetupGUI();
@@ -125,8 +125,8 @@ namespace Lingotion.Thespeon.Editor
             _functionalRoot = new VisualElement { name = "FunctionalRoot", style = { flexGrow = 1, flexDirection = FlexDirection.Column } };
 
             var thespeonWindowToolbar = new Toolbar();
-            var togglePackOverviewTab = new ToolbarToggle { text = "Installed Packs" };
-            var toggleActorsTab = new ToolbarToggle { text = "Actors" };
+            var toggleOverviewTab = new ToolbarToggle { text = "Overview" };
+            var toggleSynthesisLabTab = new ToolbarToggle { text = "Synthesis Lab" };
 
 
             var thespeonWindowContent = new VisualElement();
@@ -134,46 +134,46 @@ namespace Lingotion.Thespeon.Editor
             thespeonWindowContent.name = "Page container";
             thespeonWindowContent.style.flexDirection = FlexDirection.Column;
 
-            VisualElement packOverviewTabContent = CreatePackOverviewTab();
-            VisualElement actorsTabContent = CreateActorsTab();
+            VisualElement importedTabContent = CreateOverviewTab();
+            VisualElement synthesisLabTabContent = CreateSynthesisLabTab();
 
-            togglePackOverviewTab.value = true;
-            packOverviewTabContent.style.display = DisplayStyle.Flex;
-            actorsTabContent.style.display = DisplayStyle.None;
+            toggleOverviewTab.value = true;
+            importedTabContent.style.display = DisplayStyle.Flex;
+            synthesisLabTabContent.style.display = DisplayStyle.None;
 
-            togglePackOverviewTab.RegisterValueChangedCallback(evt =>
+            toggleOverviewTab.RegisterValueChangedCallback(evt =>
             {
                 if (evt.newValue)
                 {
-                    toggleActorsTab.SetValueWithoutNotify(false);
-                    packOverviewTabContent.style.display = DisplayStyle.Flex;
-                    actorsTabContent.style.display = DisplayStyle.None;
+                    toggleSynthesisLabTab.SetValueWithoutNotify(false);
+                    importedTabContent.style.display = DisplayStyle.Flex;
+                    synthesisLabTabContent.style.display = DisplayStyle.None;
                 }
                 else
                 {
-                    togglePackOverviewTab.value = true;
+                    toggleOverviewTab.value = true;
                 }
             });
 
-            toggleActorsTab.RegisterValueChangedCallback(evt =>
+            toggleSynthesisLabTab.RegisterValueChangedCallback(evt =>
             {
                 if (evt.newValue)
                 {
-                    togglePackOverviewTab.SetValueWithoutNotify(false);
-                    packOverviewTabContent.style.display = DisplayStyle.None;
-                    actorsTabContent.style.display = DisplayStyle.Flex;
+                    toggleOverviewTab.SetValueWithoutNotify(false);
+                    importedTabContent.style.display = DisplayStyle.None;
+                    synthesisLabTabContent.style.display = DisplayStyle.Flex;
                 }
                 else
                 {
-                    toggleActorsTab.value = true;
+                    toggleSynthesisLabTab.value = true;
                 }
             });
 
-            thespeonWindowContent.Add(packOverviewTabContent);
-            thespeonWindowContent.Add(actorsTabContent);
+            thespeonWindowContent.Add(importedTabContent);
+            thespeonWindowContent.Add(synthesisLabTabContent);
 
-            thespeonWindowToolbar.Add(togglePackOverviewTab);
-            thespeonWindowToolbar.Add(toggleActorsTab);
+            thespeonWindowToolbar.Add(toggleOverviewTab);
+            thespeonWindowToolbar.Add(toggleSynthesisLabTab);
 
             _functionalRoot.Add(thespeonWindowToolbar);
             _functionalRoot.Add(thespeonWindowContent);
@@ -187,35 +187,35 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         private void UpdateDynamicData()
         {
-            var allActors = PackManifestHandler.Instance.GetAllActors();
-            _actorListView.itemsSource = allActors;
-            if (allActors.Count > 0 && _actorListView.selectedIndex < 0)
+            var allCharacters = ManifestHandler.Instance.GetAllCharacters();
+            _characterListView.itemsSource = allCharacters;
+            if (allCharacters.Count > 0 && _characterListView.selectedIndex < 0)
             {
-                _actorListView.selectedIndex = 0;
+                _characterListView.selectedIndex = 0;
             }
-            else if (allActors.Count == 0)
+            else if (allCharacters.Count == 0)
             {
-                _actorListView.ClearSelection();
+                _characterListView.ClearSelection();
             }
 
-            _actorPackListView.itemsSource = PackManifestHandler.Instance.GetAllActorPackNames();
-            _languagePackListView.itemsSource = PackManifestHandler.Instance.GetAllLanguagePackNames();
-            var missing = PackManifestHandler.Instance.GetMissingLanguagePacks();
+            _importedCharacterListView.itemsSource = ManifestHandler.Instance.GetAllCharacterNames();
+            _importedLanguageListView.itemsSource = ManifestHandler.Instance.GetAllLanguageNames();
+            var missing = ManifestHandler.Instance.GetMissingLanguages();
             if (missing.Count > 0)
             {
-                _missingPackHelpBox.text = "You need to import the following language packs before you continue: \n " + string.Join(", ", missing);
-                _missingPackHelpBox.style.display = DisplayStyle.Flex;
+                _missingLanguageHelpBox.text = "You need to import the following languages before you continue: \n " + string.Join(", ", missing);
+                _missingLanguageHelpBox.style.display = DisplayStyle.Flex;
             }
             else
             {
-                _missingPackHelpBox.style.display = DisplayStyle.None;
+                _missingLanguageHelpBox.style.display = DisplayStyle.None;
             }
         }
 
-        private VisualElement CreatePackOverviewTab()
+        private VisualElement CreateOverviewTab()
         {
             VisualElement result = new();
-            result.name = "Pack Overview Tab";
+            result.name = "Overview Tab";
             result.style.flexGrow = 1;
 
             var infoContainer = new VisualElement();
@@ -223,7 +223,7 @@ namespace Lingotion.Thespeon.Editor
             infoContainer.style.justifyContent = Justify.SpaceBetween;
             infoContainer.style.minHeight = 106;
 
-            _downloadGuideHelpBox.text = "To download Actor Packs and Language Packs, please click here or go to: https://portal.lingotion.com/";
+            _downloadGuideHelpBox.text = "To download Lingotion files, please click here or go to: https://portal.lingotion.com/";
             _downloadGuideHelpBox.messageType = HelpBoxMessageType.Info;
 
 
@@ -233,35 +233,35 @@ namespace Lingotion.Thespeon.Editor
             _downloadGuideHelpBox.RegisterCallback<MouseLeaveEvent>(_ => helpBoxInternalLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f));
             _downloadGuideHelpBox.RegisterCallback<MouseUpEvent>(_ => Application.OpenURL("https://portal.lingotion.com/"));
 
-            _missingPackHelpBox.messageType = HelpBoxMessageType.Error;
+            _missingLanguageHelpBox.messageType = HelpBoxMessageType.Error;
 
             var buttonContainer = new VisualElement();
             buttonContainer.style.flexDirection = FlexDirection.Row;
 
-            var importPackButton = new Button(() =>
+            var importButton = new Button(() =>
             {
-                EditorPackImporter.RouteImporter();
+                EditorImporter.ImportThespeon();
             })
-            { text = "Import Pack" };
+            { text = "Import" };
 
-            var deletePackButton = new Button(() =>
+            var deleteButton = new Button(() =>
             {
-                int selectedLanguageIndex = _languagePackListView.selectedIndex;
-                int selectedActorIndex = _actorPackListView.selectedIndex;
+                int selectedLanguageIndex = _importedLanguageListView.selectedIndex;
+                int selectedCharacterIndex = _importedCharacterListView.selectedIndex;
                 VisualElement rootElement;
-                string selectedPackName;
-                if (selectedLanguageIndex >= 0 && selectedLanguageIndex <= _languagePackListView.itemsSource.Count)
+                string selectedName;
+                if (selectedLanguageIndex >= 0 && selectedLanguageIndex < _importedLanguageListView.itemsSource.Count)
                 {
-                    selectedPackName = _languagePackListView.selectedItem as string;
+                    selectedName = _importedLanguageListView.selectedItem as string;
 
 
-                    rootElement = _languagePackListView.GetRootElementForIndex(selectedLanguageIndex);
+                    rootElement = _importedLanguageListView.GetRootElementForIndex(selectedLanguageIndex);
                 }
-                else if (selectedActorIndex >= 0 && selectedActorIndex <= _actorPackListView.itemsSource.Count)
+                else if (selectedCharacterIndex >= 0 && selectedCharacterIndex < _importedCharacterListView.itemsSource.Count)
                 {
-                    selectedPackName = _actorPackListView.selectedItem as string;
+                    selectedName = _importedCharacterListView.selectedItem as string;
 
-                    rootElement = _actorPackListView.GetRootElementForIndex(selectedActorIndex);
+                    rootElement = _importedCharacterListView.GetRootElementForIndex(selectedCharacterIndex);
 
                 }
                 else
@@ -284,29 +284,37 @@ namespace Lingotion.Thespeon.Editor
 
                 bool confirm = EditorUtility.DisplayDialog(
                     "Confirm Deletion",
-                    $"Are you sure you want to delete the pack:\n\n\"{selectedPackName}\"\n\nfrom disk?\n\nThis will delete the following:\n{labelSummary}",
+                    $"Are you sure you want to delete:\n\n\"{selectedName}\"\n\nfrom disk?\n\nThis will delete the following:\n{labelSummary}",
                     "Delete",
                     "Cancel"
                 );
 
                 if (confirm)
                 {
-                    EditorPackImporter.DeletePack(selectedPackName);
+                    string configFilename = ManifestHandler.Instance.GetConfigFilename(selectedName);
+                    if (!string.IsNullOrEmpty(configFilename))
+                    {
+                        EditorImporter.DeleteModule(configFilename);
+                    }
+                    else
+                    {
+                        LingotionLogger.Error($"Delete failed! Import manifest is out of sync. Try recompiling your project or contact support if the issue persists. Faulty entry: {selectedName}");
+                    }
                 }
 
                 Repaint();
             })
-            { text = "Delete Pack" };
-            deletePackButton.SetEnabled(false);
+            { text = "Delete" };
+            deleteButton.SetEnabled(false);
 
             var regenerateInputsButton = new Button(() =>
             {
-                PackManifestHandler.Instance.UpdateMappings();
+                ManifestHandler.Instance.UpdateMappings();
             })
             { text = "Regenerate Input Assets" };
 
-            var actorPackHeaderBar = new Toolbar();
-            var actorPackHeaderLabel = new Label("Imported Actor Packs")
+            var characterHeaderBar = new Toolbar();
+            var characterHeaderLabel = new Label("Imported Characters")
             {
                 style =
                 {
@@ -315,15 +323,15 @@ namespace Lingotion.Thespeon.Editor
                     marginLeft = 5,
                 }
             };
-            actorPackHeaderBar.style.marginTop = 10;
-            actorPackHeaderBar.style.height = 21;
-            var actorPackScrollView = new ScrollView();
-            actorPackScrollView.style.minHeight = 83;
-            actorPackScrollView.style.maxHeight = 3*83;
-            actorPackScrollView.style.marginLeft = 5;
+            characterHeaderBar.style.marginTop = 10;
+            characterHeaderBar.style.height = 21;
+            var characterScrollView = new ScrollView();
+            characterScrollView.style.minHeight = 83;
+            characterScrollView.style.maxHeight = 3*83;
+            characterScrollView.style.marginLeft = 5;
 
-            _actorPackListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
-            _actorPackListView.makeItem = () =>
+            _importedCharacterListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
+            _importedCharacterListView.makeItem = () =>
             {
                 var itemContainer = new Box();
                 itemContainer.style.marginBottom = 4;
@@ -332,20 +340,20 @@ namespace Lingotion.Thespeon.Editor
                 return itemContainer;
             };
 
-            _actorPackListView.bindItem = (element, index) =>
+            _importedCharacterListView.bindItem = (element, index) =>
             {
-                string actorPackName = _actorPackListView.itemsSource[index] as string;
+                string name = _importedCharacterListView.itemsSource[index] as string;
 
                 var listElement = (Box)element;
 
                 listElement.Clear();
-                var packNameLabel = new Label("• "+actorPackName);
-                packNameLabel.style.fontSize = 14;
-                packNameLabel.style.marginTop = 3;
-                packNameLabel.style.marginBottom = 4;
-                packNameLabel.style.marginLeft = 3;
-                listElement.Add(packNameLabel);
-                foreach (var item in PackManifestHandler.Instance.GetAllModuleInfoInActorPack(actorPackName))
+                var nameLabel = new Label("• " + name);
+                nameLabel.style.fontSize = 14;
+                nameLabel.style.marginTop = 3;
+                nameLabel.style.marginBottom = 4;
+                nameLabel.style.marginLeft = 3;
+                listElement.Add(nameLabel);
+                foreach (var item in ManifestHandler.Instance.GetAllModuleInfoInCharacter(name))
                 {
                     var sublabel = new Label($"- {item}");
                     sublabel.style.marginLeft = 10;
@@ -353,23 +361,23 @@ namespace Lingotion.Thespeon.Editor
                 }
             };
 
-            _actorPackListView.unbindItem = (element, index) =>
+            _importedCharacterListView.unbindItem = (element, index) =>
             {
                 var container = (Box)element;
                 container.Clear();
             };
 
-            _actorPackListView.selectedIndicesChanged += (selectedItem) =>
+            _importedCharacterListView.selectedIndicesChanged += (selectedItem) =>
             {
-                if (_actorPackListView.selectedIndex >= 0)
+                if (_importedCharacterListView.selectedIndex >= 0)
                 {
-                    _languagePackListView.ClearSelection();
-                    deletePackButton.SetEnabled(true);
+                    _importedLanguageListView.ClearSelection();
+                    deleteButton.SetEnabled(true);
                 }
             };
 
-            var languagePackHeaderBar = new Toolbar();
-            var languagePackHeaderLabel = new Label("Imported Language Packs")
+            var languageHeaderBar = new Toolbar();
+            var languageHeaderLabel = new Label("Imported Languages")
             {
                 style =
                 {
@@ -378,17 +386,17 @@ namespace Lingotion.Thespeon.Editor
                     marginLeft = 5,
                 }
             };
-            languagePackHeaderBar.style.marginTop = 10;
+            languageHeaderBar.style.marginTop = 10;
 
-            languagePackHeaderBar.style.maxHeight = 21;
-            var languagePackScrollView = new ScrollView();
-            languagePackScrollView.style.minHeight = 83;
-            languagePackScrollView.style.maxHeight = 100;
-            languagePackScrollView.style.flexGrow = 1;
-            languagePackScrollView.style.marginLeft = 5;
+            languageHeaderBar.style.maxHeight = 21;
+            var languageScrollView = new ScrollView();
+            languageScrollView.style.minHeight = 83;
+            languageScrollView.style.maxHeight = 100;
+            languageScrollView.style.flexGrow = 1;
+            languageScrollView.style.marginLeft = 5;
 
-            _languagePackListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
-            _languagePackListView.makeItem = () =>
+            _importedLanguageListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
+            _importedLanguageListView.makeItem = () =>
             {
                 var itemContainer = new Box();
                 itemContainer.style.marginBottom = 4;
@@ -397,20 +405,20 @@ namespace Lingotion.Thespeon.Editor
                 return itemContainer;
             };
 
-            _languagePackListView.bindItem = (element, index) =>
+            _importedLanguageListView.bindItem = (element, index) =>
             {
-                string languagePackName = _languagePackListView.itemsSource[index] as string;
+                string languageName = _importedLanguageListView.itemsSource[index] as string;
 
                 var listElement = (Box)element;
 
                 listElement.Clear();
-                var packNameLabel = new Label("• "+languagePackName);
-                packNameLabel.style.fontSize = 14;
-                packNameLabel.style.marginTop = 3;
-                packNameLabel.style.marginBottom = 4;
-                packNameLabel.style.marginLeft = 3;
-                listElement.Add(packNameLabel);
-                foreach (var item in PackManifestHandler.Instance.GetAllModuleInfoInLanguagePack(languagePackName))
+                var nameLabel = new Label("• "+languageName);
+                nameLabel.style.fontSize = 14;
+                nameLabel.style.marginTop = 3;
+                nameLabel.style.marginBottom = 4;
+                nameLabel.style.marginLeft = 3;
+                listElement.Add(nameLabel);
+                foreach (var item in ManifestHandler.Instance.GetAllModuleInfoInLanguage(languageName))
                 {
                     var sublabel = new Label($"- {item}");
                     sublabel.style.marginLeft = 10;
@@ -418,47 +426,47 @@ namespace Lingotion.Thespeon.Editor
                 }
             };
 
-            _languagePackListView.unbindItem = (element, index) =>
+            _importedLanguageListView.unbindItem = (element, index) =>
             {
                 var container = (Box)element;
                 container.Clear();
             };
 
-            _languagePackListView.selectedIndicesChanged += (selectedItem) =>
+            _importedLanguageListView.selectedIndicesChanged += (selectedItem) =>
             {
-                if (_languagePackListView.selectedIndex >= 0)
+                if (_importedLanguageListView.selectedIndex >= 0)
                 {
-                    _actorPackListView.ClearSelection();
-                    deletePackButton.SetEnabled(true);
+                    _importedCharacterListView.ClearSelection();
+                    deleteButton.SetEnabled(true);
                 }
             };
             infoContainer.Add(_downloadGuideHelpBox);
-            infoContainer.Add(_missingPackHelpBox);
+            infoContainer.Add(_missingLanguageHelpBox);
             infoContainer.Add(buttonContainer);
 
-            buttonContainer.Add(importPackButton);
-            buttonContainer.Add(deletePackButton);
+            buttonContainer.Add(importButton);
+            buttonContainer.Add(deleteButton);
             buttonContainer.Add(regenerateInputsButton);
 
-            actorPackHeaderBar.Add(actorPackHeaderLabel);
-            actorPackScrollView.Add(_actorPackListView);
+            characterHeaderBar.Add(characterHeaderLabel);
+            characterScrollView.Add(_importedCharacterListView);
 
-            languagePackHeaderBar.Add(languagePackHeaderLabel);
-            languagePackScrollView.Add(_languagePackListView);
+            languageHeaderBar.Add(languageHeaderLabel);
+            languageScrollView.Add(_importedLanguageListView);
 
             result.Add(infoContainer);
-            result.Add(actorPackHeaderBar);
-            result.Add(actorPackScrollView);
-            result.Add(languagePackHeaderBar);
-            result.Add(languagePackScrollView);
+            result.Add(characterHeaderBar);
+            result.Add(characterScrollView);
+            result.Add(languageHeaderBar);
+            result.Add(languageScrollView);
             return result;
         }
 
-        private VisualElement CreateActorsTab()
+        private VisualElement CreateSynthesisLabTab()
         {
             VisualElement result = new()
             {
-                name = "Actor Overview tab",
+                name = "Synthesis Lab tab",
                 style =
                 {
                     flexGrow = 1,
@@ -466,7 +474,7 @@ namespace Lingotion.Thespeon.Editor
             };
 
 
-            TwoPaneSplitView actorListEditorSplit = new()
+            TwoPaneSplitView characterListEditorSplit = new()
             {
                 orientation = TwoPaneSplitViewOrientation.Vertical
             };
@@ -492,28 +500,28 @@ namespace Lingotion.Thespeon.Editor
 
 
             VisualElement inferenceEditorPane = new();
-            TwoPaneSplitView actorInfoPane = CreateActorInfoPane(inferenceEditorPane);
+            TwoPaneSplitView characterInfoPane = CreateCharacterInfoPane(inferenceEditorPane);
 
-            actorInfoPane.style.minHeight = 120;
+            characterInfoPane.style.minHeight = 120;
 
             segmentEditor.Add(inferenceEditorPane);
 
-            actorListEditorSplit.Add(actorInfoPane);
-            actorListEditorSplit.Add(segmentEditor);
-            actorListEditorSplit.fixedPaneInitialDimension = 200;
+            characterListEditorSplit.Add(characterInfoPane);
+            characterListEditorSplit.Add(segmentEditor);
+            characterListEditorSplit.fixedPaneInitialDimension = 200;
 
-            result.Add(actorListEditorSplit);
+            result.Add(characterListEditorSplit);
             return result;
         }
 
-        private TwoPaneSplitView CreateActorInfoPane(VisualElement editorPane)
+        private TwoPaneSplitView CreateCharacterInfoPane(VisualElement editorPane)
         {
             TwoPaneSplitView result = new()
             {
                 fixedPaneInitialDimension = 210
             };
 
-            VisualElement actorListPane = new()
+            VisualElement characterListPane = new()
             {
                 style =
                 {
@@ -521,18 +529,18 @@ namespace Lingotion.Thespeon.Editor
                 }
             };
 
-            var actorListToolbar = new Toolbar();
-            MaskField actorMaskField = new("Module type filter")
+            var characterListToolbar = new Toolbar();
+            MaskField characterMaskField = new("Module type filter")
             {
                 focusable = false,
             };
             var layersEnumChoices = new List<string>(Enum.GetNames(typeof(ModuleType)));
             layersEnumChoices.RemoveAt(0);
-            actorMaskField.choices = layersEnumChoices;
+            characterMaskField.choices = layersEnumChoices;
             int allMask = (1 << Enum.GetValues(typeof(ModuleType)).Length) - 1;
-            actorMaskField.value = allMask;
+            characterMaskField.value = allMask;
             
-            actorMaskField.RegisterValueChangedCallback(evt =>
+            characterMaskField.RegisterValueChangedCallback(evt =>
             {
 
                 var selectedTypes = Enum.GetValues(typeof(ModuleType))
@@ -541,21 +549,21 @@ namespace Lingotion.Thespeon.Editor
                 .Where(t => (evt.newValue & (1 << (int)t)) != 0)
                 .ToList();
 
-                var filtered = PackManifestHandler.Instance.GetAllActors()
-                .Where(actor =>
+                var filtered = ManifestHandler.Instance.GetAllCharacters()
+                .Where(character =>
                 {
-                    var actorTypes = PackManifestHandler.Instance.GetAllModuleTypesForActor(actor);
-                    return actorTypes.Any(actorType => (evt.newValue & (1 << (int)actorType - 1)) != 0);
+                    var characterTypes = ManifestHandler.Instance.GetAllModuleTypesForCharacter(character);
+                    return characterTypes.Any(characterType => (evt.newValue & (1 << (int)characterType - 1)) != 0);
                 })
                 .ToList();
 
-                _actorListView.itemsSource = filtered;
-                _actorListView.Rebuild();
+                _characterListView.itemsSource = filtered;
+                _characterListView.Rebuild();
             });
 
-            var actorInfoPane = new VisualElement();
-            var actorInfoToolbar = new Toolbar();
-            var actorInfoHeader = new Label("Actor Information")
+            var characterInfoPane = new VisualElement();
+            var characterInfoToolbar = new Toolbar();
+            var characterInfoHeader = new Label("Character Information")
             {
                 style =
                 {
@@ -565,30 +573,30 @@ namespace Lingotion.Thespeon.Editor
                 }
             };
 
-            var actorInfoSection = new VisualElement();
+            var characterInfoSection = new VisualElement();
 
-            _actorListView.selectedIndicesChanged += (selectedItem) =>
+            _characterListView.selectedIndicesChanged += (selectedItem) =>
             {
-                actorInfoSection.Clear();
-                if(_actorListView.selectedItem == null)
+                characterInfoSection.Clear();
+                if(_characterListView.selectedItem == null)
                 {
                     return;
                 }
-                var selectedActorName = _actorListView.selectedItem.ToString();
+                var selectedCharacterName = _characterListView.selectedItem.ToString();
 
-                var actorNameLabel = CreateSelectableLabel(selectedActorName);
-                actorNameLabel.style.fontSize = 14;
-                actorNameLabel.style.alignSelf = Align.Center;
-                actorNameLabel.style.marginTop = 5;
+                var characterNameLabel = CreateSelectableLabel(selectedCharacterName);
+                characterNameLabel.style.fontSize = 14;
+                characterNameLabel.style.alignSelf = Align.Center;
+                characterNameLabel.style.marginTop = 5;
 
-                var actorTitleSeparator = new VisualElement();
-                actorTitleSeparator.style.height = 1;
-                actorTitleSeparator.style.backgroundColor = new Color(0.3f, 0.3f, 0.3f);
-                actorTitleSeparator.style.marginTop = 4;
-                actorTitleSeparator.style.marginBottom = 4;
-                actorTitleSeparator.style.flexGrow = 1;
+                var characterTitleSeparator = new VisualElement();
+                characterTitleSeparator.style.height = 1;
+                characterTitleSeparator.style.backgroundColor = new Color(0.3f, 0.3f, 0.3f);
+                characterTitleSeparator.style.marginTop = 4;
+                characterTitleSeparator.style.marginBottom = 4;
+                characterTitleSeparator.style.flexGrow = 1;
 
-                var actorSpecificInfoContainer = new ScrollView()
+                var characterSpecificInfoContainer = new ScrollView()
                 {
                     style =
                     {
@@ -596,16 +604,16 @@ namespace Lingotion.Thespeon.Editor
                         marginRight = 5,
                     }};
 
-                var currentModuleSizes = PackManifestHandler.Instance.GetAllModuleTypesForActor(selectedActorName);
-                var actorModuleSizeList = new VisualElement();
+                var currentModuleSizes = ManifestHandler.Instance.GetAllModuleTypesForCharacter(selectedCharacterName);
+                var characterModuleSizeList = new VisualElement();
 
-                actorModuleSizeList.Add(new Label("Imported module sizes:"));
-                actorModuleSizeList.style.whiteSpace = WhiteSpace.Normal;
-                actorModuleSizeList.style.unityFontStyleAndWeight = FontStyle.Normal;
-                actorModuleSizeList.style.marginTop = 5;
+                characterModuleSizeList.Add(new Label("Imported module sizes:"));
+                characterModuleSizeList.style.whiteSpace = WhiteSpace.Normal;
+                characterModuleSizeList.style.unityFontStyleAndWeight = FontStyle.Normal;
+                characterModuleSizeList.style.marginTop = 5;
 
                 foreach (var moduleType in currentModuleSizes)
-                    actorModuleSizeList.Add(new Label($"{moduleType}")
+                    characterModuleSizeList.Add(new Label($"{moduleType}")
                     {
                         style =
                         {
@@ -633,7 +641,7 @@ namespace Lingotion.Thespeon.Editor
                     moduleFoldout.style.marginLeft = 5;
                 
 
-                    var languagesForModule = PackManifestHandler.Instance.GetAllSupportedLanguageCodes(selectedActorName, moduleType);
+                    var languagesForModule = ManifestHandler.Instance.GetAllSupportedLanguageCodes(selectedCharacterName, moduleType);
                     if (languagesForModule.Count > 0)
                     {
                         var languagesLabel = new Label("Supported Languages:") { style = { unityFontStyleAndWeight = FontStyle.Italic } };
@@ -643,7 +651,7 @@ namespace Lingotion.Thespeon.Editor
 
                         foreach (var langNameCodePair in languagesForModule)
                         {
-                            var dialects = PackManifestHandler.Instance.GetAllDialectsInModuleLanguage(selectedActorName, moduleType, langNameCodePair.Value);
+                            var dialects = ManifestHandler.Instance.GetAllDialectsInModuleLanguage(selectedCharacterName, moduleType, langNameCodePair.Value);
                             var langContainer = new VisualElement { style = { flexDirection = FlexDirection.Row, marginLeft = 15 } };
                             langContainer.Add(new Label("• "+ langNameCodePair.Key + ":"){ style = { unityFontStyleAndWeight = FontStyle.Italic, marginTop = 2 } });
                             langContainer.Add(CreateSelectableLabel(langNameCodePair.Value));
@@ -670,33 +678,33 @@ namespace Lingotion.Thespeon.Editor
                 
                 UpdateInferenceTestingWindow(editorPane, currentModuleSizes);
 
-                actorSpecificInfoContainer.Add(actorModuleSizeList);
-                actorSpecificInfoContainer.Add(modulesSection);
+                characterSpecificInfoContainer.Add(characterModuleSizeList);
+                characterSpecificInfoContainer.Add(modulesSection);
 
-                actorInfoSection.Add(actorNameLabel);
-                actorInfoSection.Add(actorTitleSeparator);
-                actorInfoSection.Add(actorSpecificInfoContainer);
+                characterInfoSection.Add(characterNameLabel);
+                characterInfoSection.Add(characterTitleSeparator);
+                characterInfoSection.Add(characterSpecificInfoContainer);
             };
 
-            actorListToolbar.Add(actorMaskField);
-            actorListPane.Add(actorListToolbar);
-            actorListPane.Add(_actorListView);
+            characterListToolbar.Add(characterMaskField);
+            characterListPane.Add(characterListToolbar);
+            characterListPane.Add(_characterListView);
 
-            actorInfoToolbar.Add(actorInfoHeader);
-            actorInfoPane.Add(actorInfoToolbar);
-            actorInfoPane.Add(actorInfoSection);
+            characterInfoToolbar.Add(characterInfoHeader);
+            characterInfoPane.Add(characterInfoToolbar);
+            characterInfoPane.Add(characterInfoSection);
 
-            result.Add(actorListPane);
-            result.Add(actorInfoPane);
+            result.Add(characterListPane);
+            result.Add(characterInfoPane);
             return result;
         }
 
         private void UpdateInferenceTestingWindow(VisualElement editorPane, List<ModuleType> currentModuleSizes)
         {
             editorPane.Clear();
-            Toolbar actorToolbar = new();
-            string actorName = _actorListView.selectedItem.ToString();
-            ToolbarMenu moduleSizeSelectMenu = new() { text = $"Select model size for {actorName}..." };
+            Toolbar characterToolbar = new();
+            string characterName = _characterListView.selectedItem.ToString();
+            ToolbarMenu moduleSizeSelectMenu = new() { text = $"Select model size for {characterName}..." };
             var currentEditingStatus = new Label()
             {
                 style =
@@ -716,31 +724,31 @@ namespace Lingotion.Thespeon.Editor
                 {
                     moduleSizeSelectMenu.text = moduleTypeName;
 
-                    currentEditingStatus.text = "Editing input for " + actorName + " " + moduleTypeName + ":";
-                    UpdateEditingPane(inputEditingPane, actorName, moduleTypeName);
+                    currentEditingStatus.text = "Editing input for " + characterName + " " + moduleTypeName + ":";
+                    UpdateEditingPane(inputEditingPane, characterName, moduleTypeName);
                 });
             }
-            
+
             if (currentModuleSizes.Count > 0)
             {
                 string firstModule = currentModuleSizes[0].ToString();
                 moduleSizeSelectMenu.text = firstModule;
-                currentEditingStatus.text = "Editing input for " + actorName + " " + firstModule + ":";
-                UpdateEditingPane(inputEditingPane, actorName, firstModule);
+                currentEditingStatus.text = "Editing input for " + characterName + " " + firstModule + ":";
+                UpdateEditingPane(inputEditingPane, characterName, firstModule);
             }
 
-            actorToolbar.Add(moduleSizeSelectMenu);
-            actorToolbar.Add(currentEditingStatus);
+            characterToolbar.Add(moduleSizeSelectMenu);
+            characterToolbar.Add(currentEditingStatus);
 
-            editorPane.Add(actorToolbar);
+            editorPane.Add(characterToolbar);
             editorPane.Add(inputEditingPane);
         }
 
-        private void UpdateEditingPane(ScrollView editingPane, string actorName, string moduleType)
+        private void UpdateEditingPane(ScrollView editingPane, string characterName, string moduleType)
         {
             editingPane.Clear();
 
-            string inputIndexer = actorName + moduleType;
+            string inputIndexer = characterName + moduleType;
             if (!_editorInputs.TryGetValue(inputIndexer, out var currentInputContainer))
             {
                 currentInputContainer = CreateInstance<EditorInputContainer>();
@@ -766,19 +774,19 @@ namespace Lingotion.Thespeon.Editor
                 if (!_isSynthesizing)
                 {
                     _isSynthesizing = true;
-                    ThespeonInput input = new(currentInputContainer.segments, actorName, Enum.Parse<ModuleType>(moduleType))
+                    ThespeonInput input = new(currentInputContainer.segments, characterName, Enum.Parse<ModuleType>(moduleType))
                     {
                         Speed = currentInputContainer.speed,
                         Loudness = currentInputContainer.loudness
                     };
-                    ThespeonInference inferenceSession = new();
+                    ThespeonInference inferenceSession = new("", OutputPacketHandler);
                     InferenceConfig config = new()
                     {
                         TargetBudgetTime = 0.01f,
                         TargetFrameTime = 0.1f
                     };
 
-                    this.StartCoroutine(inferenceSession.Infer<float>(input, config, HandleAudioOutput, "", false));
+                    this.StartCoroutine(inferenceSession.Infer(input, config, false));
                 }
 
 
@@ -789,14 +797,14 @@ namespace Lingotion.Thespeon.Editor
 
             var segmentEditor = new VisualElement();
 
-            UpdateSegmentEditorWindow(segmentEditor, currentInputContainer.segments, actorName, moduleType);
+            UpdateSegmentEditorWindow(segmentEditor, currentInputContainer.segments, characterName, moduleType);
 
             editingPane.Add(runInferenceButton);
             editingPane.Add(speedPropField);
             editingPane.Add(loudnessPropField);
             editingPane.Add(segmentEditor);
         }
-        private void UpdateSegmentEditorWindow(VisualElement segmentEditorWindow, List<ThespeonInputSegment> currentInputSegments, string actorName, string moduleTypeString)
+        private void UpdateSegmentEditorWindow(VisualElement segmentEditorWindow, List<ThespeonInputSegment> currentInputSegments, string characterName, string moduleTypeString)
         {
             segmentEditorWindow.Clear();
             segmentEditorWindow.Add(new Label("Input segments:")
@@ -866,7 +874,7 @@ namespace Lingotion.Thespeon.Editor
             {
                 throw new ArgumentException("Invalid module type found.");
             }
-            Dictionary<string, ModuleLanguage> languageChoices = PackManifestHandler.Instance.GetAllLanguagesForActorAndModuleType(actorName, moduleType);
+            Dictionary<string, ModuleLanguage> languageChoices = ManifestHandler.Instance.GetAllLanguagesForCharacterAndModuleType(characterName, moduleType);
             List<string> dropdownItems = new();
             foreach ((string name, ModuleLanguage lang) in languageChoices)
             {
@@ -904,7 +912,7 @@ namespace Lingotion.Thespeon.Editor
                 {
                     throw new ArgumentException("Invalid module type found.");
                 }
-                Dictionary<string, ModuleLanguage> languageChoices = PackManifestHandler.Instance.GetAllLanguagesForActorAndModuleType(actorName, moduleType);
+                Dictionary<string, ModuleLanguage> languageChoices = ManifestHandler.Instance.GetAllLanguagesForCharacterAndModuleType(characterName, moduleType);
                 List<string> dropdownItems = new();
                 foreach ((string name, ModuleLanguage item) in languageChoices)
                 {
@@ -1039,31 +1047,52 @@ namespace Lingotion.Thespeon.Editor
             }
         }
 
-        private void HandleAudioOutput(ThespeonDataPacket<float> data)
+        private void ResetSynthesisState()
         {
-            if (data.metadata.status == DataPacketStatus.FAILED)
-            {
-                HandleSynthFailed();
-                return;
-            }
-            _audioData.AddRange(data.data);
-            if (data.isFinalPacket)
-            {
-                CreateAndSelectWav(_audioData.ToArray());
-                _audioData.Clear();
-
-
-                InferenceResourceCleanup.CleanupResources();
-                LingotionLogger.Debug("final audio data packet received, audio synthesis complete.");
-                _isSynthesizing = false;
-            }
+            _audioData.Clear();
+            InferenceResourceCleanup.CleanupResources();
+            _isSynthesizing = false;
         }
 
-        private void HandleSynthFailed()
+        private void OutputPacketHandler(ThespeonDataPacket packet)
         {
-                _audioData.Clear();
-                InferenceResourceCleanup.CleanupResources();
-                _isSynthesizing = false;
+            switch (packet.CallbackType)
+            {
+                case SynthCallbackType.CB_AUDIO:
+                    bool isFinalPacket = false;
+                    // Check for "is_final" in metadata
+                    if(packet.Metadata.TryGetValue("is_final", out PacketMetadataValue isFinalVal))
+                    {
+                        isFinalVal.TryGet(out isFinalPacket);
+                    }
+                    if(!packet.Payload.TryGet(out float[] audioSamples))
+                    {
+                        LingotionLogger.Error($"Editor audio synthesis failed! Faulty audio packet payload received, ignoring.");
+                        return;
+                    }
+                    _audioData.AddRange(audioSamples);
+                    if (isFinalPacket)
+                    {
+                        CreateAndSelectWav(_audioData.ToArray());
+                        LingotionLogger.Debug("final audio data packet received, audio synthesis complete.");
+                        ResetSynthesisState();
+                    }
+                    
+                    break;
+                case SynthCallbackType.CB_ERROR:
+                    if(packet.Payload.TryGet(out string errorMsgValue))
+                    {
+                        LingotionLogger.Error($"Editor audio synthesis failed! Error packet received from session with message:\n {errorMsgValue}");
+                    } else
+                    {
+                        LingotionLogger.Error($"Editor audio synthesis failed! Empty error packet received from session.");
+                    }
+                    ResetSynthesisState();
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         private static void CreateAndSelectWav(float[] data)
@@ -1073,7 +1102,7 @@ namespace Lingotion.Thespeon.Editor
 
             if (!File.Exists(path))
             {
-                LingotionLogger.Error("WAV file not found at: " + path);
+                LingotionLogger.Error("Editor audio synthesis failed! Could not save WAV file to path: " + path);
                 return;
             }
 
@@ -1083,7 +1112,7 @@ namespace Lingotion.Thespeon.Editor
             var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
             if (clip == null)
             {
-                LingotionLogger.Error("Failed to load AudioClip at path: " + path);
+                LingotionLogger.Error("Editor audio synthesis failed! Failed to load AudioClip at path: " + path);
                 return;
             }
 
@@ -1137,7 +1166,7 @@ namespace Lingotion.Thespeon.Editor
         }
         private async void ValidateAndGate()
         {
-            string licenseKey = _licenseField.value;
+            string licenseKey = _licenseField.value.Trim();
             EditorLicenseKeyValidator.SaveLicenseToFile(licenseKey);
             var result = await EditorLicenseKeyValidator.ValidateLicenseAsync(licenseKey);
             GateValidationResult(result);

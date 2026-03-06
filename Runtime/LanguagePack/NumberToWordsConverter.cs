@@ -1,10 +1,10 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections.Generic;
 using Lingotion.Thespeon.Core;
 
-namespace Lingotion.Thespeon.LanguagePack
+namespace Lingotion.Thespeon.Language
 {
     /// <summary>
     /// Converts numbers in a string to their English word representation in phonemes.
@@ -22,9 +22,10 @@ namespace Lingotion.Thespeon.LanguagePack
             "zˈiəɹoʊ", "tˈɛn", "twˈɛnti", "θˈɜːɾi", "fˈɔːɹɾi", "fˈɪfti",
             "sˈɪksti", "sˈɛvɛnti", "ˈeɪɾi", "nˈaɪnti"
         };
-        private static readonly List<string> OrdinalLessThanThirteen = new()
+        private static readonly List<string> OrdinalLessThanTwenty = new()
         {
-            "zˈiəɹoʊθ", "fˈɜːst", "sˈɛkənd", "θˈɜːd", "fˈoːɹθ", "fˈɪfθ", "sˈɪksθ", "sˈɛvənθ", "ˈeɪtθ", "nˈaɪnθ", "tˈɛnθ", "ᵻlˈɛvənθ", "twˈɛlvθ"
+            "zˈiəɹoʊθ", "fˈɜːst", "sˈɛkənd", "θˈɜːd", "fˈoːɹθ", "fˈɪfθ", "sˈɪksθ", "sˈɛvənθ", "ˈeɪtθ", "nˈaɪnθ", "tˈɛnθ", "ᵻlˈɛvənθ", "twˈɛlvθ", "θˈɜːtiːnθ", "fˈoːɹtiːnθ",
+            "fˈɪftiːnθ", "sˈɪkstiːnθ", "sˈɛvəntˌiːnθ", "ˈeɪtiːnθ", "nˈaɪntiːnθ"
         };
         private static readonly string[] ScaleNames =
         {
@@ -208,12 +209,12 @@ namespace Lingotion.Thespeon.LanguagePack
         private static string MakeOrdinal(string ordinal, int nbr)
         {
             int lastTwoDigits = nbr % 100;
-            LingotionLogger.Debug($"NumberConverter Making ordinal of {nbr}: {0 < lastTwoDigits && lastTwoDigits < 13 || nbr == 0}");
+            LingotionLogger.Debug($"NumberConverter Making ordinal of {nbr}: {0 < lastTwoDigits && lastTwoDigits < 20 || nbr == 0}");
 
-            if (0 < lastTwoDigits && lastTwoDigits < 13 || nbr == 0)
+            if (0 < lastTwoDigits && lastTwoDigits < 20 || nbr == 0)
             {
                 string[] parts = ordinal.Split(' ');
-                parts[^1] = OrdinalLessThanThirteen[lastTwoDigits];
+                parts[^1] = OrdinalLessThanTwenty[lastTwoDigits];
                 return string.Join(" ", parts);
             }
 
@@ -222,13 +223,23 @@ namespace Lingotion.Thespeon.LanguagePack
 
                 return ordinal + "əθ";
             }
+            if (ordinal.EndsWith("ri"))
+            {
+
+                return ordinal + "əθ";
+            }
             int lastDigit = nbr % 10;
             if (lastDigit != 0)
             {
                 string[] parts2 = ordinal.Split(' ');
-                parts2[^1] = OrdinalLessThanThirteen[lastDigit];
+                parts2[^1] = OrdinalLessThanTwenty[lastDigit];
                 return string.Join(" ", parts2);
             }
+
+
+
+
+
 
             return ordinal + "θ";
         }

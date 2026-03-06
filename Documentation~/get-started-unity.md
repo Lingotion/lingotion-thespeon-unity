@@ -18,7 +18,7 @@ This process has three main steps:
 2. Import the downloaded _.lingotion_ files
 3. Run the _Minimal Character_ sample
 > [!TIP]
-> If you have not downloaded any _.lingotion_ files, please follow the [Get Started - Webportal](./get-started-webportal.md) guide before proceeding.
+> If you have not downloaded any _.lingotion_ files, please follow the [Get Started - Webportal](https://github.com/Lingotion/.github/blob/main/profile/portal-docs/get-started-webportal.md) guide before proceeding.
 > 
 
 --- 
@@ -47,8 +47,11 @@ Unity will now install the Thespeon package and its dependencies to your Unity p
 > [!TIP]
 > You may also clone the package yourself and add it from disk if you wish to have a local copy.
 > 
+> [!IMPORTANT]
+> The package samples use the **Unity Input System** package. Ensure your project has it installed and that **Active Input Handling** in **Edit > Project Settings > Player** is set to **Input System Package (New)** or **Both**.
+
 ### Import the Minimal Character sample
-The Minimal Character sample contains a bare minimum example scene datailing how to use the package -- this will be the basis for this guide.
+The Minimal Character sample contains a bare minimum example scene detailing how to use the package -- this will be the basis for this guide.
 
 ![Import sample screenshot](./data/import-sample.png?raw=true "Import sample screenshot")
 
@@ -61,24 +64,25 @@ The Minimal Character sample contains a bare minimum example scene datailing how
 
 ---
 ## Get acquainted with the Thespeon Info Window
-Now that the package is installed, we can import the downloaded actor and language packs from the Lingotion developer portal. 
+Now that the package is installed, we can import the downloaded character and language packs from the Lingotion developer portal. 
 
-Thespeon has its own information window that displays an overview of installed actors and languages, tools for importing and deleting packs from the project, as well as a tab for audio synthesis laboration in Edit Mode.
+Thespeon has its own information window that displays an overview of installed characters and languages, tools for importing and deleting packs from the project, as well as a tab for audio synthesis laboration in Edit Mode.
 
 1. To find the _Thespeon Info Window_, go to **Window > Lingotion > Thespeon Info** from the top menu. 
 
 
-2. Add your project's [license key](./get-started-webportal.md#creating-a-project) to the text box and press enter.
+2. Add your project's [license key](https://github.com/Lingotion/.github/blob/main/profile/portal-docs/get-started-webportal.md#creating-a-project) to the text box and press enter.
 
 ![Thespeon info license key](./data/license-key.png?raw=true "Thespeon info license key")
 > [!IMPORTANT] 
 > To do this step you need an internet connection.
 > 
 
-3. Press the **Import Pack** button and select your downloaded actor pack from the webportal. The imported actor(s) will show up under the **Imported Actor Packs** list.
+3. Press the **Import Pack** button and select your downloaded character pack from the webportal. The imported character(s) will show up under the **Imported Character Packs** list.
 
 ![Thespeon info empty screenshot](./data/thespeon-info-empty.png?raw=true "Thespeon info empty screenshot")
-![import-actor screenshot](./data/import-actor.png?raw=true "import-actor screenshot")
+
+![import-character screenshot](./data/import-character.png?raw=true "import-character screenshot")
 
    Note the warning - this means that we need to import a corresponding language pack as well.
 
@@ -86,32 +90,26 @@ Thespeon has its own information window that displays an overview of installed a
 
 ![import-language screenshot](./data/import-language.png?raw=true "import-language screenshot")
 
-If all languages that the chosen actor pack supports are imported, you should see the warning disappear. Multilingual actors do not strictly need all their language packs to run and can be used as long as it has at least one, but its use will then be limited to that language only.
+If all languages that the chosen character pack supports are imported, you should see the warning disappear. Multilingual characters do not strictly need all their language packs to run and can be used as long as it has at least one, but its use will then be limited to that language only.
    
 > [!TIP] 
-> To remove an imported Actor Pack or Language Pack, select the pack in its list and press the **Delete Pack** button. 
+> To remove an imported Character Pack or Language Pack, select the pack in its list and press the **Delete Pack** button. 
 > 
 
 ---
 
 ## Run the Minimal Character sample
-The _MinimalCharacter.cs_ script shows how easy it is to run Thespeon by only providing a single dialogue line -- this is the only thing that is explicitly required for Thespeon to synthesize audio. In the absence of parameters, Thespeon will do its best to fill in the blanks with default values. In the current case, the first available actor is selected for you along with a fallback emotion and language.
+The _MinimalCharacter.cs_ script shows how easy it is to run Thespeon by only providing a single dialogue line -- this is the only thing that is explicitly required for Thespeon to synthesize audio. In the absence of parameters, Thespeon will do its best to fill in the blanks with default values. In the current case, the first available character is selected for you along with a fallback emotion and language.
 
-> [!IMPORTANT]
-> The Unity InferenceEngine GPUCompute backend does not work properly on Windows from Unity version 6000.0.53f1 and forward due to a buffer allocation issue in the DirectX pipeline. This issue has been reported to the Unity team, and we will update the package as soon as a fix is released.
-> 
-> Until then, please use a Unity Editor version lower than 6000.0.53f1 for full functionality. 
-> A workaround is to not use the GPUCompute backend when synthesizing.
-
-Now that we have imported the actor and language packs, we can start interfacing with the package. Enter play mode and press the **Space**, **Enter** or **S** key to initiate a synthesis and you should hear the imported actor speak.
+Now that we have imported the character and language packs, we can start interfacing with the package. Enter play mode and press the **Space**, **Enter** or **S** key to initiate a synthesis and you should hear the imported character speak.
 
 Feel free to check out the other package samples for more examples on how to use Thespeon!
 
 > [!TIP]
-> A quick way to interactively experiment with different lines in the Unity Editor is to use the **Audio Test Lab** under the **Actors** tab in the **Thespeon Info Window**.
+> A quick way to interactively experiment with different lines in the Unity Editor is to use the **Audio Test Lab** under the **Characters** tab in the **Thespeon Info Window**.
 ---
 ## Next Steps
-Now that you have successfully produced audio with your chosen actor, you can follow the [Actor Control Guide](./actor-control.md) to learn how to direct how the actor should speak their lines.
+Now that you have successfully produced audio with your chosen character, you can follow the [Character Control Guide](./character-control.md) to learn how to direct how the character should speak their lines.
 
 See the [Configuration and Performance Tuning Manual](./thespeon-configuration.md) for details on how to control the performance and memory usage of Thespeon.
 

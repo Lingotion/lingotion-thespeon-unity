@@ -1,9 +1,10 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using Lingotion.Thespeon.Core;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
+using Unity.InferenceEngine;
 
 namespace Lingotion.Thespeon.Inference
 {
@@ -36,7 +37,7 @@ namespace Lingotion.Thespeon.Inference
         /// <param name="config"></param>
         public void RegisterModule(Module module, InferenceConfig config)
         {
-            if (IsRegistered(module))
+            if (IsRegistered(module, config.PreferredBackendType))
             {
                 LingotionLogger.Debug($"Module {module.ModuleID} is already registered, skipping registration.");
                 return;
@@ -45,24 +46,27 @@ namespace Lingotion.Thespeon.Inference
             foreach ((string md5, ModelRuntimeBinding binding) in models)
             {
                 _availableWorkers[md5] = new InferenceWorkload(binding);
-                LingotionLogger.Debug($"Creating Workload {md5}, {binding.model.inputs}");
+                LingotionLogger.Info($"Creating Workload {md5}, {binding.model.inputs}");
             }
+            module.AddLoadedBackend(config.PreferredBackendType);
         }
 
         public IEnumerator RegisterModuleCoroutine(Module module, InferenceConfig config)
         {
-            if (IsRegistered(module))
+            if (IsRegistered(module, config.PreferredBackendType))
             {
                 yield break;
             }
             Dictionary<string, ModelRuntimeBinding> models = new();
-            yield return module.CreateRuntimeBindingsCoroutine(_availableWorkers.Keys.ToHashSet(), config.PreferredBackendType, (result) => models = result);
+            var createBindings = module.CreateRuntimeBindingsCoroutine(_availableWorkers.Keys.ToHashSet(), config.PreferredBackendType, (result) => models = result);
+            while (createBindings.MoveNext()) { yield return createBindings.Current; }
             UnityEngine.Profiling.Profiler.BeginSample("Thespeon Done creating runtime bindings");
             foreach ((string md5, ModelRuntimeBinding binding) in models)
             {
                 _availableWorkers[md5] = new InferenceWorkload(binding);
-                LingotionLogger.Debug($"Creating Workload {md5}, {binding.model.inputs}");
+                LingotionLogger.Info($"Creating Workload {md5}, {binding.model.inputs}");
             }
+            module.AddLoadedBackend(config.PreferredBackendType);
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
@@ -70,37 +74,63 @@ namespace Lingotion.Thespeon.Inference
         /// Deregisters a module and disposes of its workers if they are not in use.
         /// </summary>
         /// <param name="module">Module to deregister.</param>
+        /// <param name="backend">Optional backend to deregister for. If null, will attempt to deregister for all backends.</param>
         /// <returns>True if the module was successfully deregistered, false if it could not be deregistered.</returns>
-        public bool TryDeregisterModuleWorkloads(Module module)
+        public bool TryDeregisterModuleWorkloads(Module module, BackendType? backend = null)
         {
-            if (!IsRegistered(module))
+            if (!IsRegistered(module, backend))
             {
                 return true;
             }
-            HashSet<string> workersToClear = ModuleHandler.Instance.GetNonOverlappingModelMD5s(module);
-            HashSet<string> currentMD5s = module.GetAllFileMD5s();
-            if (workersToClear.Any(md5 => workersInUse.Contains(md5)))
+            if(backend.HasValue && !module.GetLoadedBackends().Contains(backend.Value))
             {
-                LingotionLogger.Warning($"Cannot deregister workloads from module {module.ModuleID} as it is still in use.");
-                return false;
+                LingotionLogger.Warning($"Module {module.ModuleID} is not loaded on backend {backend.Value}, skipping deregistration for this backend.");
+                return true;
             }
-            foreach (string md5 in workersToClear)
-            {
+            List<BackendType> backendTypesToCheck = backend.HasValue ? new List<BackendType> { backend.Value } : module.GetLoadedBackends().ToList();
+            foreach (BackendType backendType in backendTypesToCheck)
+            { 
+                HashSet<string> workersToClear = ModuleHandler.Instance.GetWorkloadIDsToRemove(module, backendType);
+                if (workersToClear.Any(workersInUse.Contains))
+                {
+                    LingotionLogger.Error($"Cannot deregister workloads from module {module.ModuleID} as it is still in use.");
+                    return false;
+                }
+                foreach (string md5 in workersToClear)
+                {
 
 
-                if (!TryDispose(md5)) return false;
+                    if (!TryDispose(md5)) return false;
+                    LingotionLogger.Info($"Deregistering workload {md5} from module {module.ModuleID} on backend {backendType}.");
+                }
+                module.RemoveLoadedBackend(backendType);
             }
             return true;
         }
 
         /// <summary>
-        /// Checks if a module is registered.
+        /// Checks if a module's workloads are registered with the given backend. If BackendType is None, checks if registered for any backend.
         /// </summary>
         /// <param name="module">Module to check.</param>
+        /// <param name="backend">Backend to check for. If null, checks if registered for any backend.</param>
         /// <returns>True if the module is registered, false otherwise.</returns>
-        public bool IsRegistered(Module module)
+        public bool IsRegistered(Module module, BackendType? backend = null)
         {
-            return module.IsIncludedIn(_availableWorkers.Keys.ToHashSet());
+            HashSet<BackendType> backendsToCheck = backend.HasValue ? new HashSet<BackendType> { backend.Value } : module.GetLoadedBackends();
+            HashSet<string> availableKeys = _availableWorkers.Keys.ToHashSet();
+            foreach (BackendType backendType in backendsToCheck)
+            {
+                if (!module.GetLoadedBackends().Contains(backendType))
+                {
+                    LingotionLogger.Debug($"Module {module.ModuleID} is not loaded on backend {backendType}.");
+                    continue;
+                }
+                if (module.IsIncludedIn(availableKeys, backendType))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

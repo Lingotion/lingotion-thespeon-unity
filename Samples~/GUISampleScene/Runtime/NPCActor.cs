@@ -8,10 +8,10 @@ using UnityEngine;
 /// NPCActor is responsible for managing the NPC's audio and interaction with the Thespeon engine.
 /// </summary>
 [RequireComponent(typeof(AudioSource))]
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 public class NPCActor : MonoBehaviour
 {
-    private ThespeonEngine thespeonEngine;
+    private ThespeonComponent ThespeonComponent;
     private AudioSource audioSource;
     [SerializeField]
     private AudioClip audioClip;
@@ -19,8 +19,8 @@ public class NPCActor : MonoBehaviour
     private int packetSize = 1024;
     void Start()
     {
-        thespeonEngine = GetComponent<ThespeonEngine>();
-        thespeonEngine.OnAudioReceived += OnAudioPacketReceive;
+        ThespeonComponent = GetComponent<ThespeonComponent>();
+        ThespeonComponent.OnAudioReceived += OnAudioPacketReceive;
 
         audioData = new List<float>();
         audioSource = GetComponent<AudioSource>();
@@ -42,7 +42,7 @@ public class NPCActor : MonoBehaviour
             }
         }
     }
-    private void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
+    private void OnAudioPacketReceive(string sessionID, float[] data)
     {
         lock (audioData)
         {
@@ -52,7 +52,7 @@ public class NPCActor : MonoBehaviour
 
     void OnDestroy()
     {
-        thespeonEngine.OnAudioReceived -= OnAudioPacketReceive;
+        ThespeonComponent.OnAudioReceived -= OnAudioPacketReceive;
         if (audioSource != null)
         {
             audioSource.Stop();

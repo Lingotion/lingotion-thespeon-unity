@@ -14,15 +14,15 @@ using Unity.Burst;
 /// An advanced character controller that uses the Thespeon engine for real-time voice synthesis.
 /// This example demonstrates how to use advanced features such as custom speed, loudness, and language switching.
 /// </summary>
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 [RequireComponent(typeof(AudioSource))]
 public class AdvancedNarrator : MonoBehaviour
 {
-    private ThespeonEngine engine;
+    private ThespeonComponent engine;
     private AudioSource audioSource;
     private List<float> audioData;
     private AudioClip audioClip;
-    public ThespeonCharacterAsset actorAsset;
+    public ThespeonCharacterAsset characterAsset;
     private AnimationCurve speed;
     private AnimationCurve loudness;
 
@@ -34,7 +34,7 @@ public class AdvancedNarrator : MonoBehaviour
             Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
         }
 #endif
-        engine = GetComponent<ThespeonEngine>();
+        engine = GetComponent<ThespeonComponent>();
         // Register audio receive callback and final package callback
         engine.OnAudioReceived += OnAudioPacketReceive;
         engine.OnSynthesisComplete += OnFinalPacketReceived;
@@ -60,14 +60,14 @@ public class AdvancedNarrator : MonoBehaviour
             new Keyframe(1f, 1f)
         );
         LingotionLogger.CurrentLevel = VerbosityLevel.Warning;
-        if (actorAsset == null)
+        if (characterAsset == null)
         {
-            LingotionLogger.Warning("Assign an actor asset in the Example Character inspector window if you want to use a specific actor. \nYou will find the assets under Assets > Lingotion Thespeon > CharacterAssets.");
-            actorAsset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
+            LingotionLogger.Warning("Assign a character asset in the Example Character inspector window if you want to use a specific character. \nYou will find the assets under Assets > Lingotion Thespeon > CharacterAssets.");
+            characterAsset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
             return;
         }
 
-        engine.TryPreloadActor(actorAsset.actorName, actorAsset.moduleType);
+        engine.TryPreloadCharacter(characterAsset.characterName, characterAsset.moduleType, runWarmup:true);
         LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
 
     }
@@ -80,10 +80,10 @@ public class AdvancedNarrator : MonoBehaviour
             string language2="";
             string dialect1="";
             string dialect2="";
-            string secondLine = "Assign another actor if you want to see a change of language in action!";
+            string secondLine = "Assign another character if you want to see a change of language in action!";
             Emotion ringEmotion = Emotion.Anger;
 
-            if (actorAsset.actorName == "Elias Granhammar" && actorAsset.moduleType != ModuleType.XS)
+            if (characterAsset.characterName == "Elias Granhammar" && characterAsset.moduleType != ModuleType.XS)
             {
                 language1 = "eng";
                 language2 = "swe";
@@ -92,7 +92,7 @@ public class AdvancedNarrator : MonoBehaviour
                 secondLine = $"Om du vill kan jag börja prata svenska!{(char)ControlCharacters.Pause}";
                 ringEmotion = Emotion.Rage;
             }
-            else if (actorAsset.actorName == "Denel Honeyball" && actorAsset.moduleType != ModuleType.XS)
+            else if (characterAsset.characterName == "Denel Honeyball" && characterAsset.moduleType != ModuleType.XS)
             {
                 language1 = "eng";
                 language2 = "eng";
@@ -103,7 +103,7 @@ public class AdvancedNarrator : MonoBehaviour
             }
             else
             {
-                LingotionLogger.Warning("For this example, you need an actor which speaks two languages or dialects. Please assign an actor which speaks two languages or dialects in the Example Character inspector window.");
+                LingotionLogger.Warning("For this example, you need a character which speaks two languages or dialects. Please assign a character which speaks two languages or dialects in the Example Character inspector window.");
             }
             char pauseChar = (char)ControlCharacters.Pause;
             List<ThespeonInputSegment> segments = new() {
@@ -112,13 +112,13 @@ public class AdvancedNarrator : MonoBehaviour
                 new($"{pauseChar}A wizard gave me a ring which says ", emotion: Emotion.Interest),
                 new($"aːʃ naːhh dʊːrbɑɑtʊlʊːk {pauseChar} aːʃ naːhh ɡɪːmbɑːtʊːl {pauseChar} aːʃ naːhh θθrɑːkɑːtʊːlʊːk, ahh bʊʊrzʊʊm ɪʃɪ krɪmpɑtʊːl", isCustomPronounced: true, emotion: ringEmotion)
             };
-            ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType, defaultEmotion: Emotion.Joy, defaultLanguage: language1, defaultDialect: dialect1, speed: speed, loudness: loudness);
+            ThespeonInput input = new(segments, characterAsset.characterName, characterAsset.moduleType, defaultEmotion: Emotion.Joy, defaultLanguage: language1, defaultDialect: dialect1, speed: speed, loudness: loudness);
             engine.Synthesize(input, sessionID: "SampleSynthesisSession");
         }
     }
 
     // Simply add the received data to the audio buffer. 
-    void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
+    void OnAudioPacketReceive(string sessionID, float[] data)
     {
         lock (audioData)
         {
@@ -142,10 +142,10 @@ public class AdvancedNarrator : MonoBehaviour
         }
     }
 
-    private void OnFinalPacketReceived(PacketMetadata metadata)
+    private void OnFinalPacketReceived(string sessionID)
     {
-        LingotionLogger.Info($"Synthesis complete for session: {metadata.sessionID}");
-        engine.TryUnloadActor(metadata.characterName, metadata.moduleType);
+        LingotionLogger.Info($"Synthesis complete for session: {sessionID}");
+        engine.TryUnloadCharacter(characterAsset.characterName, characterAsset.moduleType);
     }
 
     void OnDestroy()

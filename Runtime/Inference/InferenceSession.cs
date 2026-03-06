@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections;
@@ -16,9 +16,25 @@ namespace Lingotion.Thespeon.Inference
         where InputSegmentType : ModelInputSegment
 
     {
-        protected SessionTensorPool tensorPool = new();
         private bool _disposed = false;
-        public abstract IEnumerator Infer<T>(ModelInputType input, InferenceConfig config, Action<ThespeonDataPacket<T>> callback, string sessionID, bool asyncDownload = true) where T : unmanaged;
+        protected SessionTensorPool TensorPool = new();
+        protected string SessionID;
+        protected Action<ThespeonDataPacket> OnPacketReadyCallback;
+
+        protected InferenceSession(string sessionID, Action<ThespeonDataPacket> packetCallback)
+        {
+            SessionID = sessionID;
+            OnPacketReadyCallback = packetCallback;
+        }
+
+        protected void SendPacketCallback(ThespeonDataPacket packet)
+        {
+            // Add session metadata
+            packet.Metadata[CommonMetadataKeys.SessionID] =  PacketMetadataValue.Create(SessionID);
+            OnPacketReadyCallback?.Invoke(packet);
+        }
+        public abstract IEnumerator Infer(ModelInputType input, InferenceConfig config, bool asyncDownload = true);
+
 
         /// <summary>
         /// Disposes the session and releases any resources.
@@ -27,7 +43,7 @@ namespace Lingotion.Thespeon.Inference
         {
             if (_disposed) return;
 
-            tensorPool.Dispose();
+            TensorPool.Dispose();
             _disposed = true;
         }
     }

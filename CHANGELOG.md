@@ -4,6 +4,24 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [2.0.0] - 2026-03-06
+### Added
+* Characters can now be loaded onto and unloaded from several backends independently.
+* New acting models with increased fidelity and performance. New _.lingotion_ files will need to be downloaded and imported to replace existing characters and languages.
+### Changed
+* `ThespeonEngine` has been renamed to `ThespeonComponent`.
+* `ThespeonComponent` bindable actions have been reworked and now give adequate information to identify their source.
+* Logs are now more descriptive and helpful in troubleshooting.
+* Moved config defaults to a ScriptableObject for easier access.
+* API Docs have been streamlined and made easier to navigate.
+### Fixed
+* Release builds will no longer freeze when synthesizing with unknown words.
+* Manual asset regeneration now properly updates corrupted assets.
+* Ordinals in text are now properly pronounced.
+* CPU backend no longer causes severe stutters on high-end devices.
+* GPU backend no longer crashes on certain Unity versions.
+### Removed
+* Speed and loudness control has been temporarily removed. Usage will be ignored.
 # [1.3.2] - 2026-02-02
 ### Changed
 * Updated package dependency to Sentis version 2.5.0.

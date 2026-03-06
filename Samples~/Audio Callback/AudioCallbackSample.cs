@@ -13,7 +13,7 @@ using System.Threading;
 using Unity.Burst;
 #endif
 
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 [RequireComponent(typeof(AudioSource))]
 [RequireComponent(typeof(TextMeshProUGUI))]
 public class AudioCallbackSample : MonoBehaviour
@@ -25,11 +25,11 @@ public class AudioCallbackSample : MonoBehaviour
     public Color currentColor = new Color(1f, 1f, .1f);
     // How many samples to subtract to compensate for a audio stream delay
     public int compensation = 0;
-    private ThespeonEngine _engine;
+    private ThespeonComponent _engine;
     private AudioSource _audioSource;
     private List<float> _audioData;
     private AudioClip _audioClip;
-    private Queue<int> _markerIndices;
+    private Queue<long> _markerIndices;
     private string[] _words;
     private int _currentWordIndex = -1;
     private int _currentSampleIndex = 0;
@@ -43,11 +43,13 @@ public class AudioCallbackSample : MonoBehaviour
             Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
         }
 #endif
-        _engine = GetComponent<ThespeonEngine>();
+        _engine = GetComponent<ThespeonComponent>();
         // Connect callback when audio is received from Thespeon
         _engine.OnAudioReceived += OnAudioPacketReceive;
+        _engine.OnAudioSampleRequestReceived += OnSampleRequestReceive;
         // Initialize audio data buffer
         _audioData = new();
+        _markerIndices = new();
         // Create a streaming audio clip for playback
         _audioClip = AudioClip.Create("ThespeonClip", 1024, 1, 44100, true, OnAudioRead);
         // Start streaming audio from the clip
@@ -62,6 +64,15 @@ public class AudioCallbackSample : MonoBehaviour
         
         if (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.sKey.wasPressedThisFrame)
         {
+            // reset state for new synthesis
+            _isFirst = true;
+            Interlocked.Exchange(ref _currentSampleIndex, 0);
+            lock (_audioData) { _audioData.Clear(); }
+            _currentWordIndex = -1;
+
+            label.text = System.Text.RegularExpressions.Regex.Replace(label.text, "<.*?>", string.Empty);
+            label.color = baseColor;
+
             _words = label.text.Split(" ");
             // Insert a sample request marker in front of each word, signaling that we want the audio sample index for that part of the text
             Func<string, string> addMarker = s => ControlCharacters.AudioSampleRequest + s;
@@ -69,10 +80,11 @@ public class AudioCallbackSample : MonoBehaviour
 
             ThespeonInput input = new(new List<ThespeonInputSegment>() { new (markedInputString, emotion: Emotion.Interest)});
             _engine.Synthesize(input, sessionID: "AudioCallbackSample");
+            return;
         }
 
         if (_audioSource == null || _audioSource.clip == null || _markerIndices == null || _markerIndices.Count == 0) return;
-        int targetSample = _markerIndices.Peek();
+        long targetSample = _markerIndices.Peek();
         long currentAudibleSample = GetPlaybackSampleIndex();
         // Advance highlight if we’ve crossed into a new marker
         if (currentAudibleSample >= targetSample)
@@ -85,18 +97,24 @@ public class AudioCallbackSample : MonoBehaviour
     }
 
     // Simply add the received data to the audio buffer. 
-    void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
-    {
-        // If first packet, check metadata for the requested marker queue
-        if (_isFirst)
-        {
-            _isFirst = false;
-            _markerIndices = metadata.requestedAudioIndices;
-        }
-        
+    void OnAudioPacketReceive(string sessionID, float[] data)
+    {        
         lock (_audioData)
         {
             _audioData.AddRange(data);
+        }
+        if (_isFirst)
+        {
+            Interlocked.Exchange(ref _currentSampleIndex, 0);
+            _isFirst = false;
+        }
+    }
+
+    void OnSampleRequestReceive(string sessionID, long[] sampleIndices)
+    {
+        for (int i = 0; i < sampleIndices.Length; i++)
+        {
+            _markerIndices.Enqueue(sampleIndices[i]);
         }
     }
 
@@ -119,30 +137,27 @@ public class AudioCallbackSample : MonoBehaviour
     // Triggers before Unity sends audio to be consumed
     void OnAudioFilterRead(float[] data, int channels)
     {
-        if (!_isFirst)
+        if(!_isFirst)
         {
-            // Add the number of samples read to our counter 
             Interlocked.Add(ref _currentSampleIndex, data.Length / channels);
         }
     }
 
-    // Tries to compensate for latency due to DSPBuffersize, as well as differences in device sample rate.
-    private int GetPlaybackSampleIndex() {
+    // Tries to compensate for latency due to DSPBuffersize
+    private long GetPlaybackSampleIndex() {
         int dspBuf, numBuf;
         AudioSettings.GetDSPBufferSize(out dspBuf, out numBuf);
         int outputLatencySamples = dspBuf * numBuf;
         long audible = Volatile.Read(ref _currentSampleIndex) - outputLatencySamples - compensation;
         
-        double outputSR = AudioSettings.outputSampleRate;
-        double inputSR = 44100.0;
-        int audibleClipSample = (int)Math.Floor(audible * (inputSR / outputSR));
-        return audibleClipSample < 0 ? 0 : audibleClipSample;
+        return audible < 0 ? 0 : audible;
     }
 
 
     void OnDestroy()
     {
         _engine.OnAudioReceived -= OnAudioPacketReceive;
+        _engine.OnAudioSampleRequestReceived -= OnSampleRequestReceive;
         if (_audioSource != null)
         {
             _audioSource.Stop();

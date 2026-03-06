@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using UnityEngine;
 using System.IO;
@@ -15,16 +15,6 @@ namespace Lingotion.Thespeon.Core.IO
     public static class RuntimeFileLoader
     {
         /// <summary>
-        /// Actorpack subdirectory name.
-        /// </summary>
-        public static readonly string ActorPackSubdirectory = "ActorPacks";
-
-        /// <summary>
-        /// Languagepack subdirectory name.
-        /// </summary>
-        public static readonly string LanguagePackSubdirectory = "LanguagePacks";
-
-        /// <summary>
         /// Runtime files subdirectory name.
         /// </summary>
         private static readonly string StreamingAssetsSubdirectory = "LingotionRuntimeFiles";
@@ -32,59 +22,39 @@ namespace Lingotion.Thespeon.Core.IO
         /// <summary>
         /// Manifest file name.
         /// </summary>
-        public static readonly string ManifestFileName = "PackManifest.json";
+        public static readonly string ManifestFileName = "LingotionThespeonManifest.json";
 
         /// <summary>
-        /// Path to the pack manifest.
+        /// Path to the manifest.
         /// </summary>
-        public static readonly string PackManifestPath = Path.Combine(Application.streamingAssetsPath, StreamingAssetsSubdirectory, ManifestFileName);
+        public static readonly string ManifestPath = Path.Combine(Application.streamingAssetsPath, StreamingAssetsSubdirectory, ManifestFileName);
         /// <summary>
-        /// Path to the runtime files used by the package.
+        /// Path to the used runtime files.
         /// </summary>
         public static readonly string RuntimeFiles = Path.Combine(Application.streamingAssetsPath, StreamingAssetsSubdirectory);
         /// <summary>
-        /// Unity-relative path to the runtime files used by the package.
+        /// Unity-relative path to the used runtime files.
         /// </summary>
         public static readonly string RelativeRuntimeFiles = Path.Combine("Assets", "StreamingAssets", StreamingAssetsSubdirectory);
 
         /// <summary>
-        /// Returns the StreamingAssets path to a subdirectory. 
+        /// Creates an absolute runtime path to a file by filename.
         /// </summary>
-        /// <param name="subdirectory">Specific subdirectory to path to.</param>
-        /// <returns></returns>
-        private static string GetPackagePath(string subdirectory)
+        /// <param name="filename">The filename to resolve.</param>
+        /// <returns>An absolute path pointing to the runtime file.</returns>
+        public static string GetRuntimePath(string filename)
         {
-            string path = Path.Combine(RuntimeFiles, subdirectory);
-
-            return path;
+            return Path.Combine(RuntimeFiles, filename);
         }
 
         /// <summary>
-        /// Trims away Unity-relative part of pack file path. Returns an empty string if the path is not a pack path.
+        /// Creates a Unity-relative runtime path to a file by filename.
         /// </summary>
-        /// <param name="packFilePath"> Filepath to the file inside the pack folders.</param>
-        /// <returns> Relative path to the file inside the pack folders. </returns>
-        public static string TrimPackFilePath(string packFilePath)
+        /// <param name="filename">The filename to resolve.</param>
+        /// <returns>A Unity-relative path pointing to the runtime file.</returns>
+        public static string GetRelativeRuntimePath(string filename)
         {
-            string[] keywords = { ActorPackSubdirectory, LanguagePackSubdirectory };
-            string relativePath = packFilePath;
-
-            if (!packFilePath.Contains(keywords[0]) && !packFilePath.Contains(keywords[1]))
-            {
-                LingotionLogger.Error("Pack file path does not point to a pack folder");
-                return "";
-            }
-
-            foreach (string keyword in keywords)
-            {
-                int index = packFilePath.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-                if (index >= 0)
-                {
-                    relativePath = packFilePath.Substring(index + keyword.Length + 1);
-                    break;
-                }
-            }
-            return relativePath;
+            return Path.Combine(RelativeRuntimeFiles, filename);
         }
         /// <summary>
         /// Fetches the subdirectory path of a file, regardless of directory separator.
@@ -98,16 +68,6 @@ namespace Lingotion.Thespeon.Core.IO
         }
 
         /// <summary>
-        /// Fetches the runtime path of the actor packs.
-        /// </summary>
-        /// <param name="relative">Format the path as a Unity relative path</param>
-        /// <returns> A path pointing to the actor pack location. </returns>
-        public static string GetActorPacksPath(bool relative = false)
-        {
-            return relative ? Path.Combine(RelativeRuntimeFiles, ActorPackSubdirectory) : GetPackagePath(ActorPackSubdirectory);
-        }
-
-        /// <summary>
         /// Gets the directory of a file.
         /// </summary>
         /// <param name="filePath">The absolute path to the file.</param>
@@ -118,38 +78,6 @@ namespace Lingotion.Thespeon.Core.IO
             if (index < 0) throw new ArgumentException("File path " + filePath + " is a root path.");
             string parentPath = filePath.Substring(0, index);
             return parentPath;
-        }
-
-        /// <summary>
-        /// Creates a runtime path to a file inside an actor pack.
-        /// </summary>
-        /// <param name="packRelativeFilePath">Target filepath relative to actor pack .json file.</param>
-        /// <param name="unityRelative">If function should return a Unity relative path ("Assets/StreamingAssets/...").</param>
-        /// <returns> A path pointing to the actor pack file. </returns>
-        public static string GetActorPackFile(string packRelativeFilePath, bool unityRelative = false)
-        {
-            return Path.Combine(GetActorPacksPath(unityRelative), packRelativeFilePath);
-        }
-
-        /// <summary>
-        /// Fetches the runtime path of the language packs.
-        /// </summary>
-        /// <param name="relative">Format the path as a Unity relative path</param>
-        /// <returns> A path pointing to the language pack location. </returns>
-        public static string GetLanguagePacksPath(bool relative = false)
-        {
-            return relative ? Path.Combine(RelativeRuntimeFiles, LanguagePackSubdirectory) : GetPackagePath(LanguagePackSubdirectory);
-        }
-
-        /// <summary>
-        /// Creates a runtime path to a file inside a language pack.
-        /// </summary>
-        /// <param name="packRelativeFilePath">Target filepath relative to language pack .json file.</param>
-        /// <param name="unityRelative">If function should return a Unity relative path ("Assets/StreamingAssets/...").</param>
-        /// <returns> A path pointing to the language pack file. </returns>
-        public static string GetLanguagePackFile(string packRelativeFilePath, bool unityRelative = false)
-        {
-            return Path.Combine(GetLanguagePacksPath(unityRelative), packRelativeFilePath);
         }
 
         /// <summary>

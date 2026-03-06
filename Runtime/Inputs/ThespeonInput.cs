@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using UnityEngine;
 using Lingotion.Thespeon.Core;
@@ -21,19 +21,19 @@ namespace Lingotion.Thespeon.Inputs
 
         /// <summary>
         /// The main constructor for ThespeonInput.
-        /// Initializes a new instance of ThespeonInput with the specified actor name, segments, model type, default emotion, default language, speed, and loudness.
+        /// Initializes a new instance of ThespeonInput with the specified character name, segments, model type, default emotion, default language, speed, and loudness.
         /// </summary>
         /// <param name="segments">A list of ModelInputSegment instances representing the segments of the input.</param>
-        /// <param name="actorName">The name of the actor to use.</param>
+        /// <param name="characterName">The name of the character to use.</param>
         /// <param name="moduleType">An instance of the ModuleType enum representing the type of model to use.</param>
         /// <param name="defaultEmotion">The default emotion to be used across segments.</param>
         /// <param name="defaultLanguage">The default language to be used across segments.</param>
         /// <param name="defaultDialect">The default dialect to be used across segments.</param>
-        /// <param name="speed">An AnimationCurve representing the speed of the input over its length.</param>
-        /// <param name="loudness">An AnimationCurve representing the loudness of the input over its length.</param>
-        /// <exception cref="System.ArgumentException">Thrown if the actor name is null or empty or if the segments list is null or empty or contains empty text.</exception>
-        public ThespeonInput(List<ThespeonInputSegment> segments, string actorName = null, ModuleType moduleType = ModuleType.None, Emotion defaultEmotion = Emotion.None, string defaultLanguage = null, string defaultDialect = null, AnimationCurve speed = null, AnimationCurve loudness = null)
-            : base(segments, actorName, moduleType, defaultEmotion, defaultLanguage, defaultDialect)
+        /// <param name="speed">An AnimationCurve representing the speed of the input over its length. Currently not supported and will be ignored. This feature will return in a future update.</param>
+        /// <param name="loudness">An AnimationCurve representing the loudness of the input over its length. Currently not supported and will be ignored. This feature will return in a future update.</param>
+        /// <exception cref="System.ArgumentException">Thrown if the character name is null or empty or if the segments list is null or empty or contains empty text.</exception>
+        public ThespeonInput(List<ThespeonInputSegment> segments, string characterName = null, ModuleType moduleType = ModuleType.None, Emotion defaultEmotion = Emotion.None, string defaultLanguage = null, string defaultDialect = null, AnimationCurve speed = null, AnimationCurve loudness = null)
+            : base(segments, characterName, moduleType, defaultEmotion, defaultLanguage, defaultDialect)
         {
             Speed = new AnimationCurve();
             if (speed != null)
@@ -86,8 +86,8 @@ namespace Lingotion.Thespeon.Inputs
 
 
 
-        public ThespeonInput(string actorName, List<ThespeonInputSegment> segments, ModuleLanguage defaultLanguage, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, AnimationCurve speed = null, AnimationCurve loudness = null)
-            : base(segments, actorName, defaultEmotion, moduleType, defaultLanguage)
+        public ThespeonInput(string characterName, List<ThespeonInputSegment> segments, ModuleLanguage defaultLanguage, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, AnimationCurve speed = null, AnimationCurve loudness = null)
+            : base(segments, characterName, defaultEmotion, moduleType, defaultLanguage)
         {
             Speed = new AnimationCurve();
             if (speed != null)
@@ -135,7 +135,7 @@ namespace Lingotion.Thespeon.Inputs
         public static ThespeonInput ParseFromJson(JObject json, InferenceConfig configOverride = null)
         {
             configOverride ??= new InferenceConfig();
-            string actorName = string.IsNullOrEmpty(json["actorName"]?.ToString()) ? PackManifestHandler.Instance.GetAllActors()[0] : json["actorName"]?.ToString();
+            string characterName = string.IsNullOrEmpty(json["characterName"]?.ToString()) ? ManifestHandler.Instance.GetAllCharacters()[0] : json["characterName"]?.ToString();
             List<ThespeonInputSegment> segments = new();
             if (json["segments"] is JArray segmentsArray)
             {
@@ -166,7 +166,7 @@ namespace Lingotion.Thespeon.Inputs
             {
                 loudness.AddKey(i / (float)(loudnessValues.Count - 1), (float)loudnessValues[i]);
             }
-            return new ThespeonInput(actorName, segments, defaultLanguage, defaultEmotion, moduleType, speed, loudness);
+            return new ThespeonInput(characterName, segments, defaultLanguage, defaultEmotion, moduleType, speed, loudness);
         }
 
 
@@ -178,7 +178,7 @@ namespace Lingotion.Thespeon.Inputs
         {
             JObject json = new()
             {
-                ["actorName"] = ActorName,
+                ["characterName"] = CharacterName,
                 ["moduleType"] = ModuleType.ToString(),
                 ["defaultEmotion"] = DefaultEmotion.ToString(),
                 ["defaultLanguage"] = DefaultLanguage != null ? JToken.Parse(DefaultLanguage.ToJson()) : null,

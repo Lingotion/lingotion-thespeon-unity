@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections.Generic;
@@ -76,6 +76,64 @@ namespace Lingotion.Thespeon.Inference
         public bool IsDisposed()
         {
             return _disposed;
+        }
+
+        /// <summary>
+        /// Attempts to get a Tensor by its identifier without throwing an exception.
+        /// </summary>
+        /// <param name="identifier">The identifier of the tensor.</param>
+        /// <param name="tensor">The Tensor associated with the identifier, or null if not found.</param>
+        /// <returns>True if the tensor was found, false otherwise.</returns>
+        public bool TryGetTensor(string identifier, out Tensor tensor)
+        {
+            return _tensorObjects.TryGetValue(identifier, out tensor) && tensor != null;
+        }
+
+        /// <summary>
+        /// Attempts to rename a tensor in the pool.
+        /// </summary>
+        /// <param name="oldName">The current name of the tensor.</param>
+        /// <param name="newName">The new name for the tensor.</param>
+        /// <returns>True if the rename was successful, false otherwise.</returns>
+        public bool TryRenameTensor(string oldName, string newName)
+        {
+            if (!_tensorObjects.TryGetValue(oldName, out var tensor) || tensor == null)
+            {
+                LingotionLogger.Error($"TryRenameTensor: Tensor '{oldName}' not found.");
+                return false;
+            }
+
+            if (_tensorObjects.ContainsKey(newName))
+            {
+                _tensorObjects[newName]?.Dispose();
+            }
+
+            _tensorObjects[newName] = tensor;
+            _tensorObjects.Remove(oldName);
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a tensor from the pool and disposes it.
+        /// </summary>
+        /// <param name="identifier">The identifier of the tensor to remove.</param>
+        public void Remove(string identifier)
+        {
+            if (_tensorObjects.TryGetValue(identifier, out var tensor))
+            {
+                tensor?.Dispose();
+                _tensorObjects.Remove(identifier);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a tensor with the given identifier exists in the pool.
+        /// </summary>
+        /// <param name="identifier">The identifier to check.</param>
+        /// <returns>True if the tensor exists, false otherwise.</returns>
+        public bool ContainsTensor(string identifier)
+        {
+            return _tensorObjects.ContainsKey(identifier) && _tensorObjects[identifier] != null;
         }
     }
 

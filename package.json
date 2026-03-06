@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "1.3.2",
+    "version": "2.0.0",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6.0",
@@ -14,7 +14,7 @@
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [1.3.2] - 2026-02-02\n### Changed\n * Updated package dependency to Sentis version 2.5.0. \n## Fixed \n* Error messages now correctly shows the stack trace."},
+    "changelog": "# [2.0.0] - 2026-03-06\n### Added\n* Characters can now be loaded onto and unloaded from several backends independently.\n* New acting models with increased fidelity and performance. New _.lingotion_ files will need to be downloaded and imported to replace existing characters and languages.\n### Changed\n* `ThespeonEngine` has been renamed to `ThespeonComponent`.\n* `ThespeonComponent` bindable actions have been reworked and now give adequate information to identify their source.\n* Logs are now more descriptive and helpful in troubleshooting.\n* Moved config defaults to a ScriptableObject for easier access.\n* API Docs have been streamlined and made easier to navigate.\n### Fixed\n* Release builds will no longer freeze when synthesizing with unknown words.\n* Manual asset regeneration now properly updates corrupted assets.\n* Ordinals in text are now properly pronounced.\n* CPU backend no longer causes severe stutters on high-end devices.\n### Removed\n* Speed and loudness control has been temporarily removed. Usage will be ignored."},
    "keywords": [ 
       "AI",
       "Lingotion",

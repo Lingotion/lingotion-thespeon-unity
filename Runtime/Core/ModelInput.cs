@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +14,7 @@ namespace Lingotion.Thespeon.Core
     where ModelInputType : ModelInput<ModelInputType, InputSegmentType>
     where InputSegmentType : ModelInputSegment
     {
-        public string ActorName;
+        public string CharacterName;
         public ModuleType ModuleType;
         public Emotion DefaultEmotion;
         public ModuleLanguage DefaultLanguage;
@@ -31,7 +31,7 @@ namespace Lingotion.Thespeon.Core
             {
                 throw new System.ArgumentNullException(nameof(other), "Cannot copy from a null ModelInput instance.");
             }
-            ActorName = other.ActorName;
+            CharacterName = other.CharacterName;
             ModuleType = other.ModuleType;
             DefaultEmotion = other.DefaultEmotion;
             DefaultLanguage = ModuleLanguage.CopyOrNull(other.DefaultLanguage);
@@ -39,49 +39,49 @@ namespace Lingotion.Thespeon.Core
         }
         /// <summary>
         /// Constructor for ModelInput.
-        /// Initializes a new instance of ModelInput with the specified actor name, module type, default emotion, and default language.
+        /// Initializes a new instance of ModelInput with the specified character name, module type, default emotion, and default language.
         /// </summary>
-        /// <param name="actorName">The name of the actor.</param>
+        /// <param name="characterName">The name of the character.</param>
         /// <param name="segments">A list of ModelInputSegment instances representing the segments of the input.</param>
         /// <param name="defaultLanguage">The default language to be used.</param>
         /// <param name="defaultEmotion">The default emotion to be used.</param>
         /// <param name="moduleType">The type of the module.</param>
-        /// <exception cref="System.ArgumentException">Thrown if the actor name is null or empty, or if the segments list is null or empty.</exception>
-        public ModelInput(List<InputSegmentType> segments, string actorName, ModuleType moduleType = ModuleType.None, Emotion defaultEmotion = Emotion.None, string defaultLanguage = null, string defaultDialect = null)
+        /// <exception cref="System.ArgumentException">Thrown if the character name is null or empty, or if the segments list is null or empty.</exception>
+        public ModelInput(List<InputSegmentType> segments, string characterName, ModuleType moduleType = ModuleType.None, Emotion defaultEmotion = Emotion.None, string defaultLanguage = null, string defaultDialect = null)
         {
             if (segments == null || segments.Count == 0)
             {
                 throw new System.ArgumentException("Segments cannot be null or empty.", nameof(segments));
             }
-            if (string.IsNullOrEmpty(actorName))
+            if (string.IsNullOrEmpty(characterName))
             {
-                List<string> actors = PackManifestHandler.Instance.GetAllActors();
-                if (actors == null || actors.Count == 0)
+                List<string> characters = ManifestHandler.Instance.GetAllCharacters();
+                if (characters == null || characters.Count == 0)
                 {
-                    throw new System.ArgumentException("No actors found. Make sure to import an actor pack.");
+                    throw new System.ArgumentException("No characters found. Make sure to import a character.");
                 }
-                LingotionLogger.Warning("Actor name is null or empty. Defaulting to first found actor: " + actors[0]);
-                actorName = actors[0];
+                LingotionLogger.Warning("Character name is null or empty. Defaulting to first found character: " + characters[0]);
+                characterName = characters[0];
             }
             if (moduleType == ModuleType.None)
             {
-                List<ModuleType> modules = PackManifestHandler.Instance.GetAllModuleTypesForActor(actorName);
+                List<ModuleType> modules = ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName);
                 modules = modules.OrderByDescending(m => m).ToList();
                 if (modules.Count == 0)
                 {
-                    throw new System.ArgumentException($"No module types found for actor '{actorName}'. Please ensure you have the correct actor pack imported.", nameof(moduleType));
+                    throw new System.ArgumentException($"No module types found for character '{characterName}'. Please ensure you have the correct character imported.", nameof(moduleType));
                 }
                 moduleType = modules[0];
                 LingotionLogger.Warning($"ModuleType is set to None. Defaulting to '{moduleType}'.");
             }
-            ActorName = actorName;
+            CharacterName = characterName;
             Segments = segments;
             ModuleType = moduleType;
             DefaultEmotion = defaultEmotion;
-            List<ModuleLanguage> availableLangs = PackManifestHandler.Instance.GetAllSupportedLanguages(actorName, moduleType);
+            List<ModuleLanguage> availableLangs = ManifestHandler.Instance.GetAllSupportedLanguages(characterName, moduleType);
             if (availableLangs == null || availableLangs.Count == 0)
             {
-                throw new System.ArgumentException($"No languages found for actor '{actorName}' and module type '{moduleType}'. Please ensure you have the correct actor pack imported.");
+                throw new System.ArgumentException($"No languages found for character '{characterName}' and module type '{moduleType}'. Please ensure you have the correct character imported.");
             }
             if (string.IsNullOrEmpty(defaultLanguage) && !string.IsNullOrEmpty(defaultDialect))
             {
@@ -108,34 +108,34 @@ namespace Lingotion.Thespeon.Core
         }
 
 
-        public ModelInput(List<InputSegmentType> segments, string actorName = null, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, ModuleLanguage defaultLanguage = null)
+        public ModelInput(List<InputSegmentType> segments, string characterName = null, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, ModuleLanguage defaultLanguage = null)
         {
             if (segments == null || segments.Count == 0)
             {
                 throw new System.ArgumentException("Segments cannot be null or empty.", nameof(segments));
             }
-            if (string.IsNullOrEmpty(actorName))
+            if (string.IsNullOrEmpty(characterName))
             {
-                List<string> actors = PackManifestHandler.Instance.GetAllActors();
-                if (actors == null || actors.Count == 0)
+                List<string> characters = ManifestHandler.Instance.GetAllCharacters();
+                if (characters == null || characters.Count == 0)
                 {
-                    throw new System.ArgumentException("No actors found. Make sure to import an actor pack.");
+                    throw new System.ArgumentException("No characters found. Make sure to import a character.");
                 }
-                LingotionLogger.Warning("Actor name is null or empty. Defaulting to first found actor: " + actors[0]);
-                actorName = actors[0];
+                LingotionLogger.Warning("Character name is null or empty. Defaulting to first found character: " + characters[0]);
+                characterName = characters[0];
             }
             if (moduleType == ModuleType.None)
             {
-                List<ModuleType> modules = PackManifestHandler.Instance.GetAllModuleTypesForActor(actorName);
+                List<ModuleType> modules = ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName);
                 modules = modules.OrderByDescending(m => m).ToList();
                 if (modules.Count == 0)
                 {
-                    throw new System.ArgumentException($"No module types found for actor '{actorName}'. Please ensure you have the correct actor pack imported.", nameof(moduleType));
+                    throw new System.ArgumentException($"No module types found for character '{characterName}'. Please ensure you have the correct character imported.", nameof(moduleType));
                 }
                 moduleType = modules[0];
                 LingotionLogger.Warning($"ModuleType is set to None. Defaulting to '{moduleType}'.");
             }
-            ActorName = actorName;
+            CharacterName = characterName;
             Segments = segments;
             ModuleType = moduleType;
             DefaultEmotion = defaultEmotion;
