@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using Lingotion.Thespeon.Inputs;
 using Lingotion.Thespeon.Core;
@@ -8,7 +8,7 @@ using System.Text;
 using System;
 using System.Linq;
 
-namespace Lingotion.Thespeon.LanguagePack
+namespace Lingotion.Thespeon.Language
 {
     /// <summary>
     /// Provides methods for preprocessing text inputs, including cleaning and partitioning text segments.
@@ -158,6 +158,8 @@ namespace Lingotion.Thespeon.LanguagePack
         {
             input = input.ToLowerInvariant();
             input = Regex.Replace(input, @"\s+", " ");
+            char ASRChar = ControlCharacters.AudioSampleRequest;
+            input = Regex.Replace(input, $"{Regex.Escape(ASRChar.ToString())}+", ASRChar.ToString());
             var builder = new StringBuilder(input.Length);
             foreach (var c in input)
             {

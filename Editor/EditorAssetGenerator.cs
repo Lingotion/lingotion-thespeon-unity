@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 #if UNITY_EDITOR
 using UnityEngine;
@@ -13,27 +13,27 @@ namespace Lingotion.Thespeon.Editor
 {
     [InitializeOnLoad]
     /// <summary>
-    /// Automatically generates character assets for all imported actors and module types.
-    /// The assets are stored in your Project under Assets/Lingotion Thespeon/CharacterAssets and can be used to easily select the desired actor in your scene.
+    /// Automatically generates character assets for all imported characters and module types.
+    /// The assets are stored in your Project under Assets/Lingotion Thespeon/CharacterAssets and can be used to easily select the desired character in your scene.
     /// </summary>
     public static class LingotionCharacterAssetGenerator
     {
         private readonly static string targetFolder = Path.Combine("Assets", "Lingotion Thespeon", "CharacterAssets");
         static LingotionCharacterAssetGenerator()
         {
-            PackManifestHandler.OnDataChanged += GenerateAssets;
+            ManifestHandler.OnDataChanged += GenerateAssets;
         }
         /// <summary>
-        /// Generates or updates character assets based on the current PackManifest data.
+        /// Generates or updates character assets based on the current Manifest data.
         /// This method is called automatically on changes to folder LingotionRuntimeFiles
         /// </summary>
         private static void GenerateAssets()
         {
-            List<(string actorName, ModuleType moduleType)> actorData = PackManifestHandler.Instance
-                .GetAllActors()
-                .SelectMany(actorName =>
-                PackManifestHandler.Instance.GetAllModuleTypesForActor(actorName)
-                    .Select(moduleType => (actorName, moduleType)))
+            List<(string characterName, ModuleType moduleType)> characterData = ManifestHandler.Instance
+                .GetAllCharacters()
+                .SelectMany(characterName =>
+                ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName)
+                    .Select(moduleType => (characterName, moduleType)))
                 .ToList();
 
             if (!Directory.Exists(targetFolder))
@@ -43,7 +43,7 @@ namespace Lingotion.Thespeon.Editor
             }
 
             HashSet<string> expectedFiles = new(
-                actorData.Select(a => $"{SanitizeFileName(a.actorName)}-{a.moduleType}.asset")
+                characterData.Select(a => $"{SanitizeFileName(a.characterName)}-{a.moduleType}.asset")
             );
 
             string[] existingAssets = Directory.GetFiles(targetFolder, "*.asset", SearchOption.TopDirectoryOnly);
@@ -58,22 +58,39 @@ namespace Lingotion.Thespeon.Editor
             }
 
             ThespeonCharacterAsset asset = null;
-
-            foreach (var (actorName, moduleType) in actorData)
+            int totalChangedAssets = 0;
+            foreach (var (characterName, moduleType) in characterData)
             {
-                string fileName = $"{SanitizeFileName(actorName)}-{moduleType}.asset";
+                string fileName = $"{SanitizeFileName(characterName)}-{moduleType}.asset";
                 string assetPath = Path.Combine(targetFolder, fileName).Replace(Path.DirectorySeparatorChar, '/');
-                if (AssetDatabase.LoadAssetAtPath<ThespeonCharacterAsset>(assetPath) != null) continue;
-                asset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
-                asset.actorName = actorName;
-                asset.moduleType = moduleType;
-
-                AssetDatabase.CreateAsset(asset, assetPath);
+                ThespeonCharacterAsset existing = AssetDatabase.LoadAssetAtPath<ThespeonCharacterAsset>(assetPath);
+                if (existing != null)
+                {
+                    if(existing.characterName == characterName && existing.moduleType == moduleType)
+                    {
+                        continue;
+                    }
+                    asset = existing;
+                    LingotionLogger.Debug($"Outdated asset exists for character {characterName} with module type {moduleType}, updating content.");
+                    asset.characterName = characterName;
+                    asset.moduleType = moduleType;
+                    EditorUtility.SetDirty(asset);
+                    totalChangedAssets++;
+                }
+                else
+                {
+                    LingotionLogger.Debug($"Creating new asset for character {characterName} with module type {moduleType}.");
+                    asset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
+                    asset.characterName = characterName;
+                    asset.moduleType = moduleType;
+                    AssetDatabase.CreateAsset(asset, assetPath);
+                    totalChangedAssets++;
+                }
             }
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            if (asset != null)
+            if (totalChangedAssets > 0)
             {
                 Selection.activeObject = asset;
                 EditorGUIUtility.PingObject(asset);

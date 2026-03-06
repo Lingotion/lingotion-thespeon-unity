@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using UnityEngine;
 using Lingotion.Thespeon.Core;
@@ -14,11 +14,11 @@ namespace Lingotion.Thespeon.Inputs
     public class ThespeonCharacterAsset : ScriptableObject
     {
         /// <summary>
-        /// The name of the actor.
+        /// The name of the character.
         /// </summary>
-        public string actorName;
+        public string characterName;
         /// <summary>
-        /// The module type associated with the actor.
+        /// The module type associated with the character.
         /// </summary>
         public ModuleType moduleType;
     }
@@ -50,10 +50,10 @@ namespace Lingotion.Thespeon.Inputs
         /// <returns>A list of tuples for each pair of character name and module type.</returns>
         public static List<(string characterName, ModuleType moduleType)> GetAllCharactersAndModules()
         {
-            return PackManifestHandler.Instance
-                .GetAllActors()
+            return ManifestHandler.Instance
+                .GetAllCharacters()
                 .SelectMany(characterName =>
-                PackManifestHandler.Instance.GetAllModuleTypesForActor(characterName)
+                ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName)
                     .Select(moduleType => (characterName, moduleType)))
                 .ToList();
         }
@@ -65,7 +65,7 @@ namespace Lingotion.Thespeon.Inputs
         /// <returns>A list of ModuleType values available for the specified character.</returns>
         public static List<ModuleType> GetAllModulesForCharacter(string characterName)
         {
-            return PackManifestHandler.Instance.GetAllModuleTypesForActor(characterName);
+            return ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName);
         }
     }
 }

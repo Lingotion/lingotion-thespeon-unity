@@ -24,10 +24,10 @@ In broad strokes, the largest performance impact during synthesis comes from the
 In this section you will find a detailed description of the `InferenceConfigOverride` class and its purpose in your Unity Project. For a lighter overview see the [API documentation](./api/Public%20API/Lingotion_Thespeon_Engine.md#class-inferenceconfigoverride).
 
 ### Purpose and Overview
-In the Lingotion Thespeon Unity package, many default parameter decisions are hidden within the `InferenceConfig` class. These defaults are designed for general performance across platforms and may not suit your specific context.
+A special asset will be automatically created upon installation which contains a number of default configuration settings. The out-of-the-box defaults are designed for general performance across platforms and may not suit your specific context. Instead you may find and edit the asset to your liking at **Assets > Lingotion Thespeon > Resources > ThespeonDefaultSettings.asset**. 
 
-The `InferenceConfigOverride` structure allows you to selectively override these defaults with your own tuned values, enabling better performance tuning tailored to your project. Typically, an `InferenceConfigOverride` instance is passed to the `Synthesize` and `Preload` methods in `ThespeonEngine`.
-All fields are optional — you only need to supply the ones you want to change. Unspecified fields will retain their existing default values.
+The `InferenceConfigOverride` structure allows you to selectively override any of these defaults with your own tuned values localized to a single API call, enabling better performance tuning tailored to your project. Typically, an `InferenceConfigOverride` instance is passed to the methods in `ThespeonComponent`.
+All fields are optional — you only need to supply the ones you want to change. Unspecified fields will retain their existing default values as determined by the ThespeonDefaultSettings asset.
 > [!NOTE]
 > Thespeon synthesis is designed to run in a Coroutine at `EndOfFrame`. This ensures that most of your game logic executes before Thespeon, meaning Thespeon is often the operation dictating the frame time length during synthesis. By tuning the configuration parameters you may control how this happens.
 

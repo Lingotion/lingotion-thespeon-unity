@@ -1,4 +1,4 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections;
@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 using Unity.InferenceEngine;
 using UnityEngine;
 
-namespace Lingotion.Thespeon.LanguagePack
+namespace Lingotion.Thespeon.Language
 {
     /// <summary>
     /// Virtual language module.
@@ -29,86 +29,47 @@ namespace Lingotion.Thespeon.LanguagePack
         /// Initializes a new instance of the <see cref="LanguageModule"/> class with the specified module information.
         /// </summary>
         /// <param name="moduleInfo">Module entry containing module information.</param>
-        /// <exception cref="System.Exception">Thrown if the module is not a valid language pack config file.</exception>
-        /// <exception cref="System.Exception">Thrown if the module is not found in the config file.</exception>
-        /// <exception cref="System.Exception">Thrown if grapheme or phoneme vocabularies are not defined in the module.</exception>
+        /// <exception cref="NotSupportedException">Thrown if the module is not a valid phonemizer config file.</exception>
+        /// <exception cref="ArgumentException">Thrown if grapheme or phoneme vocabularies are not defined in the module.</exception>
         public LanguageModule(ModuleEntry moduleInfo) : base(moduleInfo)
         {
-            string fileText = RuntimeFileLoader.LoadFileAsString(RuntimeFileLoader.GetLanguagePackFile(JsonPath));
-            JObject languagePackJson = JObject.Parse(fileText);
-            string packType = languagePackJson["type"]?.ToString();
-            JToken configFiles = languagePackJson["files"];
+            string configPath = RuntimeFileLoader.GetRuntimePath(JsonPath);
+            string fileText = RuntimeFileLoader.LoadFileAsString(configPath);
+            JObject config = JObject.Parse(fileText);
 
-            if (packType != "LANGUAGEPACK")
+            // Validate config type is "phonemizer"
+            ConfigFormatDetector.ValidateLanguageConfig(config);
+
+            // Parse files array with {name, md5, extension}
+            ParseModuleFiles((JArray)config["files"], ext => ext == "onnx" || ext == "sentis");
+
+            // Parse vocabularies directly from config root
+            JObject vocabs = (JObject)config["vocabularies"];
+            if (vocabs != null)
             {
-                throw new System.Exception($"Config file path {JsonPath} is not a valid languagepack config file.");
-            }
-
-            JToken module = null;
-
-            foreach (var entry in languagePackJson["modules"])
-            {
-                if (entry["base_module_id"].ToString() == ModuleID)
+                foreach ((string name, JToken vocab) in vocabs)
                 {
-                    module = entry;
-                    break;
-                }
-            }
+                    switch (name)
+                    {
+                        case "grapheme_vocab":
+                            _graphemeToID = vocab.ToObject<Dictionary<string, int>>();
+                            continue;
 
-            if (module == null)
-            {
-                throw new ArgumentException($"Module {ModuleID} not found in the configuration file {JsonPath}. Ensure the configuration file is valid and contains the required module.");
-            }
+                        case "grapheme_ivocab":
+                            continue;
 
-            JObject files = (JObject)module["files"];
-            Dictionary<string, ModuleFile> internalModuleFiles = new();
-            Dictionary<string, string> internalModelMappings = new();
-            foreach ((string name, JToken md5) in files)
-            {
-                JToken fileEntry = configFiles[md5.ToString()];
-                string fileName = fileEntry["filename"].ToString();
+                        case "phoneme_vocab":
+                            _phonemeToID = vocab.ToObject<Dictionary<string, int>>();
+                            continue;
 
-                ModuleFile moduleFile = new(Path.Combine(DirectoryPath, fileName), md5.ToString());
-                internalModuleFiles.Add(name, moduleFile);
-                if (Path.GetExtension(fileName) == ".sentis")
-                {
-                    internalModelMappings.Add(name, md5.ToString());
-                }
-                else if (name != "lookuptable")
-                {
-                    LingotionLogger.Error($"File {fileName} in module {ModuleID} is not a recognized file type.");
-                    throw new FileNotFoundException($"File {fileName} in module {ModuleID} is corrupt or of the wrong format. Make sure your language pack is up to date and valid.");
-                }
+                        case "phoneme_ivocab":
+                            _IDToPhoneme = vocab.ToObject<Dictionary<int, string>>();
+                            continue;
 
-            }
-            InternalFileMappings = internalModuleFiles;
-            InternalModelMappings = internalModelMappings;
-
-            JObject vocabs = (JObject)module["vocabularies"];
-            foreach ((string name, JToken vocab) in vocabs)
-            {
-                switch (name)
-                {
-                    case "grapheme_vocab":
-                        _graphemeToID = vocab.ToObject<Dictionary<string, int>>();
-                        continue;
-
-                    case "grapheme_ivocab":
-
-                        // _IDToGrapheme = vocab.ToObject<Dictionary<int, string>>();
-                        continue;
-
-                    case "phoneme_vocab":
-                        _phonemeToID = vocab.ToObject<Dictionary<string, int>>();
-                        continue;
-
-                    case "phoneme_ivocab":
-                        _IDToPhoneme = vocab.ToObject<Dictionary<int, string>>();
-                        continue;
-
-                    default:
-                        LingotionLogger.Warning($"Unknown vocabulary {name} encountered in Language Module. Ignoring.");
-                        continue;
+                        default:
+                            LingotionLogger.Warning($"Unknown vocabulary {name} encountered in Language Module. Ignoring.");
+                            continue;
+                    }
                 }
             }
 
@@ -117,52 +78,80 @@ namespace Lingotion.Thespeon.LanguagePack
                 throw new ArgumentException("Grapheme or phoneme vocabularies are not defined in the module.");
             }
 
-            JArray languages = (JArray)module["languages"];
+            // Parse languages array at root level
+            JArray languages = (JArray)config["languages"];
+            if (languages == null || !languages.Any())
+            {
+                throw new ArgumentException("Languages are not defined in the language module config.");
+            }
             moduleLanguage = languages.First.ToObject<ModuleLanguage>();
-            lookupTableSize = module["lookuptable_size"].ToObject<int>();
+
+            // Parse lookuptable_size at root level
+            JToken lookupTableSizeToken = config["lookuptable_size"];
+            if (lookupTableSizeToken == null)
+            {
+                throw new ArgumentException("lookuptable_size is not defined in the language module configuration.");
+            }
+            lookupTableSize = lookupTableSizeToken.ToObject<int>();
+            if (lookupTableSize <= 0)
+            {
+                throw new ArgumentException("lookuptable_size must be a positive integer in the language module configuration.");
+            }
         }
 
         /// <summary>
         /// Creates runtime bindings for this specific module setup.
         /// </summary>
-        /// <param name="md5s">List of model MD5 strings that are *already loaded*, thus should be skipped.</param>
-        /// <returns>A dictionary of model MD5 strings to corresponding runtime binding.</returns>
-        public override Dictionary<string, ModelRuntimeBinding> CreateRuntimeBindings(HashSet<string> md5s, BackendType preferredBackendType)
+        /// <param name="workloadIDs">List of workloadIDs strings that are *already loaded*, thus should be skipped.</param>
+        /// <returns>A dictionary of workloadIDs strings to corresponding runtime binding.</returns>
+        /// <exception cref="NotSupportedException">Thrown if a non-CPU backend is specified, as LanguageModule currently only supports CPU.</exception>
+        public override Dictionary<string, ModelRuntimeBinding> CreateRuntimeBindings(HashSet<string> workloadIDs, BackendType preferredBackendType)
         {
+            if (preferredBackendType != BackendType.CPU)
+            {
+                throw new NotSupportedException($"LanguageModule currently only supports CPU backend. Attempted to create runtime binding for backend type {preferredBackendType}.");
+            }
             Dictionary<string, ModelRuntimeBinding> idModelMapping = new();
 
             Dictionary<string, ModuleFile> standardFiles = InternalFileMappings
-                .Where(kvp => !md5s.Contains(kvp.Value.md5) && kvp.Key != "lookuptable")
+                .Where(kvp => !workloadIDs.Contains(Module.GetWorkloadID(kvp.Value.md5, preferredBackendType)) && kvp.Key != "lookuptable")
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             foreach ((string internalName, ModuleFile fileInfo) in standardFiles)
             {
-                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(RuntimeFileLoader.GetLanguagePackFile(fileInfo.filePath)));
-                idModelMapping[fileInfo.md5] = new ModelRuntimeBinding
+                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(fileInfo.filePath));
+                string workloadID = Module.GetWorkloadID(fileInfo.md5, preferredBackendType);
+                idModelMapping[workloadID] = new ModelRuntimeBinding
                 {
                     model = model,
-                    worker = new Worker(model, BackendType.CPU),
+                    worker = new Worker(model, preferredBackendType),
                 };
             }
             return idModelMapping;
         }
+
         public override IEnumerator CreateRuntimeBindingsCoroutine(HashSet<string> md5s, BackendType preferredBackendType, Action<Dictionary<string, ModelRuntimeBinding>> onComplete)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Thespeon LanguageModule.CreateRuntimeBindingsCoroutine");
             Dictionary<string, ModelRuntimeBinding> idModelMapping = new();
 
             Dictionary<string, ModuleFile> standardFiles = InternalFileMappings
-                .Where(kvp => !md5s.Contains(kvp.Value.md5) && kvp.Key != "lookuptable")
+                .Where(kvp => !md5s.Contains(Module.GetWorkloadID(kvp.Value.md5, preferredBackendType)) && kvp.Key != "lookuptable")
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             foreach ((string internalName, ModuleFile fileInfo) in standardFiles)
             {
                 UnityEngine.Profiling.Profiler.BeginSample($"Thespeon Load Model {internalName}");
-                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(RuntimeFileLoader.GetLanguagePackFile(fileInfo.filePath)));
-                idModelMapping[fileInfo.md5] = new ModelRuntimeBinding
+                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(fileInfo.filePath));
+                if (preferredBackendType != BackendType.CPU)
+                {
+                    throw new NotSupportedException($"LanguageModule currently only supports CPU backend. Attempted to create runtime binding for backend type {preferredBackendType}.");
+                }
+                string workloadID = Module.GetWorkloadID(fileInfo.md5, preferredBackendType);
+                idModelMapping[workloadID] = new ModelRuntimeBinding
                 {
                     model = model,
-                    worker = new Worker(model, BackendType.CPU),
+                    worker = new Worker(model, preferredBackendType),
                 };
                 UnityEngine.Profiling.Profiler.EndSample();
                 UnityEngine.Profiling.Profiler.EndSample();
@@ -174,26 +163,7 @@ namespace Lingotion.Thespeon.LanguagePack
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
-        /// <summary>
-        /// Checks if the module is fully included in the provided set of existing MD5 strings.
-        /// </summary>
-        /// <param name="md5s">Set of MD5 strings to check against.</param>
-        /// <returns>True if the module is included, false otherwise.</returns>
-        public override bool IsIncludedIn(HashSet<string> md5s)
-        {
-            return InternalFileMappings
-                .Where(kvp => kvp.Key != "lookuptable")
-                .All(kvp => md5s.Contains(kvp.Value.md5));
-        }
 
-        /// <summary>
-        /// Gets all MD5s of the files in this module.
-        /// </summary>
-        /// <returns>A set of MD5 strings representing all files in the module.</returns>
-        public override HashSet<string> GetAllFileMD5s()
-        {
-            return InternalFileMappings.Values.Select(file => file.md5).ToHashSet();
-        }
 
         /// <summary>
         /// Encodes graphemes into their corresponding IDs based on the grapheme vocabulary.
@@ -289,9 +259,7 @@ namespace Lingotion.Thespeon.LanguagePack
                 throw new KeyNotFoundException("Lookup table not found in internal file mappings.");
             }
 
-            string lookupTablePath = RuntimeFileLoader.GetLanguagePackFile(file.filePath);
-
-            string jsonContent = RuntimeFileLoader.LoadFileAsString(lookupTablePath);
+            string jsonContent = RuntimeFileLoader.LoadFileAsString(file.filePath);
 
             try
             {
@@ -317,15 +285,15 @@ namespace Lingotion.Thespeon.LanguagePack
                 throw new KeyNotFoundException("Lookup table not found in internal file mappings.");
             }
 
-            string lookupTablePath = RuntimeFileLoader.GetLanguagePackFile(file.filePath);
             Dictionary<string, string> lookupDict = new(lookupTableSize);
-            yield return RuntimeFileLoader.LoadLookupTable(lookupTablePath, dict =>
+            var loadLookup = RuntimeFileLoader.LoadLookupTable(file.filePath, dict =>
             {
                 foreach (var kvp in dict)
                 {
                     lookupDict[kvp.Key] = kvp.Value;
                 }
             }, yieldCondition, onYield);
+            while (loadLookup.MoveNext()) { yield return loadLookup.Current; }
             onComplete?.Invoke(lookupDict);
         }
 

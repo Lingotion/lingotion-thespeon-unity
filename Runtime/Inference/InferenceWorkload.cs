@@ -1,4 +1,5 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+
 
 using System;
 using System.Collections;
@@ -6,6 +7,9 @@ using System.Collections.Generic;
 using Lingotion.Thespeon.Core;
 using Unity.InferenceEngine;
 using UnityEngine;
+using UnityEngine.Rendering;
+using System.Threading.Tasks;
+using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -66,7 +70,8 @@ namespace Lingotion.Thespeon.Inference
             while (!autoregDone)
             {
                 int frame = 1;
-                UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {debugName} {++autoregCount} autoregressive {frame}");
+                autoregCount++;
+                UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {debugName} {autoregCount} autoregressive {frame}");
 
                 schedule = Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, skipFrames, debugName, true, budgetConsumed, budgetAdjustment);
                 bool scheduleNotDone = true;
@@ -80,7 +85,7 @@ namespace Lingotion.Thespeon.Inference
                     }
                     catch (Exception e)
                     {
-                        LingotionLogger.Error($"Error during inference: {e.Message}");
+                        LingotionLogger.Error($"Error during scheduling: {e.Message}");
                         tensorPool.Dispose();
                         UnityEngine.Profiling.Profiler.EndSample();
                         yield break;
@@ -133,7 +138,7 @@ namespace Lingotion.Thespeon.Inference
             if (debugName != null)
                 DebugName = debugName;
 
-            if (!fromAutoregessive) UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference 1");
+            if (!fromAutoregessive) UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference 1");//  passed consumed {budgetConsumed}");
             try
             {
                 foreach (var input in Inputs)
@@ -143,7 +148,7 @@ namespace Lingotion.Thespeon.Inference
             }
             catch (Exception e)
             {
-                LingotionLogger.Error($"Error during input tensor processing in {DebugName}: {e.Message}");
+                LingotionLogger.Error($"Error during input tensor processing in node {DebugName}: {e.Message}");
                 tensorPool.Dispose();
                 if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
                 yield break;
@@ -218,39 +223,116 @@ namespace Lingotion.Thespeon.Inference
                     if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
                     LingotionLogger.Error($"Error during layer processing: {e.Message}");
                     tensorPool.Dispose();
-                    throw;
+                    throw e;
                 }
-            }
-            try
-            {
-                foreach (var output in Outputs)
-                {
-                    Tensor currentOutput = null;
-                    _worker.CopyOutput(output.name, ref currentOutput);
-                    tensorPool.SetTensor(output.name, currentOutput);
-                }
-                double completeJobElapsedTime = Time.realtimeSinceStartupAsDouble - startTime + budgetConsumed;
-                if (config.UseAdaptiveScheduling && completeJobElapsedTime > inferSpecificBudget * config.OvershootMargin)
-                {
-                    if (heavyLayers.Contains(layerCounter - 1))
-                    {
-                        AddHeavyLayer(layerCounter - 2, config.MaxSkipLayers);
-                    }
-                    else
-                    {
-                        AddHeavyLayer(layerCounter - 1, config.MaxSkipLayers);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                LingotionLogger.Error($"Error during output tensor processing: {e.Message}");
-                tensorPool.Dispose();
-                if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
-                yield break;
             }
             if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+
+            UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} readback");
+            // If work is being done on the CPU, we can await the readback without blocking
+            if(_worker.backendType == BackendType.CPU)
+            {
+                UnityEngine.Profiling.Profiler.BeginSample("Issuing readback requests");
+                foreach (var output in Outputs)
+                {
+                    Tensor currentTensor = _worker.PeekOutput(output.name);
+                    currentTensor.ReadbackRequest();
+                }
+                UnityEngine.Profiling.Profiler.EndSample();
+                
+                int readbackCounter = 0;
+                if(!AreAllOutputsReady())
+                {
+                    UnityEngine.Profiling.Profiler.BeginSample("Awaiting readback once");
+                    breakFrame = false;
+                    // await during this frame until ready or timeout
+                    while(!AreAllOutputsReady() && !breakFrame)
+                    {
+                        currentElapsedTime = Time.realtimeSinceStartupAsDouble - startTime;
+                        timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
+                        timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
+                        timeLeftOfBudget = inferSpecificBudget - budgetConsumed - currentElapsedTime;
+                        breakFrame = timeLeftOfBudget <= 0 || timeLeftOfFrame <= 0;
+                    }
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    if(breakFrame)
+                    {
+                        UnityEngine.Profiling.Profiler.EndSample();
+                        // UnityEngine.Profiling.Profiler.BeginSample($"Breaking: {timeLeftOfBudget}|{timeLeftOfFrame}\nbudget: {inferSpecificBudget}-{budgetConsumed}-{currentElapsedTime}\nframe: {config.TargetFrameTime}-{timeSinceFrameStart}-{config.TargetFrameTime / 10d}");
+                        // UnityEngine.Profiling.Profiler.EndSample();
+                        yield return null;
+                        yield return new WaitForEndOfFrame();
+                        budgetConsumed = 0;
+                        startTime = Time.realtimeSinceStartupAsDouble;
+                        UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} readback wait {++readbackCounter}");
+                    }
+
+                }
+                // poll each frame until ready.
+                while(!AreAllOutputsReady())
+                {
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                    budgetConsumed = 0;
+                    startTime = Time.realtimeSinceStartupAsDouble;
+                    UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} {++readbackCounter} readback wait");
+                }
+
+            }
+            else if(SystemInfo.supportsGraphicsFence && SystemInfo.supportsAsyncCompute)
+            {
+                GraphicsFence fence = Graphics.CreateGraphicsFence(GraphicsFenceType.AsyncQueueSynchronisation, SynchronisationStageFlags.ComputeProcessing);
+
+                int readbackCounter = 0;
+                while(!fence.passed)
+                {
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    yield return null;
+                    budgetConsumed = 0;
+                    startTime = Time.realtimeSinceStartupAsDouble;
+                    readbackCounter++;
+                    UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} {readbackCounter} readback wait");
+                }
+                if(readbackCounter != 0)
+                {
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    yield return new WaitForEndOfFrame();
+                    UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} {readbackCounter} readback wait");
+                }
+
+            }
+            
+            UnityEngine.Profiling.Profiler.EndSample();
+
+            foreach (var output in Outputs)
+            {
+                try
+                {
+                    Tensor outTensor = null;
+                    _worker.CopyOutput(output.name, ref outTensor);
+                    tensorPool.SetTensor(output.name, outTensor);
+                }
+                catch (Exception e)
+                {
+                    LingotionLogger.Error($"Error during output tensor processing in node {DebugName}: {e.Message}");
+                    tensorPool.Dispose();
+                    if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+                    yield break;
+                }
+            }
             OnFinished?.Invoke((float)Math.Max(0, Time.realtimeSinceStartupAsDouble - startTime + budgetConsumed));
+        }
+
+        private bool AreAllOutputsReady()
+        {
+            foreach (var output in Outputs)
+            {
+                Tensor currentOutput = _worker.PeekOutput(output.name);
+                if(!currentOutput.IsReadbackRequestDone())
+                    return false;
+            }
+            return true;            
         }
 
         private void AddHeavyLayer(int layerIndex, int maxSkipLayers)

@@ -1,11 +1,11 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using Lingotion.Thespeon.Core;
 using System.Collections.Generic;
 using System;
 using System.Collections;
 
-namespace Lingotion.Thespeon.LanguagePack
+namespace Lingotion.Thespeon.Language
 {
     /// <summary>
     /// Singleton that manages and registers runtime lookup tables for language modules.
@@ -59,13 +59,14 @@ namespace Lingotion.Thespeon.LanguagePack
             }
             RuntimeLookupTable lookupTable = null;
             UnityEngine.Profiling.Profiler.EndSample();
-            yield return module.GetLookupTableCoroutine(
+            var getLookup = module.GetLookupTableCoroutine(
                 lookupTableDict =>
                 {
                     lookupTable = new RuntimeLookupTable(lookupTableDict);
                 },
                 yieldCondition, onYield
             );
+            while (getLookup.MoveNext()) { yield return getLookup.Current; }
             if(lookupTable == null)
             {
                 LingotionLogger.Error($"Failed to load lookup table for module: {module.ModuleID}");
@@ -82,6 +83,12 @@ namespace Lingotion.Thespeon.LanguagePack
             string md5 = module.GetLookupTableID();
 
             if (!IsRegistered(md5)) return;
+            if(module.GetLoadedBackends().Count != 0)
+            {
+                LingotionLogger.Debug($"Lookup table for module {module.ModuleID} is still used by loaded models, skipping deregistration.");
+                return;
+            }
+            LingotionLogger.Info($"Deregistering lookup table for module {module.ModuleID}.");
             _availableLookupTables.Remove(md5);
         }
 

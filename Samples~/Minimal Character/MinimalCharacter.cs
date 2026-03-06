@@ -13,11 +13,11 @@ using Unity.Burst;
 /// A minimal character controller that uses the Thespeon engine for real-time voice synthesis.
 /// This example demonstrates the minimal functionality of the Thespeon engine without any additional features.
 /// </summary>
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 [RequireComponent(typeof(AudioSource))]
 public class MinimalCharacter : MonoBehaviour
 {
-    private ThespeonEngine engine;
+    private ThespeonComponent engine;
     private AudioSource audioSource;
     private List<float> audioData;
     private AudioClip audioClip;
@@ -29,7 +29,7 @@ public class MinimalCharacter : MonoBehaviour
             Debug.LogWarning("[Warning] Burst Native Debug Mode Compilation is ON; performance will be slower in Editor when running Thespeon on CPU.");
         }
 #endif
-        engine = GetComponent<ThespeonEngine>();
+        engine = GetComponent<ThespeonComponent>();
         // Connect callback when audio is received from Thespeon
         engine.OnAudioReceived += OnAudioPacketReceive;
         // Initialize audio data buffer
@@ -53,7 +53,7 @@ public class MinimalCharacter : MonoBehaviour
     }
 
     // Simply add the received data to the audio buffer. 
-    void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
+    void OnAudioPacketReceive(string sessionID, float[] data)
     {
         lock (audioData)
         {

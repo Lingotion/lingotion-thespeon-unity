@@ -15,15 +15,15 @@ using Unity.Burst;
 /// A simple character controller that uses the Thespeon engine for real-time voice synthesis.
 /// This example demonstrates the basic functionality of the Thespeon engine with some simple input annotations.
 /// </summary>
-[RequireComponent(typeof(ThespeonEngine))]
+[RequireComponent(typeof(ThespeonComponent))]
 [RequireComponent(typeof(AudioSource))]
 public class SimpleCharacter : MonoBehaviour
 {
-    private ThespeonEngine engine;
+    private ThespeonComponent engine;
     private AudioSource audioSource;
     private List<float> audioData = new();
     private AudioClip audioClip;
-    public ThespeonCharacterAsset actorAsset;
+    public ThespeonCharacterAsset characterAsset;
     void Start()
     {
 #if UNITY_EDITOR
@@ -33,7 +33,7 @@ public class SimpleCharacter : MonoBehaviour
         }
 #endif
 
-        engine = GetComponent<ThespeonEngine>();
+        engine = GetComponent<ThespeonComponent>();
         // Connect callback when audio is received from Thespeon
         engine.OnAudioReceived += OnAudioPacketReceive;
         engine.OnSynthesisComplete += OnFinalPacketReceived;
@@ -48,14 +48,14 @@ public class SimpleCharacter : MonoBehaviour
         audioSource.Play();
 
         LingotionLogger.CurrentLevel = VerbosityLevel.Warning;
-        if (actorAsset == null)
+        if (characterAsset == null)
         {
-            LingotionLogger.Warning("Assign an actor asset in the Example Character inspector window if you want to use a specific actor. \nYou will find the assets under Assets > Lingotion Thespeon > CharacterAssets.");
-            actorAsset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
+            LingotionLogger.Warning("Assign a character asset in the Example Character inspector window if you want to use a specific character. \nYou will find the assets under Assets > Lingotion Thespeon > CharacterAssets.");
+            characterAsset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
             return;
         }
 
-        engine.TryPreloadActor(actorAsset.actorName, actorAsset.moduleType);
+        engine.TryPreloadCharacter(characterAsset.characterName, characterAsset.moduleType);
         LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
     }
 
@@ -66,13 +66,13 @@ public class SimpleCharacter : MonoBehaviour
             List<ThespeonInputSegment> segments = new() {
             new("Hi! This is my voice generated in real time!"),
         };
-            ThespeonInput input = new(segments, actorAsset.actorName, actorAsset.moduleType);
+            ThespeonInput input = new(segments, characterAsset.characterName, characterAsset.moduleType);
             engine.Synthesize(input, sessionID: "SampleSynthesisSession");
         }
     }
 
     // Simply add the received data to the audio buffer. 
-    void OnAudioPacketReceive(float[] data, PacketMetadata metadata)
+    void OnAudioPacketReceive(string sessionID, float[] data)
     {
         lock (audioData)
         {
@@ -96,12 +96,12 @@ public class SimpleCharacter : MonoBehaviour
         }
     }
 
-    private void OnFinalPacketReceived(PacketMetadata metadata)
-    {
-        LingotionLogger.Info($"Synthesis complete for session: {metadata.sessionID}");
-        engine.TryUnloadActor(metadata.characterName, metadata.moduleType);
-    }
 
+    private void OnFinalPacketReceived(string sessionID)
+    {
+        LingotionLogger.Info($"Synthesis complete for session: {sessionID}");
+        engine.TryUnloadCharacter(characterAsset.characterName, characterAsset.moduleType);
+    }
     void OnDestroy()
     {
         engine.OnAudioReceived -= OnAudioPacketReceive;

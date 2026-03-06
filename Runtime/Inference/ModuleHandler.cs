@@ -1,10 +1,11 @@
-// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 558341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
+// This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System;
 using System.Collections.Generic;
 using Lingotion.Thespeon.Core;
-using Lingotion.Thespeon.ActorPack;
+using Lingotion.Thespeon.Character;
 using System.Linq;
+using Unity.InferenceEngine;
 
 namespace Lingotion.Thespeon.Inference
 {
@@ -44,9 +45,10 @@ namespace Lingotion.Thespeon.Inference
         /// </summary>
         /// <typeparam name="T">The type of the module to acquire.</typeparam>
         /// <param name="moduleEntry">The module entry containing the module information.</param>
+        /// <param name="shouldCreate">Optional default true. If true, returns module found or creates if it does not exist. If false, the method will return default(T) if the module is not found.</param>
         /// <returns>The acquired module of type T.</returns>
         /// <exception cref="InvalidCastException">Thrown when a module with the same ID exists but has a different type.</exception>
-        public T AcquireModule<T>(ModuleEntry moduleEntry) where T : Module
+        public T AcquireModule<T>(ModuleEntry moduleEntry, bool shouldCreate=true) where T : Module
         {
             if (_availableModules.TryGetValue(moduleEntry.ModuleID, out Module result))
             {
@@ -57,37 +59,34 @@ namespace Lingotion.Thespeon.Inference
 
                 throw new InvalidCastException($"Module type mismatch: requested '{typeof(T)}', but found '{result.GetType()}'");
             }
-            else
+            else if (shouldCreate)
             {
                 RegisterModule<T>(moduleEntry);
+                LingotionLogger.Info($"Registering module {moduleEntry.ModuleID}.");
                 return (T)_availableModules[moduleEntry.ModuleID];
-            }
-        }
-
-        /// <summary>
-        /// Deregisters and removes a module instance from the available modules.
-        /// </summary>
-        /// <typeparam name="T">The expected type of the module to deregister.</typeparam>
-        /// <param name="moduleEntry">The entry containing the ID of the module to be removed.</param>
-        /// <returns>The deregistered module cast to type <typeparamref name="T"/> if found and the type matches; otherwise, returns `default(T)`.</returns>
-        /// <exception cref="InvalidCastException">Thrown if a module with the specified ID is found, but its actual type does not match the requested type <typeparamref name="T"/>.</exception>
-        public T DeregisterModule<T>(ModuleEntry moduleEntry)
-        {
-            if (_availableModules.TryGetValue(moduleEntry.ModuleID, out Module module))
-            {
-                _availableModules.Remove(moduleEntry.ModuleID);
-                if (module is T typedResult)
-                {
-                    return typedResult;
-                }
-
-                throw new InvalidCastException($"Module type mismatch: requested '{typeof(T)}', but found '{module.GetType()}'");
             }
             else
             {
                 return default;
             }
+            
+        }
 
+        /// <summary>
+        /// Deregisters and removes a module instance from the available modules. Does nothing if the module is not found. 
+        /// If a backend type is provided, only removes the backend from the module's loaded backends, and only removes the module entirely if it has no more loaded backends after the removal.
+        /// </summary>
+        /// <param name="moduleEntry">The entry containing the ID of the module to be removed.</param>
+        public void DeregisterModule(string moduleID)
+        {
+            if (_availableModules.TryGetValue(moduleID, out Module module))
+            {
+                if(module.GetLoadedBackends().Count == 0)
+                {
+                    LingotionLogger.Info($"Deregistering module {module.ModuleID}.");
+                    _availableModules.Remove(moduleID);
+                }
+            }
         }
 
         /// <summary>
@@ -96,15 +95,20 @@ namespace Lingotion.Thespeon.Inference
         /// <typeparam name="T"></typeparam>
         /// <param name="module">The module to check for overlapping model MD5s.</param>
         /// <returns></returns>
-        public HashSet<string> GetNonOverlappingModelMD5s<T>(T module) where T : Module
+        public HashSet<string> GetWorkloadIDsToRemove<T>(T module, BackendType backendType) where T : Module
         {
-            HashSet<string> currentMD5s = module.GetAllFileMD5s();
+            if(!module.GetLoadedBackends().Contains(backendType))
+            {
+                LingotionLogger.Debug($"Module {module.ModuleID} does not have any workloads for backend {backendType}, nothing to deregister.");
+                return new HashSet<string>();
+            }
+            HashSet<string> currentMD5s = module.GetLoadedWorkloadIDs(backendType);
             HashSet<string> otherMD5s = new();
             foreach (Module entry in _availableModules.Values)
             {
                 if (entry is T entryTyped && entry != module)
                 {
-                    otherMD5s.UnionWith(entryTyped.GetAllFileMD5s());
+                    otherMD5s.UnionWith(entryTyped.GetLoadedWorkloadIDs(backendType));
                 }
             }
             currentMD5s.ExceptWith(otherMD5s);
@@ -112,19 +116,19 @@ namespace Lingotion.Thespeon.Inference
         }
 
         /// <summary>
-        /// Returns a set of language module IDs used by the provided actorModule that are not used by any other actor module.
+        /// Returns a set of language module IDs used by the provided characterModule that are not used by any other character module.
         /// </summary>
-        /// <param name="actorModule">The actor module to check for unused language modules.</param>
+        /// <param name="characterModule">The character module to check for unused language modules.</param>
         /// <returns>A set of unused language module IDs.</returns>
-        public HashSet<string> GetNonOverlappingLangModules(ActorModule actorModule)
+        public HashSet<string> GetNonOverlappingLangModules(CharacterModule characterModule)
         {
-            HashSet<string> unusedLanguageModules = actorModule.languageModuleIDs.Values.ToHashSet();
+            HashSet<string> unusedLanguageModules = characterModule.languageModuleIDs.Values.ToHashSet();
             HashSet<string> usedLanguageModules = new();
             foreach (Module module in _availableModules.Values)
             {
-                if (module is ActorModule otherActorModule && otherActorModule != actorModule)
+                if (module is CharacterModule otherCharacterModule && otherCharacterModule != characterModule)
                 {
-                    usedLanguageModules.UnionWith(otherActorModule.languageModuleIDs.Values);
+                    usedLanguageModules.UnionWith(otherCharacterModule.languageModuleIDs.Values);
                 }
             }
             unusedLanguageModules.ExceptWith(usedLanguageModules);
