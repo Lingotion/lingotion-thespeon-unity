@@ -29,11 +29,11 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         private static void GenerateAssets()
         {
-            List<(string characterName, ModuleType moduleType)> characterData = ManifestHandler.Instance
+            List<(string characterName, ModuleType moduleType, string version)> characterData = ManifestHandler.Instance
                 .GetAllCharacters()
                 .SelectMany(characterName =>
                 ManifestHandler.Instance.GetAllModuleTypesForCharacter(characterName)
-                    .Select(moduleType => (characterName, moduleType)))
+                    .Select(moduleType => (characterName, moduleType, version: ManifestHandler.Instance.GetCharacterModuleVersion(characterName, moduleType))))
                 .ToList();
 
             if (!Directory.Exists(targetFolder))
@@ -59,30 +59,34 @@ namespace Lingotion.Thespeon.Editor
 
             ThespeonCharacterAsset asset = null;
             int totalChangedAssets = 0;
-            foreach (var (characterName, moduleType) in characterData)
+            foreach (var (characterName, moduleType, version) in characterData)
             {
                 string fileName = $"{SanitizeFileName(characterName)}-{moduleType}.asset";
                 string assetPath = Path.Combine(targetFolder, fileName).Replace(Path.DirectorySeparatorChar, '/');
                 ThespeonCharacterAsset existing = AssetDatabase.LoadAssetAtPath<ThespeonCharacterAsset>(assetPath);
                 if (existing != null)
                 {
-                    if(existing.characterName == characterName && existing.moduleType == moduleType)
+
+                    // compared too or an in-place module upgrade would leave a stale version on disk forever.
+                    if(existing.characterName == characterName && existing.moduleType == moduleType && existing.moduleVersion == version)
                     {
                         continue;
                     }
                     asset = existing;
-                    LingotionLogger.Debug($"Outdated asset exists for character {characterName} with module type {moduleType}, updating content.");
+                    LingotionLogger.Debug($"Outdated asset exists for character {characterName} with module type {moduleType}, updating content to version {version}.");
                     asset.characterName = characterName;
                     asset.moduleType = moduleType;
+                    asset.moduleVersion = version;
                     EditorUtility.SetDirty(asset);
                     totalChangedAssets++;
                 }
                 else
                 {
-                    LingotionLogger.Debug($"Creating new asset for character {characterName} with module type {moduleType}.");
+                    LingotionLogger.Debug($"Creating new asset for character {characterName} with module type {moduleType} at version {version}.");
                     asset = ScriptableObject.CreateInstance<ThespeonCharacterAsset>();
                     asset.characterName = characterName;
                     asset.moduleType = moduleType;
+                    asset.moduleVersion = version;
                     AssetDatabase.CreateAsset(asset, assetPath);
                     totalChangedAssets++;
                 }

@@ -1,0 +1,32 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="SynthesisLabTab" style="flex-grow: 1;">
+        <ui:TwoPaneSplitView name="CharacterListEditorSplit"
+            orientation="Vertical"
+            fixed-pane-index="0"
+            fixed-pane-initial-dimension="200">
+            <ui:TwoPaneSplitView name="CharacterInfoSplit"
+                fixed-pane-index="0"
+                fixed-pane-initial-dimension="210"
+                style="min-height: 120px;">
+                <ui:VisualElement name="CharacterListPane" style="min-width: 210px;">
+                    <uie:Toolbar>
+                        <uie:MaskField name="CharacterMaskField" label="Module type filter" focusable="false" />
+                    </uie:Toolbar>
+                    <ui:ListView name="CharacterListView" />
+                </ui:VisualElement>
+                <ui:VisualElement name="CharacterInfoPane">
+                    <uie:Toolbar>
+                        <ui:Label text="Character Information" class="header-label" />
+                    </uie:Toolbar>
+                    <ui:VisualElement name="CharacterInfoSection" />
+                </ui:VisualElement>
+            </ui:TwoPaneSplitView>
+            <ui:VisualElement name="SegmentEditorContainer" style="min-height: 120px;">
+                <uie:Toolbar>
+                    <ui:Label text="Audio Test Lab" class="header-label" />
+                </uie:Toolbar>
+                <ui:VisualElement name="InferenceEditorPane" />
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

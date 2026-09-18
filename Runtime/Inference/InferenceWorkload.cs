@@ -51,94 +51,21 @@ namespace Lingotion.Thespeon.Inference
         }
 
         /// <summary>
-        /// Runs this workload autoregressively until meeting a completion condition.
-        /// </summary>
-        /// <param name="tensorPool">The session tensor pool containing the tensors for inference.</param>
-        /// <param name="config">The inference configuration containing settings for the inference process.</param>
-        /// <param name="doneCondition">A function that returns true when the autoregressive process is done.</param>
-        /// <param name="workloadmd5">The MD5 hash of the workload, used for cleanup on fail.</param>
-        /// <param name="skipFrames">Whether to let the coroutine yield during inference or run in a single frame.</param>  
-        /// <param name="debugName">Optional debug name for the workload, used for profiling.</param>
-        /// <param name="budgetAdjustment">Adjustment factor for the budget, used for adaptive scheduling and yielding logic.</param>
-        public IEnumerator InferAutoregressive(SessionTensorPool tensorPool, InferenceConfig config, Func<int, bool> doneCondition, string workloadmd5, bool skipFrames = true, string debugName = null, float budgetAdjustment = 1f)
-        {
-            IEnumerator schedule;
-            bool autoregDone = false;
-            int autoregCount = 0;
-            double budgetConsumed = 0;
-            double startTime = Time.realtimeSinceStartupAsDouble;
-            while (!autoregDone)
-            {
-                int frame = 1;
-                autoregCount++;
-                UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {debugName} {autoregCount} autoregressive {frame}");
-
-                schedule = Infer(tensorPool, config, (consumedSoFar) => budgetConsumed = consumedSoFar, skipFrames, debugName, true, budgetConsumed, budgetAdjustment);
-                bool scheduleNotDone = true;
-
-                while (scheduleNotDone)
-                {
-                    try
-                    {
-                        startTime = Time.realtimeSinceStartupAsDouble;
-                        scheduleNotDone = schedule.MoveNext();
-                    }
-                    catch (Exception e)
-                    {
-                        LingotionLogger.Error($"Error during scheduling: {e.Message}");
-                        tensorPool.Dispose();
-                        UnityEngine.Profiling.Profiler.EndSample();
-                        yield break;
-                    }
-                    if (skipFrames && scheduleNotDone)
-                    {
-                        if (schedule.Current is null)
-                        {
-                            UnityEngine.Profiling.Profiler.EndSample();
-                            yield return null;
-                            yield return new WaitForEndOfFrame();
-                            budgetConsumed = 0;
-                            UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {debugName} {autoregCount} autoregressive {++frame}");
-                        }
-                    }
-                    if (tensorPool.IsDisposed())
-                    {
-                        if (workloadmd5 != null)
-                        {
-                            LingotionLogger.Error($"Tensor pool was disposed in model {workloadmd5}, aborting.");
-                            InferenceWorkloadManager.Instance.ReleaseWorkload(workloadmd5);
-                        }
-                        else
-                        {
-                            LingotionLogger.Error($"Tensor pool was disposed, aborting.");
-                        }
-                        yield break;
-                    }
-                }
-                autoregDone = doneCondition(autoregCount);
-                UnityEngine.Profiling.Profiler.EndSample();
-            }
-            yield return null;
-            yield return new WaitForEndOfFrame();
-        }
-
-        /// <summary>
         /// Runs this workload.
         /// </summary>
         /// <param name="tensorPool">The session tensor pool containing the tensors for inference.</param>
         /// <param name="config">The inference configuration containing settings for the inference process.</param>
         /// <param name="skipFrames">Whether to let the coroutine yield during inference or run in a single frame.</param>
-        /// <param name="debugName">Optional debug name for the workload, used for profiling.</param> 
-        /// <param name="fromAutoregessive">Indicates if this inference is part of an autoregressive process.</param>
+        /// <param name="debugName">Optional debug name for the workload, used for profiling.</param>
         /// <param name="budgetAdjustment">Adjustment factor for the budget, used for adaptive scheduling and yielding logic.</param>
         /// <param name="OnFinished">Callback to invoke when the inference process is finished, providing the total time taken.</param>
         /// <exception cref="Exception">Thrown if an error occurs during the inference process.</exception>
-        public IEnumerator Infer(SessionTensorPool tensorPool, InferenceConfig config, Action<double> OnFinished, bool skipFrames = true, string debugName = null, bool fromAutoregessive = false, double budgetConsumed = 0d, float budgetAdjustment = 1f)
+        public IEnumerator Infer(SessionTensorPool tensorPool, InferenceConfig config, Action<double> OnFinished, bool skipFrames = true, string debugName = null, double budgetConsumed = 0d, float budgetAdjustment = 1f)
         {
             if (debugName != null)
                 DebugName = debugName;
 
-            if (!fromAutoregessive) UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference 1");//  passed consumed {budgetConsumed}");
+            UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference 1");
             try
             {
                 foreach (var input in Inputs)
@@ -150,7 +77,7 @@ namespace Lingotion.Thespeon.Inference
             {
                 LingotionLogger.Error($"Error during input tensor processing in node {DebugName}: {e.Message}");
                 tensorPool.Dispose();
-                if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+                UnityEngine.Profiling.Profiler.EndSample();
                 yield break;
             }
             IEnumerator schedule = _worker.ScheduleIterable();
@@ -170,11 +97,11 @@ namespace Lingotion.Thespeon.Inference
                 if (skipFrames && breakFrame)
                 {
                     breakFrame = false;
-                    if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+                    UnityEngine.Profiling.Profiler.EndSample();
                     yield return null;
-                    if (!fromAutoregessive) yield return new WaitForEndOfFrame();
+                    yield return new WaitForEndOfFrame();
                     budgetConsumed = 0;
-                    if (!fromAutoregessive) UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference {++frameCount}");
+                    UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} inference {++frameCount}");
                 }
                 startTime = Time.realtimeSinceStartupAsDouble;
                 try
@@ -220,13 +147,13 @@ namespace Lingotion.Thespeon.Inference
                 }
                 catch (Exception e)
                 {
-                    if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+                    UnityEngine.Profiling.Profiler.EndSample();
                     LingotionLogger.Error($"Error during layer processing: {e.Message}");
                     tensorPool.Dispose();
                     throw e;
                 }
             }
-            if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+            UnityEngine.Profiling.Profiler.EndSample();
 
             UnityEngine.Profiling.Profiler.BeginSample($"Thespeon {DebugName} readback");
             // If work is being done on the CPU, we can await the readback without blocking
@@ -236,6 +163,10 @@ namespace Lingotion.Thespeon.Inference
                 foreach (var output in Outputs)
                 {
                     Tensor currentTensor = _worker.PeekOutput(output.name);
+                    if (IsEmptyOutput(currentTensor))
+                    {
+                        continue;
+                    }
                     currentTensor.ReadbackRequest();
                 }
                 UnityEngine.Profiling.Profiler.EndSample();
@@ -258,8 +189,8 @@ namespace Lingotion.Thespeon.Inference
                     if(breakFrame)
                     {
                         UnityEngine.Profiling.Profiler.EndSample();
-                        // UnityEngine.Profiling.Profiler.BeginSample($"Breaking: {timeLeftOfBudget}|{timeLeftOfFrame}\nbudget: {inferSpecificBudget}-{budgetConsumed}-{currentElapsedTime}\nframe: {config.TargetFrameTime}-{timeSinceFrameStart}-{config.TargetFrameTime / 10d}");
-                        // UnityEngine.Profiling.Profiler.EndSample();
+                        //UnityEngine.Profiling.Profiler.BeginSample($"Breaking: {timeLeftOfBudget}|{timeLeftOfFrame}\nbudget: {inferSpecificBudget}-{budgetConsumed}-{currentElapsedTime}\nframe: {config.TargetFrameTime}-{timeSinceFrameStart}-{config.TargetFrameTime / 10d}");
+                        //UnityEngine.Profiling.Profiler.EndSample();
                         yield return null;
                         yield return new WaitForEndOfFrame();
                         budgetConsumed = 0;
@@ -310,6 +241,16 @@ namespace Lingotion.Thespeon.Inference
                 try
                 {
                     Tensor outTensor = null;
+                    Tensor peeked = _worker.PeekOutput(output.name);
+                    if (IsEmptyOutput(peeked))
+                    {
+                        // A zero-length output has no backend data to copy from - layers producing one return
+                        // before allocating it - so CopyOutput would dereference null. Hand the pool an empty
+                        // tensor of the right shape instead; downstream consumers only need its shape.
+                        LingotionLogger.Debug($"Output '{output.name}' of node {DebugName} is empty ({peeked.shape}). Storing an empty tensor.");
+                        tensorPool.SetTensor(output.name, CreateEmptyLike(peeked));
+                        continue;
+                    }
                     _worker.CopyOutput(output.name, ref outTensor);
                     tensorPool.SetTensor(output.name, outTensor);
                 }
@@ -317,7 +258,7 @@ namespace Lingotion.Thespeon.Inference
                 {
                     LingotionLogger.Error($"Error during output tensor processing in node {DebugName}: {e.Message}");
                     tensorPool.Dispose();
-                    if (!fromAutoregessive) UnityEngine.Profiling.Profiler.EndSample();
+                    UnityEngine.Profiling.Profiler.EndSample();
                     yield break;
                 }
             }
@@ -329,10 +270,37 @@ namespace Lingotion.Thespeon.Inference
             foreach (var output in Outputs)
             {
                 Tensor currentOutput = _worker.PeekOutput(output.name);
+                // An empty output never becomes "ready" - IsReadbackRequestDone reports false while the
+                // backing data is null, and a zero-length output never gets any - so skip it or we would
+                // poll forever.
+                if (IsEmptyOutput(currentOutput))
+                    continue;
                 if(!currentOutput.IsReadbackRequestDone())
                     return false;
             }
-            return true;            
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true when a model output carries no data: either it was never stored, or its shape has a
+        /// zero-sized dimension. A graph may legitimately produce one - for instance a carry-over buffer on
+        /// the iteration that consumes the last of it.
+        /// </summary>
+        private static bool IsEmptyOutput(Tensor tensor)
+        {
+            return tensor == null || tensor.shape.HasZeroDims();
+        }
+
+        /// <summary>
+        /// Creates an empty tensor matching the given output's shape and data type.
+        /// </summary>
+        private static Tensor CreateEmptyLike(Tensor tensor)
+        {
+            return tensor.dataType switch
+            {
+                DataType.Int => new Tensor<int>(tensor.shape, Array.Empty<int>()),
+                _ => new Tensor<float>(tensor.shape, Array.Empty<float>())
+            };
         }
 
         private void AddHeavyLayer(int layerIndex, int maxSkipLayers)

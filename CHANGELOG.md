@@ -4,6 +4,30 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [2.1.0] - 2026-09-10
+This version requires updated character and language modules, please re-download your characters to enable the new functionality.
+
+### Added
+* Segments can now carry an emotion *blend* at their start and end, letting a line move gradually between several emotions.
+* Segments can now carry start/end speed and loudness values.
+* The Advanced GUI sample now has a karaoke overlay showing the speaker's portrait and revealing the line in time with the audio, matching the Unreal demo.
+* The Thespeon Info Window now shows the module version for every imported character and language module, in both the Overview and the Synthesis Lab.
+### Changed
+* Speed and loudness are supported again. Input-wide `AnimationCurve`s are sampled at each segment boundary, and per-segment values are used where no curve is supplied.
+* Emotion, speed and loudness boundary values are treated as keypoints on a single curve over the whole line, so values stay continuous across segment boundaries and across segments split by number conversion.
+### Fixed
+* Inference should no longer crash when the input contains a word longer than 150 characters
+* A character whose pinned language module is not imported now falls back to any imported module serving the same language, warning that pronunciation may differ, instead of failing synthesis with "Language was never imported".
+* Fixed a missing dependency in the Protobuf library on Unity versions earlier than 6000.3.
+
+# [2.0.1] - 2026-06-09
+### Added
+* Verified Solution Attribution support for Unity Asset Store integration.
+### Changed
+* Streamlined the user registration and license activation flow.
+* Refreshed the Thespeon Info Window for a cleaner, more reliable editor experience.
+* Improved diagnostics to help us identify and resolve issues faster.
+
 # [2.0.0] - 2026-03-06
 ### Added
 * Characters can now be loaded onto and unloaded from several backends independently.

@@ -1,6 +1,7 @@
 // This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace Lingotion.Thespeon.Core
@@ -11,7 +12,42 @@ namespace Lingotion.Thespeon.Core
     public abstract class ModelInputSegment
     {
         public string Text;
+
+        /// <summary>
+        /// Legacy single emotion. Kept for backwards compatibility; inference reads <see cref="StartEmotion"/> and <see cref="EndEmotion"/> instead.
+        /// </summary>
         public Emotion Emotion;
+
+        /// <summary>
+        /// Emotion blend at the start of the segment. Keys are emotions, values are intensities that sum to 1.
+        /// A blend containing only <see cref="Core.Emotion.None"/> (or an empty blend) means "no opinion" and contributes no keypoint to the emotion curve.
+        /// </summary>
+        public Dictionary<Emotion, float> StartEmotion = new();
+
+        /// <summary>
+        /// Emotion blend at the end of the segment. See <see cref="StartEmotion"/>.
+        /// </summary>
+        public Dictionary<Emotion, float> EndEmotion = new();
+
+        /// <summary>
+        /// Speed at the start of the segment.
+        /// </summary>
+        public float StartSpeed = 1f;
+
+        /// <summary>
+        /// Speed at the end of the segment.
+        /// </summary>
+        public float EndSpeed = 1f;
+
+        /// <summary>
+        /// Loudness at the start of the segment.
+        /// </summary>
+        public float StartLoudness = 1f;
+
+        /// <summary>
+        /// Loudness at the end of the segment.
+        /// </summary>
+        public float EndLoudness = 1f;
 #nullable enable
         public ModuleLanguage? Language;
 #nullable disable
@@ -30,8 +66,24 @@ namespace Lingotion.Thespeon.Core
             }
             Text = other.Text;
             Emotion = other.Emotion;
+            StartEmotion = CopyBlend(other.StartEmotion);
+            EndEmotion = CopyBlend(other.EndEmotion);
+            StartSpeed = other.StartSpeed;
+            EndSpeed = other.EndSpeed;
+            StartLoudness = other.StartLoudness;
+            EndLoudness = other.EndLoudness;
             Language = ModuleLanguage.CopyOrNull(other.Language);
             IsCustomPronounced = other.IsCustomPronounced;
+        }
+
+        /// <summary>
+        /// Creates a shallow copy of an emotion blend, returning an empty blend when the source is null.
+        /// </summary>
+        /// <param name="blend">The blend to copy.</param>
+        /// <returns>A new dictionary holding the same emotion weights.</returns>
+        public static Dictionary<Emotion, float> CopyBlend(Dictionary<Emotion, float> blend)
+        {
+            return blend == null ? new Dictionary<Emotion, float>() : new Dictionary<Emotion, float>(blend);
         }
         /// <summary>
         /// Constructor for ModelInputSegment.
@@ -51,6 +103,8 @@ namespace Lingotion.Thespeon.Core
             }
             Text = text;
             Emotion = emotion;
+            StartEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
+            EndEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
             IsCustomPronounced = isCustomPronounced;
 
             if (string.IsNullOrEmpty(language))
@@ -74,8 +128,95 @@ namespace Lingotion.Thespeon.Core
             }
             Text = text;
             Emotion = emotion;
+            StartEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
+            EndEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
             Language = language;
             IsCustomPronounced = isCustomPronounced;
+        }
+
+        /// <summary>
+        /// Constructor for ModelInputSegment taking emotion blends and speed/loudness boundary values.
+        /// The blends and scalars are treated as keypoints on a piecewise-linear curve over the whole input, so values stay continuous across segment boundaries.
+        /// </summary>
+        /// <param name="text">The text of the segment.</param>
+        /// <param name="startEmotion">The emotion blend at the start of the segment. Weights are clamped to [0,1] and normalized to sum to 1. Pass an empty blend (or one containing only <see cref="Core.Emotion.None"/>) to contribute no keypoint.</param>
+        /// <param name="endEmotion">The emotion blend at the end of the segment.</param>
+        /// <param name="language">The ISO-639 language code of the segment. Optional, can be null.</param>
+        /// <param name="dialect">The ISO-3166 dialect code of the segment. Optional, can be null.</param>
+        /// <param name="isCustomPronounced">Indicates whether the segment is custom pronounced.</param>
+        /// <param name="startSpeed">Speed at the start of the segment.</param>
+        /// <param name="endSpeed">Speed at the end of the segment.</param>
+        /// <param name="startLoudness">Loudness at the start of the segment.</param>
+        /// <param name="endLoudness">Loudness at the end of the segment.</param>
+        /// <exception cref="System.ArgumentException">Thrown if the text is null or empty.</exception>
+        public ModelInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, string language = null, string dialect = null, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                throw new System.ArgumentException("Text cannot be null or empty. Please provide a valid text.");
+            }
+            Text = text;
+            StartEmotion = CopyBlend(startEmotion);
+            EndEmotion = CopyBlend(endEmotion);
+            Emotion = DominantEmotion(StartEmotion);
+            StartSpeed = startSpeed;
+            EndSpeed = endSpeed;
+            StartLoudness = startLoudness;
+            EndLoudness = endLoudness;
+            IsCustomPronounced = isCustomPronounced;
+
+            if (string.IsNullOrEmpty(language))
+            {
+                if (string.IsNullOrEmpty(dialect))
+                {
+                    Language = null;
+                    return;
+                }
+                language = ModuleLanguage.NoLang;
+            }
+            Language = new ModuleLanguage(language, null, null, null, dialect, null);
+        }
+
+
+        public ModelInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, ModuleLanguage language, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                throw new System.ArgumentException("Text cannot be null or empty. Please provide a valid text.");
+            }
+            Text = text;
+            StartEmotion = CopyBlend(startEmotion);
+            EndEmotion = CopyBlend(endEmotion);
+            Emotion = DominantEmotion(StartEmotion);
+            StartSpeed = startSpeed;
+            EndSpeed = endSpeed;
+            StartLoudness = startLoudness;
+            EndLoudness = endLoudness;
+            Language = language;
+            IsCustomPronounced = isCustomPronounced;
+        }
+
+        /// <summary>
+        /// Sets a single emotion for the whole segment, pinning both the start and end emotion blends to it.
+        /// </summary>
+        /// <param name="emotion">The emotion to apply. <see cref="Core.Emotion.None"/> clears the segment's opinion, letting the surrounding segments' emotion curve pass through it.</param>
+        public void SetEmotion(Emotion emotion)
+        {
+            Emotion = emotion;
+            StartEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
+            EndEmotion = new Dictionary<Emotion, float> { { emotion, 1f } };
+        }
+
+        /// <summary>
+        /// Returns the highest weighted emotion of a blend, used to keep the legacy <see cref="Emotion"/> field meaningful.
+        /// </summary>
+        private static Emotion DominantEmotion(Dictionary<Emotion, float> blend)
+        {
+            if (blend == null || blend.Count == 0)
+            {
+                return Core.Emotion.None;
+            }
+            return blend.Aggregate((best, next) => next.Value > best.Value ? next : best).Key;
         }
 
         /// <summary>
@@ -103,7 +244,58 @@ namespace Lingotion.Thespeon.Core
             {
                 json.Remove(key);
             }
+            if (StartEmotion != null && StartEmotion.Count > 0)
+            {
+                json["startEmotion"] = BlendToJson(StartEmotion);
+            }
+            if (EndEmotion != null && EndEmotion.Count > 0)
+            {
+                json["endEmotion"] = BlendToJson(EndEmotion);
+            }
+            json["startSpeed"] = StartSpeed;
+            json["endSpeed"] = EndSpeed;
+            json["startLoudness"] = StartLoudness;
+            json["endLoudness"] = EndLoudness;
             return json.ToString();
+        }
+
+        /// <summary>
+        /// Serializes an emotion blend as a JSON object mapping emotion names to weights.
+        /// </summary>
+        protected static JObject BlendToJson(Dictionary<Emotion, float> blend)
+        {
+            JObject json = new();
+            foreach (KeyValuePair<Emotion, float> pair in blend)
+            {
+                json[pair.Key.ToString()] = pair.Value;
+            }
+            return json;
+        }
+
+        /// <summary>
+        /// Parses an emotion blend from a JSON object mapping emotion names to weights.
+        /// </summary>
+        /// <param name="token">The JSON token to parse. May be null.</param>
+        /// <returns>The parsed blend, or null when the token is absent or not an object.</returns>
+        protected static Dictionary<Emotion, float> BlendFromJson(JToken token)
+        {
+            if (token is not JObject blendJson)
+            {
+                return null;
+            }
+            Dictionary<Emotion, float> blend = new();
+            foreach (JProperty property in blendJson.Properties())
+            {
+                if (System.Enum.TryParse(property.Name, true, out Emotion emotion))
+                {
+                    blend[emotion] = property.Value.ToObject<float>();
+                }
+                else
+                {
+                    LingotionLogger.Warning($"Unknown emotion '{property.Name}' in emotion blend. Ignoring it.");
+                }
+            }
+            return blend;
         }
 
         public abstract ModelInputSegment DeepCopy();

@@ -11,8 +11,6 @@ namespace Lingotion.Thespeon.Editor
     /// </summary>
     public class EditorInputContainer : ScriptableObject
     {
-        public AnimationCurve speed = AnimationCurve.Constant(0, 1, 1);
-        public AnimationCurve loudness = AnimationCurve.Constant(0, 1, 1);
         public List<ThespeonInputSegment> segments = new() { new("Hi! This is my voice", language: "eng", emotion: Emotion.Interest), new(" generated in real time.", language: "eng", emotion: Emotion.Interest) };
     }
 }

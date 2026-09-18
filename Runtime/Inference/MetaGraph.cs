@@ -56,57 +56,64 @@ namespace Metaonnx {
             "Lm1ldGFvbm54LlZhbHVlUmVmIkUKAk9wEhIKDk9QX1VOU1BFQ0lGSUVEEAAS",
             "BwoDQUREEAESBwoDU1VCEAISBwoDTVVMEAMSBwoDRElWEAQSBwoDTU9EEAUi",
             "RwoPSG9zdFNldFZhcmlhYmxlEhEKCWRlc3RfaG9zdBgBIAEoCRIhCgV2YWx1",
-            "ZRgCIAEoCzISLm1ldGFvbm54LlZhbHVlUmVmIv0BCgxUZW5zb3JDcmVhdGUS",
+            "ZRgCIAEoCzISLm1ldGFvbm54LlZhbHVlUmVmIokCCgxUZW5zb3JDcmVhdGUS",
             "KAoLZGVzdF90ZW5zb3IYASABKAsyEy5tZXRhb25ueC5UZW5zb3JSZWYSDQoF",
-            "ZHR5cGUYAiABKAkSFAoMZGltc19saXRlcmFsGAMgAygDEikKBGZpbGwYBCAB",
-            "KA4yGy5tZXRhb25ueC5UZW5zb3JDcmVhdGUuRmlsbBIrCgV2YWx1ZRgFIAEo",
-            "CzIXLm1ldGFvbm54LlNjYWxhckxpdGVyYWxIAIgBASI8CgRGaWxsEhQKEEZJ",
-            "TExfVU5TUEVDSUZJRUQQABIJCgVaRVJPUxABEggKBE9ORVMQAhIJCgVWQUxV",
-            "RRADQggKBl92YWx1ZSL0AQoMSG9zdENhbGxiYWNrEi0KDWNhbGxiYWNrX3R5",
-            "cGUYASABKA4yFi5tZXRhb25ueC5DYWxsYmFja1R5cGUSFQoNY2FsbGJhY2tf",
-            "bmFtZRgCIAEoCRIgCgRhcmdzGAMgAygLMhIubWV0YW9ubnguVmFsdWVSZWYS",
-            "NgoIbWV0YWRhdGEYBCADKAsyJC5tZXRhb25ueC5Ib3N0Q2FsbGJhY2suTWV0",
-            "YWRhdGFFbnRyeRpECg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRImCgV2",
-            "YWx1ZRgCIAEoCzIXLm1ldGFvbm54LlNjYWxhckxpdGVyYWwioQEKCERpbUVu",
-            "dHJ5EigKBHR5cGUYASABKA4yGi5tZXRhb25ueC5EaW1FbnRyeS5EaW1UeXBl",
-            "Eg4KBHNpemUYAiABKA1IABIUCgpleHByZXNzaW9uGAMgASgJSAAiPAoHRGlt",
-            "VHlwZRIOCgpESU1fU1RBVElDEAASEAoMRElNX1NZTUJPTElDEAESDwoLRElN",
-            "X1JVTlRJTUUQAkIHCgV2YWx1ZSKnAwoETm9kZRIKCgJpZBgBIAEoCRISCgpt",
-            "b2RlbF9wYXRoGAIgASgJEisKBmlucHV0cxgDIAMoCzIbLm1ldGFvbm54Lk5v",
-            "ZGUuSW5wdXRCaW5kaW5nEi0KB291dHB1dHMYBCADKAsyHC5tZXRhb25ueC5O",
-            "b2RlLk91dHB1dEJpbmRpbmcSFAoMY29uZGl0aW9uX2lkGAUgASgJEikKC3By",
-            "ZV9hY3Rpb25zGAYgAygLMhQubWV0YW9ubnguSG9zdEFjdGlvbhIqCgxwb3N0",
-            "X2FjdGlvbnMYByADKAsyFC5tZXRhb25ueC5Ib3N0QWN0aW9uGlkKDElucHV0",
-            "QmluZGluZxISCgppbnB1dF9uYW1lGAEgASgJEhMKC3RlbnNvcl9uYW1lGAIg",
-            "ASgJEiAKBGRpbXMYAyADKAsyEi5tZXRhb25ueC5EaW1FbnRyeRpbCg1PdXRw",
-            "dXRCaW5kaW5nEhMKC291dHB1dF9uYW1lGAEgASgJEhMKC3RlbnNvcl9uYW1l",
-            "GAIgASgJEiAKBGRpbXMYAyADKAsyEi5tZXRhb25ueC5EaW1FbnRyeSL7AQoJ",
-            "Q29uZGl0aW9uEgoKAmlkGAEgASgJEiAKBGxlZnQYAiABKAsyEi5tZXRhb25u",
-            "eC5WYWx1ZVJlZhIhCgVyaWdodBgDIAEoCzISLm1ldGFvbm54LlZhbHVlUmVm",
-            "EjIKCmNvbXBhcmlzb24YBCABKA4yHi5tZXRhb25ueC5Db25kaXRpb24uQ29t",
-            "cGFyaXNvbiJpCgpDb21wYXJpc29uEhMKD0NNUF9VTlNQRUNJRklFRBAAEgoK",
-            "BkNNUF9FURABEgoKBkNNUF9ORRACEgoKBkNNUF9MVBADEgoKBkNNUF9MRRAE",
-            "EgoKBkNNUF9HVBAFEgoKBkNNUF9HRRAGIpoBCglHcmFwaEl0ZW0SEQoHbm9k",
-            "ZV9pZBgBIAEoCUgAEhEKB2xvb3BfaWQYAiABKAlIABIrCgtob3N0X2FjdGlv",
-            "bhgDIAEoCzIULm1ldGFvbm54Lkhvc3RBY3Rpb25IABIyCgtjb25kaXRpb25h",
-            "bBgEIAEoCzIbLm1ldGFvbm54LkNvbmRpdGlvbmFsQnJhbmNoSABCBgoEa2lu",
-            "ZCJ5ChFDb25kaXRpb25hbEJyYW5jaBIUCgxjb25kaXRpb25faWQYASABKAkS",
-            "JgoJdGhlbl9mbG93GAIgAygLMhMubWV0YW9ubnguR3JhcGhJdGVtEiYKCWVs",
-            "c2VfZmxvdxgDIAMoCzITLm1ldGFvbm54LkdyYXBoSXRlbSKDAQoETG9vcBIK",
-            "CgJpZBgBIAEoCRIlCghzdWJncmFwaBgCIAMoCzITLm1ldGFvbm54LkdyYXBo",
-            "SXRlbRIUCgxjb25kaXRpb25faWQYAyABKAkSGgoSaXRlcmF0aW9uX3Zhcl9u",
-            "YW1lGAQgASgJEhYKDm1heF9pdGVyYXRpb25zGAUgASgNIpACCglNZXRhR3Jh",
-            "cGgSHQoFbm9kZXMYASADKAsyDi5tZXRhb25ueC5Ob2RlEicKCmNvbmRpdGlv",
-            "bnMYAiADKAsyEy5tZXRhb25ueC5Db25kaXRpb24SHQoFbG9vcHMYAyADKAsy",
-            "Di5tZXRhb25ueC5Mb29wEhUKDW1ham9yX3ZlcnNpb24YBCABKA0SFQoNbWlu",
-            "b3JfdmVyc2lvbhgFIAEoDRIVCg1wYXRjaF92ZXJzaW9uGAYgASgNEjMKE3N1",
-            "cHBvcnRlZF9jYWxsYmFja3MYByADKA4yFi5tZXRhb25ueC5DYWxsYmFja1R5",
-            "cGUSIgoFZ3JhcGgYCCADKAsyEy5tZXRhb25ueC5HcmFwaEl0ZW0qVAoMQ2Fs",
-            "bGJhY2tUeXBlEhIKDkNCX1VOU1BFQ0lGSUVEEAASDAoIQ0JfRVJST1IQARIM",
-            "CghDQl9BVURJTxACEhQKEENCX1RSSUdHRVJTQU1QTEUQA2IGcHJvdG8z"));
+            "ZHR5cGUYAiABKAkSIAoEZGltcxgDIAMoCzISLm1ldGFvbm54LkRpbUVudHJ5",
+            "EikKBGZpbGwYBCABKA4yGy5tZXRhb25ueC5UZW5zb3JDcmVhdGUuRmlsbBIr",
+            "CgV2YWx1ZRgFIAEoCzIXLm1ldGFvbm54LlNjYWxhckxpdGVyYWxIAIgBASI8",
+            "CgRGaWxsEhQKEEZJTExfVU5TUEVDSUZJRUQQABIJCgVaRVJPUxABEggKBE9O",
+            "RVMQAhIJCgVWQUxVRRADQggKBl92YWx1ZSL0AQoMSG9zdENhbGxiYWNrEi0K",
+            "DWNhbGxiYWNrX3R5cGUYASABKA4yFi5tZXRhb25ueC5DYWxsYmFja1R5cGUS",
+            "FQoNY2FsbGJhY2tfbmFtZRgCIAEoCRIgCgRhcmdzGAMgAygLMhIubWV0YW9u",
+            "bnguVmFsdWVSZWYSNgoIbWV0YWRhdGEYBCADKAsyJC5tZXRhb25ueC5Ib3N0",
+            "Q2FsbGJhY2suTWV0YWRhdGFFbnRyeRpECg1NZXRhZGF0YUVudHJ5EgsKA2tl",
+            "eRgBIAEoCRImCgV2YWx1ZRgCIAEoCzIXLm1ldGFvbm54LlNjYWxhckxpdGVy",
+            "YWwioQEKCERpbUVudHJ5EigKBHR5cGUYASABKA4yGi5tZXRhb25ueC5EaW1F",
+            "bnRyeS5EaW1UeXBlEg4KBHNpemUYAiABKA1IABIUCgpleHByZXNzaW9uGAMg",
+            "ASgJSAAiPAoHRGltVHlwZRIOCgpESU1fU1RBVElDEAASEAoMRElNX1NZTUJP",
+            "TElDEAESDwoLRElNX1JVTlRJTUUQAkIHCgV2YWx1ZSLAAQoMSW5wdXRCaW5k",
+            "aW5nEhcKCmlucHV0X25hbWUYASABKAlIAIgBARITCgt0ZW5zb3JfbmFtZRgC",
+            "IAEoCRIgCgRkaW1zGAMgAygLMhIubWV0YW9ubnguRGltRW50cnkSEwoLaXNf",
+            "b3B0aW9uYWwYBCABKAgSLQoNZGVmYXVsdF92YWx1ZRgFIAEoCzIWLm1ldGFv",
+            "bm54LlRlbnNvckNyZWF0ZRINCgVkdHlwZRgGIAEoCUINCgtfaW5wdXRfbmFt",
+            "ZSL3AgoETm9kZRIKCgJpZBgBIAEoCRISCgptb2RlbF9wYXRoGAIgASgJEiYK",
+            "BmlucHV0cxgDIAMoCzIWLm1ldGFvbm54LklucHV0QmluZGluZxItCgdvdXRw",
+            "dXRzGAQgAygLMhwubWV0YW9ubnguTm9kZS5PdXRwdXRCaW5kaW5nEhQKDGNv",
+            "bmRpdGlvbl9pZBgFIAEoCRIpCgtwcmVfYWN0aW9ucxgGIAMoCzIULm1ldGFv",
+            "bm54Lkhvc3RBY3Rpb24SKgoMcG9zdF9hY3Rpb25zGAcgAygLMhQubWV0YW9u",
+            "bnguSG9zdEFjdGlvbhIuChBwcmVmZXJyZWRfZGV2aWNlGAggASgOMhQubWV0",
+            "YW9ubnguRGV2aWNlVHlwZRpbCg1PdXRwdXRCaW5kaW5nEhMKC291dHB1dF9u",
+            "YW1lGAEgASgJEhMKC3RlbnNvcl9uYW1lGAIgASgJEiAKBGRpbXMYAyADKAsy",
+            "Ei5tZXRhb25ueC5EaW1FbnRyeSL7AQoJQ29uZGl0aW9uEgoKAmlkGAEgASgJ",
+            "EiAKBGxlZnQYAiABKAsyEi5tZXRhb25ueC5WYWx1ZVJlZhIhCgVyaWdodBgD",
+            "IAEoCzISLm1ldGFvbm54LlZhbHVlUmVmEjIKCmNvbXBhcmlzb24YBCABKA4y",
+            "Hi5tZXRhb25ueC5Db25kaXRpb24uQ29tcGFyaXNvbiJpCgpDb21wYXJpc29u",
+            "EhMKD0NNUF9VTlNQRUNJRklFRBAAEgoKBkNNUF9FURABEgoKBkNNUF9ORRAC",
+            "EgoKBkNNUF9MVBADEgoKBkNNUF9MRRAEEgoKBkNNUF9HVBAFEgoKBkNNUF9H",
+            "RRAGIpoBCglHcmFwaEl0ZW0SEQoHbm9kZV9pZBgBIAEoCUgAEhEKB2xvb3Bf",
+            "aWQYAiABKAlIABIrCgtob3N0X2FjdGlvbhgDIAEoCzIULm1ldGFvbm54Lkhv",
+            "c3RBY3Rpb25IABIyCgtjb25kaXRpb25hbBgEIAEoCzIbLm1ldGFvbm54LkNv",
+            "bmRpdGlvbmFsQnJhbmNoSABCBgoEa2luZCJ5ChFDb25kaXRpb25hbEJyYW5j",
+            "aBIUCgxjb25kaXRpb25faWQYASABKAkSJgoJdGhlbl9mbG93GAIgAygLMhMu",
+            "bWV0YW9ubnguR3JhcGhJdGVtEiYKCWVsc2VfZmxvdxgDIAMoCzITLm1ldGFv",
+            "bm54LkdyYXBoSXRlbSKDAQoETG9vcBIKCgJpZBgBIAEoCRIlCghzdWJncmFw",
+            "aBgCIAMoCzITLm1ldGFvbm54LkdyYXBoSXRlbRIUCgxjb25kaXRpb25faWQY",
+            "AyABKAkSGgoSaXRlcmF0aW9uX3Zhcl9uYW1lGAQgASgJEhYKDm1heF9pdGVy",
+            "YXRpb25zGAUgASgNIrgCCglNZXRhR3JhcGgSHQoFbm9kZXMYASADKAsyDi5t",
+            "ZXRhb25ueC5Ob2RlEicKCmNvbmRpdGlvbnMYAiADKAsyEy5tZXRhb25ueC5D",
+            "b25kaXRpb24SHQoFbG9vcHMYAyADKAsyDi5tZXRhb25ueC5Mb29wEhUKDW1h",
+            "am9yX3ZlcnNpb24YBCABKA0SFQoNbWlub3JfdmVyc2lvbhgFIAEoDRIVCg1w",
+            "YXRjaF92ZXJzaW9uGAYgASgNEjMKE3N1cHBvcnRlZF9jYWxsYmFja3MYByAD",
+            "KA4yFi5tZXRhb25ueC5DYWxsYmFja1R5cGUSIgoFZ3JhcGgYCCADKAsyEy5t",
+            "ZXRhb25ueC5HcmFwaEl0ZW0SJgoGaW5wdXRzGAkgAygLMhYubWV0YW9ubngu",
+            "SW5wdXRCaW5kaW5nKlQKDENhbGxiYWNrVHlwZRISCg5DQl9VTlNQRUNJRklF",
+            "RBAAEgwKCENCX0VSUk9SEAESDAoIQ0JfQVVESU8QAhIUChBDQl9UUklHR0VS",
+            "U0FNUExFEAMqVAoKRGV2aWNlVHlwZRIWChJERVZJQ0VfVU5TUEVDSUZJRUQQ",
+            "ABIOCgpERVZJQ0VfQ1BVEAESDgoKREVWSUNFX0dQVRACEg4KCkRFVklDRV9O",
+            "UFUQA2IGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Metaonnx.CallbackType), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Metaonnx.CallbackType), typeof(global::Metaonnx.DeviceType), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.ValueRef), global::Metaonnx.ValueRef.Parser, new[]{ "Host", "Tensor", "Literal" }, new[]{ "Kind" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.HostVarRef), global::Metaonnx.HostVarRef.Parser, new[]{ "Name" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.TensorRef), global::Metaonnx.TensorRef.Parser, new[]{ "Name", "Dim" }, new[]{ "Dim" }, null, null, null),
@@ -118,16 +125,16 @@ namespace Metaonnx {
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.TensorRename), global::Metaonnx.TensorRename.Parser, new[]{ "DestTensor", "SrcTensor" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.HostBinaryOp), global::Metaonnx.HostBinaryOp.Parser, new[]{ "Op", "DestHost", "Left", "Right" }, null, new[]{ typeof(global::Metaonnx.HostBinaryOp.Types.Op) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.HostSetVariable), global::Metaonnx.HostSetVariable.Parser, new[]{ "DestHost", "Value" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.TensorCreate), global::Metaonnx.TensorCreate.Parser, new[]{ "DestTensor", "Dtype", "DimsLiteral", "Fill", "Value" }, new[]{ "Value" }, new[]{ typeof(global::Metaonnx.TensorCreate.Types.Fill) }, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.TensorCreate), global::Metaonnx.TensorCreate.Parser, new[]{ "DestTensor", "Dtype", "Dims", "Fill", "Value" }, new[]{ "Value" }, new[]{ typeof(global::Metaonnx.TensorCreate.Types.Fill) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.HostCallback), global::Metaonnx.HostCallback.Parser, new[]{ "CallbackType", "CallbackName", "Args", "Metadata" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.HostCallback.Types.MetadataEntry), global::Metaonnx.HostCallback.Types.MetadataEntry.Parser, new[]{ "Key", "Value" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.DimEntry), global::Metaonnx.DimEntry.Parser, new[]{ "Type", "Size", "Expression" }, new[]{ "Value" }, new[]{ typeof(global::Metaonnx.DimEntry.Types.DimType) }, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Node), global::Metaonnx.Node.Parser, new[]{ "Id", "ModelPath", "Inputs", "Outputs", "ConditionId", "PreActions", "PostActions" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Node.Types.InputBinding), global::Metaonnx.Node.Types.InputBinding.Parser, new[]{ "InputName", "TensorName", "Dims" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Node.Types.OutputBinding), global::Metaonnx.Node.Types.OutputBinding.Parser, new[]{ "OutputName", "TensorName", "Dims" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.InputBinding), global::Metaonnx.InputBinding.Parser, new[]{ "InputName", "TensorName", "Dims", "IsOptional", "DefaultValue", "Dtype" }, new[]{ "InputName" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Node), global::Metaonnx.Node.Parser, new[]{ "Id", "ModelPath", "Inputs", "Outputs", "ConditionId", "PreActions", "PostActions", "PreferredDevice" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Node.Types.OutputBinding), global::Metaonnx.Node.Types.OutputBinding.Parser, new[]{ "OutputName", "TensorName", "Dims" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Condition), global::Metaonnx.Condition.Parser, new[]{ "Id", "Left", "Right", "Comparison" }, null, new[]{ typeof(global::Metaonnx.Condition.Types.Comparison) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.GraphItem), global::Metaonnx.GraphItem.Parser, new[]{ "NodeId", "LoopId", "HostAction", "Conditional" }, new[]{ "Kind" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.ConditionalBranch), global::Metaonnx.ConditionalBranch.Parser, new[]{ "ConditionId", "ThenFlow", "ElseFlow" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.Loop), global::Metaonnx.Loop.Parser, new[]{ "Id", "Subgraph", "ConditionId", "IterationVarName", "MaxIterations" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.MetaGraph), global::Metaonnx.MetaGraph.Parser, new[]{ "Nodes", "Conditions", "Loops", "MajorVersion", "MinorVersion", "PatchVersion", "SupportedCallbacks", "Graph" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::Metaonnx.MetaGraph), global::Metaonnx.MetaGraph.Parser, new[]{ "Nodes", "Conditions", "Loops", "MajorVersion", "MinorVersion", "PatchVersion", "SupportedCallbacks", "Graph", "Inputs" }, null, null, null, null)
           }));
     }
     #endregion
@@ -139,6 +146,30 @@ namespace Metaonnx {
     [pbr::OriginalName("CB_ERROR")] CbError = 1,
     [pbr::OriginalName("CB_AUDIO")] CbAudio = 2,
     [pbr::OriginalName("CB_TRIGGERSAMPLE")] CbTriggersample = 3,
+  }
+
+  /// <summary>
+  /// Which class of hardware a node's model should be executed on.
+  ///
+  /// This is a portable request, not a platform-specific backend name: each
+  /// runtime maps it onto whatever it has (ONNX Runtime execution providers,
+  /// Unity Inference Engine BackendType, ...). A runtime that can't provide the
+  /// requested device is expected to fall back to DEVICE_CPU, which every
+  /// platform can satisfy.
+  ///
+  /// DEVICE_UNSPECIFIED leaves the choice to the runtime, so pinning is opt-in
+  /// per node: set it only where a node is known to behave badly on the
+  /// runtime's default device (e.g. the phonemizer, whose small autoregressive
+  /// steps are dominated by GPU dispatch overhead and run faster on CPU).
+  /// </summary>
+  public enum DeviceType {
+    /// <summary>
+    /// Runtime picks — no constraint from the graph.
+    /// </summary>
+    [pbr::OriginalName("DEVICE_UNSPECIFIED")] DeviceUnspecified = 0,
+    [pbr::OriginalName("DEVICE_CPU")] DeviceCpu = 1,
+    [pbr::OriginalName("DEVICE_GPU")] DeviceGpu = 2,
+    [pbr::OriginalName("DEVICE_NPU")] DeviceNpu = 3,
   }
 
   #endregion
@@ -3508,7 +3539,7 @@ namespace Metaonnx {
     public TensorCreate(TensorCreate other) : this() {
       destTensor_ = other.destTensor_ != null ? other.destTensor_.Clone() : null;
       dtype_ = other.dtype_;
-      dimsLiteral_ = other.dimsLiteral_.Clone();
+      dims_ = other.dims_.Clone();
       fill_ = other.fill_;
       value_ = other.value_ != null ? other.value_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -3547,18 +3578,21 @@ namespace Metaonnx {
       }
     }
 
-    /// <summary>Field number for the "dims_literal" field.</summary>
-    public const int DimsLiteralFieldNumber = 3;
-    private static readonly pb::FieldCodec<long> _repeated_dimsLiteral_codec
-        = pb::FieldCodec.ForInt64(26);
-    private readonly pbc::RepeatedField<long> dimsLiteral_ = new pbc::RepeatedField<long>();
+    /// <summary>Field number for the "dims" field.</summary>
+    public const int DimsFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::Metaonnx.DimEntry> _repeated_dims_codec
+        = pb::FieldCodec.ForMessage(26, global::Metaonnx.DimEntry.Parser);
+    private readonly pbc::RepeatedField<global::Metaonnx.DimEntry> dims_ = new pbc::RepeatedField<global::Metaonnx.DimEntry>();
     /// <summary>
-    /// literal tensor dimensions
+    /// Each entry is either a literal size (DIM_STATIC) or an expression
+    /// (DIM_SYMBOLIC/DIM_RUNTIME) evaluated against the tensor pool/host at
+    /// fill time — e.g. a default value whose shape must track a required
+    /// input's length (see mark_input_optional's dim_expr).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<long> DimsLiteral {
-      get { return dimsLiteral_; }
+    public pbc::RepeatedField<global::Metaonnx.DimEntry> Dims {
+      get { return dims_; }
     }
 
     /// <summary>Field number for the "fill" field.</summary>
@@ -3605,7 +3639,7 @@ namespace Metaonnx {
       }
       if (!object.Equals(DestTensor, other.DestTensor)) return false;
       if (Dtype != other.Dtype) return false;
-      if(!dimsLiteral_.Equals(other.dimsLiteral_)) return false;
+      if(!dims_.Equals(other.dims_)) return false;
       if (Fill != other.Fill) return false;
       if (!object.Equals(Value, other.Value)) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -3617,7 +3651,7 @@ namespace Metaonnx {
       int hash = 1;
       if (destTensor_ != null) hash ^= DestTensor.GetHashCode();
       if (Dtype.Length != 0) hash ^= Dtype.GetHashCode();
-      hash ^= dimsLiteral_.GetHashCode();
+      hash ^= dims_.GetHashCode();
       if (Fill != global::Metaonnx.TensorCreate.Types.Fill.Unspecified) hash ^= Fill.GetHashCode();
       if (value_ != null) hash ^= Value.GetHashCode();
       if (_unknownFields != null) {
@@ -3646,7 +3680,7 @@ namespace Metaonnx {
         output.WriteRawTag(18);
         output.WriteString(Dtype);
       }
-      dimsLiteral_.WriteTo(output, _repeated_dimsLiteral_codec);
+      dims_.WriteTo(output, _repeated_dims_codec);
       if (Fill != global::Metaonnx.TensorCreate.Types.Fill.Unspecified) {
         output.WriteRawTag(32);
         output.WriteEnum((int) Fill);
@@ -3673,7 +3707,7 @@ namespace Metaonnx {
         output.WriteRawTag(18);
         output.WriteString(Dtype);
       }
-      dimsLiteral_.WriteTo(ref output, _repeated_dimsLiteral_codec);
+      dims_.WriteTo(ref output, _repeated_dims_codec);
       if (Fill != global::Metaonnx.TensorCreate.Types.Fill.Unspecified) {
         output.WriteRawTag(32);
         output.WriteEnum((int) Fill);
@@ -3698,7 +3732,7 @@ namespace Metaonnx {
       if (Dtype.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Dtype);
       }
-      size += dimsLiteral_.CalculateSize(_repeated_dimsLiteral_codec);
+      size += dims_.CalculateSize(_repeated_dims_codec);
       if (Fill != global::Metaonnx.TensorCreate.Types.Fill.Unspecified) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Fill);
       }
@@ -3726,7 +3760,7 @@ namespace Metaonnx {
       if (other.Dtype.Length != 0) {
         Dtype = other.Dtype;
       }
-      dimsLiteral_.Add(other.dimsLiteral_);
+      dims_.Add(other.dims_);
       if (other.Fill != global::Metaonnx.TensorCreate.Types.Fill.Unspecified) {
         Fill = other.Fill;
       }
@@ -3762,9 +3796,8 @@ namespace Metaonnx {
             Dtype = input.ReadString();
             break;
           }
-          case 26:
-          case 24: {
-            dimsLiteral_.AddEntriesFrom(input, _repeated_dimsLiteral_codec);
+          case 26: {
+            dims_.AddEntriesFrom(input, _repeated_dims_codec);
             break;
           }
           case 32: {
@@ -3804,9 +3837,8 @@ namespace Metaonnx {
             Dtype = input.ReadString();
             break;
           }
-          case 26:
-          case 24: {
-            dimsLiteral_.AddEntriesFrom(ref input, _repeated_dimsLiteral_codec);
+          case 26: {
+            dims_.AddEntriesFrom(ref input, _repeated_dims_codec);
             break;
           }
           case 32: {
@@ -4705,6 +4737,409 @@ namespace Metaonnx {
   }
 
   /// <summary>
+  /// Describes a tensor pool entry an input is bound to, and the shape/dtype
+  /// contract it's expected to satisfy.
+  ///
+  /// Used both by Node (wiring an ONNX model's own input names to tensor pool
+  /// entries) and by MetaGraph (declaring the external inputs a caller must
+  /// supply before running the graph). input_name is only meaningful in the
+  /// former case — there's no single ONNX model input being bound to at the
+  /// graph level, so it's left unset there.
+  /// </summary>
+  public sealed partial class InputBinding : pb::IMessage<InputBinding>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<InputBinding> _parser = new pb::MessageParser<InputBinding>(() => new InputBinding());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<InputBinding> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[14]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InputBinding() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InputBinding(InputBinding other) : this() {
+      inputName_ = other.inputName_;
+      tensorName_ = other.tensorName_;
+      dims_ = other.dims_.Clone();
+      isOptional_ = other.isOptional_;
+      defaultValue_ = other.defaultValue_ != null ? other.defaultValue_.Clone() : null;
+      dtype_ = other.dtype_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InputBinding Clone() {
+      return new InputBinding(this);
+    }
+
+    /// <summary>Field number for the "input_name" field.</summary>
+    public const int InputNameFieldNumber = 1;
+    private string inputName_;
+    /// <summary>
+    /// ONNX model input name, if applicable.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string InputName {
+      get { return inputName_ ?? ""; }
+      set {
+        inputName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "input_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasInputName {
+      get { return inputName_ != null; }
+    }
+    /// <summary>Clears the value of the "input_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearInputName() {
+      inputName_ = null;
+    }
+
+    /// <summary>Field number for the "tensor_name" field.</summary>
+    public const int TensorNameFieldNumber = 2;
+    private string tensorName_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TensorName {
+      get { return tensorName_; }
+      set {
+        tensorName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "dims" field.</summary>
+    public const int DimsFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::Metaonnx.DimEntry> _repeated_dims_codec
+        = pb::FieldCodec.ForMessage(26, global::Metaonnx.DimEntry.Parser);
+    private readonly pbc::RepeatedField<global::Metaonnx.DimEntry> dims_ = new pbc::RepeatedField<global::Metaonnx.DimEntry>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Metaonnx.DimEntry> Dims {
+      get { return dims_; }
+    }
+
+    /// <summary>Field number for the "is_optional" field.</summary>
+    public const int IsOptionalFieldNumber = 4;
+    private bool isOptional_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool IsOptional {
+      get { return isOptional_; }
+      set {
+        isOptional_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "default_value" field.</summary>
+    public const int DefaultValueFieldNumber = 5;
+    private global::Metaonnx.TensorCreate defaultValue_;
+    /// <summary>
+    /// Used to fill the tensor pool when is_optional
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Metaonnx.TensorCreate DefaultValue {
+      get { return defaultValue_; }
+      set {
+        defaultValue_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "dtype" field.</summary>
+    public const int DtypeFieldNumber = 6;
+    private string dtype_ = "";
+    /// <summary>
+    /// ONNX element type, eg. "int64", "float32".
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Dtype {
+      get { return dtype_; }
+      set {
+        dtype_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as InputBinding);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(InputBinding other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (InputName != other.InputName) return false;
+      if (TensorName != other.TensorName) return false;
+      if(!dims_.Equals(other.dims_)) return false;
+      if (IsOptional != other.IsOptional) return false;
+      if (!object.Equals(DefaultValue, other.DefaultValue)) return false;
+      if (Dtype != other.Dtype) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasInputName) hash ^= InputName.GetHashCode();
+      if (TensorName.Length != 0) hash ^= TensorName.GetHashCode();
+      hash ^= dims_.GetHashCode();
+      if (IsOptional != false) hash ^= IsOptional.GetHashCode();
+      if (defaultValue_ != null) hash ^= DefaultValue.GetHashCode();
+      if (Dtype.Length != 0) hash ^= Dtype.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasInputName) {
+        output.WriteRawTag(10);
+        output.WriteString(InputName);
+      }
+      if (TensorName.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(TensorName);
+      }
+      dims_.WriteTo(output, _repeated_dims_codec);
+      if (IsOptional != false) {
+        output.WriteRawTag(32);
+        output.WriteBool(IsOptional);
+      }
+      if (defaultValue_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(DefaultValue);
+      }
+      if (Dtype.Length != 0) {
+        output.WriteRawTag(50);
+        output.WriteString(Dtype);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasInputName) {
+        output.WriteRawTag(10);
+        output.WriteString(InputName);
+      }
+      if (TensorName.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(TensorName);
+      }
+      dims_.WriteTo(ref output, _repeated_dims_codec);
+      if (IsOptional != false) {
+        output.WriteRawTag(32);
+        output.WriteBool(IsOptional);
+      }
+      if (defaultValue_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(DefaultValue);
+      }
+      if (Dtype.Length != 0) {
+        output.WriteRawTag(50);
+        output.WriteString(Dtype);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasInputName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(InputName);
+      }
+      if (TensorName.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TensorName);
+      }
+      size += dims_.CalculateSize(_repeated_dims_codec);
+      if (IsOptional != false) {
+        size += 1 + 1;
+      }
+      if (defaultValue_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(DefaultValue);
+      }
+      if (Dtype.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Dtype);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(InputBinding other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasInputName) {
+        InputName = other.InputName;
+      }
+      if (other.TensorName.Length != 0) {
+        TensorName = other.TensorName;
+      }
+      dims_.Add(other.dims_);
+      if (other.IsOptional != false) {
+        IsOptional = other.IsOptional;
+      }
+      if (other.defaultValue_ != null) {
+        if (defaultValue_ == null) {
+          DefaultValue = new global::Metaonnx.TensorCreate();
+        }
+        DefaultValue.MergeFrom(other.DefaultValue);
+      }
+      if (other.Dtype.Length != 0) {
+        Dtype = other.Dtype;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            InputName = input.ReadString();
+            break;
+          }
+          case 18: {
+            TensorName = input.ReadString();
+            break;
+          }
+          case 26: {
+            dims_.AddEntriesFrom(input, _repeated_dims_codec);
+            break;
+          }
+          case 32: {
+            IsOptional = input.ReadBool();
+            break;
+          }
+          case 42: {
+            if (defaultValue_ == null) {
+              DefaultValue = new global::Metaonnx.TensorCreate();
+            }
+            input.ReadMessage(DefaultValue);
+            break;
+          }
+          case 50: {
+            Dtype = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            InputName = input.ReadString();
+            break;
+          }
+          case 18: {
+            TensorName = input.ReadString();
+            break;
+          }
+          case 26: {
+            dims_.AddEntriesFrom(ref input, _repeated_dims_codec);
+            break;
+          }
+          case 32: {
+            IsOptional = input.ReadBool();
+            break;
+          }
+          case 42: {
+            if (defaultValue_ == null) {
+              DefaultValue = new global::Metaonnx.TensorCreate();
+            }
+            input.ReadMessage(DefaultValue);
+            break;
+          }
+          case 50: {
+            Dtype = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// A single ONNX model invocation.
   /// </summary>
   public sealed partial class Node : pb::IMessage<Node>
@@ -4721,7 +5156,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[14]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[15]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4748,6 +5183,7 @@ namespace Metaonnx {
       conditionId_ = other.conditionId_;
       preActions_ = other.preActions_.Clone();
       postActions_ = other.postActions_.Clone();
+      preferredDevice_ = other.preferredDevice_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4783,12 +5219,12 @@ namespace Metaonnx {
 
     /// <summary>Field number for the "inputs" field.</summary>
     public const int InputsFieldNumber = 3;
-    private static readonly pb::FieldCodec<global::Metaonnx.Node.Types.InputBinding> _repeated_inputs_codec
-        = pb::FieldCodec.ForMessage(26, global::Metaonnx.Node.Types.InputBinding.Parser);
-    private readonly pbc::RepeatedField<global::Metaonnx.Node.Types.InputBinding> inputs_ = new pbc::RepeatedField<global::Metaonnx.Node.Types.InputBinding>();
+    private static readonly pb::FieldCodec<global::Metaonnx.InputBinding> _repeated_inputs_codec
+        = pb::FieldCodec.ForMessage(26, global::Metaonnx.InputBinding.Parser);
+    private readonly pbc::RepeatedField<global::Metaonnx.InputBinding> inputs_ = new pbc::RepeatedField<global::Metaonnx.InputBinding>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::Metaonnx.Node.Types.InputBinding> Inputs {
+    public pbc::RepeatedField<global::Metaonnx.InputBinding> Inputs {
       get { return inputs_; }
     }
 
@@ -4843,6 +5279,22 @@ namespace Metaonnx {
       get { return postActions_; }
     }
 
+    /// <summary>Field number for the "preferred_device" field.</summary>
+    public const int PreferredDeviceFieldNumber = 8;
+    private global::Metaonnx.DeviceType preferredDevice_ = global::Metaonnx.DeviceType.DeviceUnspecified;
+    /// <summary>
+    /// Hardware this node's model should run on. Unset (DEVICE_UNSPECIFIED)
+    /// means the runtime decides.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Metaonnx.DeviceType PreferredDevice {
+      get { return preferredDevice_; }
+      set {
+        preferredDevice_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4865,6 +5317,7 @@ namespace Metaonnx {
       if (ConditionId != other.ConditionId) return false;
       if(!preActions_.Equals(other.preActions_)) return false;
       if(!postActions_.Equals(other.postActions_)) return false;
+      if (PreferredDevice != other.PreferredDevice) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4879,6 +5332,7 @@ namespace Metaonnx {
       if (ConditionId.Length != 0) hash ^= ConditionId.GetHashCode();
       hash ^= preActions_.GetHashCode();
       hash ^= postActions_.GetHashCode();
+      if (PreferredDevice != global::Metaonnx.DeviceType.DeviceUnspecified) hash ^= PreferredDevice.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4913,6 +5367,10 @@ namespace Metaonnx {
       }
       preActions_.WriteTo(output, _repeated_preActions_codec);
       postActions_.WriteTo(output, _repeated_postActions_codec);
+      if (PreferredDevice != global::Metaonnx.DeviceType.DeviceUnspecified) {
+        output.WriteRawTag(64);
+        output.WriteEnum((int) PreferredDevice);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4939,6 +5397,10 @@ namespace Metaonnx {
       }
       preActions_.WriteTo(ref output, _repeated_preActions_codec);
       postActions_.WriteTo(ref output, _repeated_postActions_codec);
+      if (PreferredDevice != global::Metaonnx.DeviceType.DeviceUnspecified) {
+        output.WriteRawTag(64);
+        output.WriteEnum((int) PreferredDevice);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4962,6 +5424,9 @@ namespace Metaonnx {
       }
       size += preActions_.CalculateSize(_repeated_preActions_codec);
       size += postActions_.CalculateSize(_repeated_postActions_codec);
+      if (PreferredDevice != global::Metaonnx.DeviceType.DeviceUnspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) PreferredDevice);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -4987,6 +5452,9 @@ namespace Metaonnx {
       }
       preActions_.Add(other.preActions_);
       postActions_.Add(other.postActions_);
+      if (other.PreferredDevice != global::Metaonnx.DeviceType.DeviceUnspecified) {
+        PreferredDevice = other.PreferredDevice;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -5028,6 +5496,10 @@ namespace Metaonnx {
           }
           case 58: {
             postActions_.AddEntriesFrom(input, _repeated_postActions_codec);
+            break;
+          }
+          case 64: {
+            PreferredDevice = (global::Metaonnx.DeviceType) input.ReadEnum();
             break;
           }
         }
@@ -5073,6 +5545,10 @@ namespace Metaonnx {
             postActions_.AddEntriesFrom(ref input, _repeated_postActions_codec);
             break;
           }
+          case 64: {
+            PreferredDevice = (global::Metaonnx.DeviceType) input.ReadEnum();
+            break;
+          }
         }
       }
     }
@@ -5083,261 +5559,6 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static partial class Types {
-      public sealed partial class InputBinding : pb::IMessage<InputBinding>
-      #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          , pb::IBufferMessage
-      #endif
-      {
-        private static readonly pb::MessageParser<InputBinding> _parser = new pb::MessageParser<InputBinding>(() => new InputBinding());
-        private pb::UnknownFieldSet _unknownFields;
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pb::MessageParser<InputBinding> Parser { get { return _parser; } }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public static pbr::MessageDescriptor Descriptor {
-          get { return global::Metaonnx.Node.Descriptor.NestedTypes[0]; }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        pbr::MessageDescriptor pb::IMessage.Descriptor {
-          get { return Descriptor; }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public InputBinding() {
-          OnConstruction();
-        }
-
-        partial void OnConstruction();
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public InputBinding(InputBinding other) : this() {
-          inputName_ = other.inputName_;
-          tensorName_ = other.tensorName_;
-          dims_ = other.dims_.Clone();
-          _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public InputBinding Clone() {
-          return new InputBinding(this);
-        }
-
-        /// <summary>Field number for the "input_name" field.</summary>
-        public const int InputNameFieldNumber = 1;
-        private string inputName_ = "";
-        /// <summary>
-        /// ONNX model input name.
-        /// </summary>
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public string InputName {
-          get { return inputName_; }
-          set {
-            inputName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-          }
-        }
-
-        /// <summary>Field number for the "tensor_name" field.</summary>
-        public const int TensorNameFieldNumber = 2;
-        private string tensorName_ = "";
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public string TensorName {
-          get { return tensorName_; }
-          set {
-            tensorName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-          }
-        }
-
-        /// <summary>Field number for the "dims" field.</summary>
-        public const int DimsFieldNumber = 3;
-        private static readonly pb::FieldCodec<global::Metaonnx.DimEntry> _repeated_dims_codec
-            = pb::FieldCodec.ForMessage(26, global::Metaonnx.DimEntry.Parser);
-        private readonly pbc::RepeatedField<global::Metaonnx.DimEntry> dims_ = new pbc::RepeatedField<global::Metaonnx.DimEntry>();
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public pbc::RepeatedField<global::Metaonnx.DimEntry> Dims {
-          get { return dims_; }
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override bool Equals(object other) {
-          return Equals(other as InputBinding);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public bool Equals(InputBinding other) {
-          if (ReferenceEquals(other, null)) {
-            return false;
-          }
-          if (ReferenceEquals(other, this)) {
-            return true;
-          }
-          if (InputName != other.InputName) return false;
-          if (TensorName != other.TensorName) return false;
-          if(!dims_.Equals(other.dims_)) return false;
-          return Equals(_unknownFields, other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override int GetHashCode() {
-          int hash = 1;
-          if (InputName.Length != 0) hash ^= InputName.GetHashCode();
-          if (TensorName.Length != 0) hash ^= TensorName.GetHashCode();
-          hash ^= dims_.GetHashCode();
-          if (_unknownFields != null) {
-            hash ^= _unknownFields.GetHashCode();
-          }
-          return hash;
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public override string ToString() {
-          return pb::JsonFormatter.ToDiagnosticString(this);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void WriteTo(pb::CodedOutputStream output) {
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          output.WriteRawMessage(this);
-        #else
-          if (InputName.Length != 0) {
-            output.WriteRawTag(10);
-            output.WriteString(InputName);
-          }
-          if (TensorName.Length != 0) {
-            output.WriteRawTag(18);
-            output.WriteString(TensorName);
-          }
-          dims_.WriteTo(output, _repeated_dims_codec);
-          if (_unknownFields != null) {
-            _unknownFields.WriteTo(output);
-          }
-        #endif
-        }
-
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-          if (InputName.Length != 0) {
-            output.WriteRawTag(10);
-            output.WriteString(InputName);
-          }
-          if (TensorName.Length != 0) {
-            output.WriteRawTag(18);
-            output.WriteString(TensorName);
-          }
-          dims_.WriteTo(ref output, _repeated_dims_codec);
-          if (_unknownFields != null) {
-            _unknownFields.WriteTo(ref output);
-          }
-        }
-        #endif
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public int CalculateSize() {
-          int size = 0;
-          if (InputName.Length != 0) {
-            size += 1 + pb::CodedOutputStream.ComputeStringSize(InputName);
-          }
-          if (TensorName.Length != 0) {
-            size += 1 + pb::CodedOutputStream.ComputeStringSize(TensorName);
-          }
-          size += dims_.CalculateSize(_repeated_dims_codec);
-          if (_unknownFields != null) {
-            size += _unknownFields.CalculateSize();
-          }
-          return size;
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(InputBinding other) {
-          if (other == null) {
-            return;
-          }
-          if (other.InputName.Length != 0) {
-            InputName = other.InputName;
-          }
-          if (other.TensorName.Length != 0) {
-            TensorName = other.TensorName;
-          }
-          dims_.Add(other.dims_);
-          _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-        }
-
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        public void MergeFrom(pb::CodedInputStream input) {
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-          input.ReadRawMessage(this);
-        #else
-          uint tag;
-          while ((tag = input.ReadTag()) != 0) {
-            switch(tag) {
-              default:
-                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-                break;
-              case 10: {
-                InputName = input.ReadString();
-                break;
-              }
-              case 18: {
-                TensorName = input.ReadString();
-                break;
-              }
-              case 26: {
-                dims_.AddEntriesFrom(input, _repeated_dims_codec);
-                break;
-              }
-            }
-          }
-        #endif
-        }
-
-        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-        void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-          uint tag;
-          while ((tag = input.ReadTag()) != 0) {
-            switch(tag) {
-              default:
-                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-                break;
-              case 10: {
-                InputName = input.ReadString();
-                break;
-              }
-              case 18: {
-                TensorName = input.ReadString();
-                break;
-              }
-              case 26: {
-                dims_.AddEntriesFrom(ref input, _repeated_dims_codec);
-                break;
-              }
-            }
-          }
-        }
-        #endif
-
-      }
-
       public sealed partial class OutputBinding : pb::IMessage<OutputBinding>
       #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           , pb::IBufferMessage
@@ -5352,7 +5573,7 @@ namespace Metaonnx {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public static pbr::MessageDescriptor Descriptor {
-          get { return global::Metaonnx.Node.Descriptor.NestedTypes[1]; }
+          get { return global::Metaonnx.Node.Descriptor.NestedTypes[0]; }
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5616,7 +5837,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[15]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5955,7 +6176,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[16]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6332,7 +6553,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[17]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[18]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6579,7 +6800,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[18]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[19]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6908,7 +7129,7 @@ namespace Metaonnx {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[19]; }
+      get { return global::Metaonnx.MetaGraphReflection.Descriptor.MessageTypes[20]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6936,6 +7157,7 @@ namespace Metaonnx {
       patchVersion_ = other.patchVersion_;
       supportedCallbacks_ = other.supportedCallbacks_.Clone();
       graph_ = other.graph_.Clone();
+      inputs_ = other.inputs_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -7039,6 +7261,23 @@ namespace Metaonnx {
       get { return graph_; }
     }
 
+    /// <summary>Field number for the "inputs" field.</summary>
+    public const int InputsFieldNumber = 9;
+    private static readonly pb::FieldCodec<global::Metaonnx.InputBinding> _repeated_inputs_codec
+        = pb::FieldCodec.ForMessage(74, global::Metaonnx.InputBinding.Parser);
+    private readonly pbc::RepeatedField<global::Metaonnx.InputBinding> inputs_ = new pbc::RepeatedField<global::Metaonnx.InputBinding>();
+    /// <summary>
+    /// Declares the tensors a caller must supply in the tensor pool before
+    /// running the graph, so the runner can validate them up front and report
+    /// e.g. "missing input X" / "X has wrong dtype" instead of failing deep
+    /// inside ONNX Runtime.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Metaonnx.InputBinding> Inputs {
+      get { return inputs_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -7062,6 +7301,7 @@ namespace Metaonnx {
       if (PatchVersion != other.PatchVersion) return false;
       if(!supportedCallbacks_.Equals(other.supportedCallbacks_)) return false;
       if(!graph_.Equals(other.graph_)) return false;
+      if(!inputs_.Equals(other.inputs_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -7077,6 +7317,7 @@ namespace Metaonnx {
       if (PatchVersion != 0) hash ^= PatchVersion.GetHashCode();
       hash ^= supportedCallbacks_.GetHashCode();
       hash ^= graph_.GetHashCode();
+      hash ^= inputs_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -7112,6 +7353,7 @@ namespace Metaonnx {
       }
       supportedCallbacks_.WriteTo(output, _repeated_supportedCallbacks_codec);
       graph_.WriteTo(output, _repeated_graph_codec);
+      inputs_.WriteTo(output, _repeated_inputs_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -7139,6 +7381,7 @@ namespace Metaonnx {
       }
       supportedCallbacks_.WriteTo(ref output, _repeated_supportedCallbacks_codec);
       graph_.WriteTo(ref output, _repeated_graph_codec);
+      inputs_.WriteTo(ref output, _repeated_inputs_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -7163,6 +7406,7 @@ namespace Metaonnx {
       }
       size += supportedCallbacks_.CalculateSize(_repeated_supportedCallbacks_codec);
       size += graph_.CalculateSize(_repeated_graph_codec);
+      size += inputs_.CalculateSize(_repeated_inputs_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -7189,6 +7433,7 @@ namespace Metaonnx {
       }
       supportedCallbacks_.Add(other.supportedCallbacks_);
       graph_.Add(other.graph_);
+      inputs_.Add(other.inputs_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -7237,6 +7482,10 @@ namespace Metaonnx {
             graph_.AddEntriesFrom(input, _repeated_graph_codec);
             break;
           }
+          case 74: {
+            inputs_.AddEntriesFrom(input, _repeated_inputs_codec);
+            break;
+          }
         }
       }
     #endif
@@ -7283,6 +7532,10 @@ namespace Metaonnx {
           }
           case 66: {
             graph_.AddEntriesFrom(ref input, _repeated_graph_codec);
+            break;
+          }
+          case 74: {
+            inputs_.AddEntriesFrom(ref input, _repeated_inputs_codec);
             break;
           }
         }

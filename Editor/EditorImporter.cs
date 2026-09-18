@@ -21,18 +21,23 @@ namespace Lingotion.Thespeon.Editor
     public class EditorImporter
     {
         /// <summary>
-        /// Extracts, verifies and imports a Lingotion file.
+        /// Opens a file dialog and imports the selected Lingotion file.
         /// </summary>
         public static void ImportThespeon()
         {
+            string zipPath = EditorUtility.OpenFilePanel("Select Lingotion file", "", "lingotion");
+            if (string.IsNullOrEmpty(zipPath))
+                return;
+            ImportThespeonFromPath(zipPath);
+        }
+
+        /// <summary>
+        /// Extracts, verifies and imports a Lingotion file from the given path.
+        /// </summary>
+        public static void ImportThespeonFromPath(string zipPath)
+        {
             try
             {
-                string zipPath = EditorUtility.OpenFilePanel("Select Lingotion file", "", "lingotion");
-                if (string.IsNullOrEmpty(zipPath))
-                {
-                    return;
-                }
-
                 string tempExtractPath = Path.Combine(Application.dataPath, "LingotionTempExtract");
                 RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
                 ZipFile.ExtractToDirectory(zipPath, tempExtractPath, true);
@@ -55,10 +60,9 @@ namespace Lingotion.Thespeon.Editor
                 }
 
                 int importedCount = 0;
-                LingotionLogger.Info($"Found {configFiles.Count} config file(s) in {zipPath}. Starting import...");
+                LingotionLogger.Debug($"Found {configFiles.Count} config file(s) in {zipPath}. Starting import...");
                 foreach ((string configPath, JObject config) in configFiles)
                 {
-                    string configType = config["type"]?.ToString();
                     string configName = config["name"]?.ToString() ?? Path.GetFileNameWithoutExtension(configPath);
 
                     // Verify all referenced files exist in extract
@@ -77,7 +81,7 @@ namespace Lingotion.Thespeon.Editor
                         continue;
                     }
                     importedCount++;
-                    LingotionLogger.Info($"Successfully imported {configType}: {configName}");
+                    LingotionLogger.Info($"Successfully imported {configName}");
                 }
 
                 RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
@@ -85,11 +89,11 @@ namespace Lingotion.Thespeon.Editor
 
                 if (importedCount == 0)
                 {
-                    LingotionLogger.Error($"No files were successfully imported from {zipPath}.");
+                    LingotionLogger.Error($"No files were successfully imported.");
                 }
                 else
                 {
-                    LingotionLogger.Info($"Imported {importedCount}/{configFiles.Count} file(s) from {zipPath}");
+                    LingotionLogger.Info($"Imported {importedCount}/{configFiles.Count} file(s)");
                 }
             }
             catch (Exception e)
@@ -232,7 +236,7 @@ namespace Lingotion.Thespeon.Editor
                 ModelAsset modelAsset = AssetDatabase.LoadAssetAtPath<ModelAsset>(unityRelativePath);
                 if (modelAsset == null)
                 {
-                    LingotionLogger.Error($"Failed to load ONNX as ModelAsset: {md5}.onnx");
+                    LingotionLogger.Error($"Failed to load model file as ModelAsset: {md5}.onnx");
                     return false;
                 }
 
@@ -240,12 +244,12 @@ namespace Lingotion.Thespeon.Editor
                 string sentisDestPath = Path.Combine(destPath, $"{md5}.sentis");
                 ModelWriter.Save(sentisDestPath, modelAsset);
 
-                LingotionLogger.Debug($"Serialized ONNX to Sentis: {md5}.onnx -> {md5}.sentis");
+                LingotionLogger.Debug($"Serialized file: {md5}");
                 return true;
             }
             catch (Exception ex)
             {
-                LingotionLogger.Error($"Failed to serialize ONNX file {md5}: {ex.Message}");
+                LingotionLogger.Error($"Failed to serialize file {md5}: {ex.Message}");
                 return false;
             }
         }

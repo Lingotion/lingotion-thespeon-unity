@@ -1,0 +1,38 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="RegisterRoot" style="flex-direction: column; flex-wrap: nowrap; flex-grow: 1; align-items: center; justify-content: center;">
+        <ui:Label text="Lingotion Thespeon" style="align-self: center; font-size: 23px; -unity-text-align: upper-center; letter-spacing: 0; word-spacing: 0; -unity-font-style: normal; padding-top: 0; padding-bottom: 0;"/>
+        <ui:Button name="AlreadyHaveAccountButton" text="I already have an account" style="max-width: initial; width: 200px; align-items: auto; align-self: center; padding-top: 2px; margin-top: 48px;"/>
+        <ui:Button name="CreateAccountButton" text="Create account" style="max-width: initial; width: 200px; align-items: auto; align-self: center; margin-top: 48px;"/>
+    </ui:VisualElement>
+    <ui:VisualElement name="LicenseRoot" style="flex-direction: column;">
+        <ui:Button name="LicenseHelpBoxButton" class="unity-help-box unity-help-box--info helpbox-link">
+            <ui:VisualElement class="unity-help-box__icon unity-help-box__icon--info"/>
+            <ui:Label name="LicenseHelpBoxLabel" text="Add your Lingotion Project&apos;s license key below.  &#10;Click here or go to https://portal.lingotion.com/ and find your license key in the Projects tab." class="unity-help-box__label" style="-unity-text-align: middle-left;"/>
+        </ui:Button>
+        <ui:TextField name="LicenseField" label="License Key" tooltip="Add your Lingotion Project&apos;s license key here. Your license key is required to use Lingotion Thespeon."/>
+        <ui:HelpBox name="LicenseErrorHelpBox" text="License key is invalid." message-type="Error" style="display: none;"/>
+        <ui:VisualElement style="flex-direction: row; justify-content: space-between;">
+            <ui:Button name="LicenseBackButton" text="Back" style="align-self: flex-start; margin-top: 5px;"/>
+            <ui:Button name="LicenseSubmitButton" text="Submit" style="align-self: flex-start; margin-top: 5px;"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="DownloadTokenRoot" style="flex-direction: column;">
+        <ui:HelpBox name="DownloadTokenHelpBox" text="Complete the registration in your browser and paste the download token below." message-type="Info" picking-mode="Position"/>
+        <ui:TextField name="DownloadTokenField" label="Download Token" tooltip="Enter the download token from your Lingotion account."/>
+        <ui:HelpBox name="DownloadTokenErrorHelpBox" text="Download token is invalid." message-type="Error" style="display: none;"/>
+        <ui:VisualElement style="flex-direction: row; justify-content: space-between;">
+            <ui:Button name="DownloadTokenBackButton" text="Back"/>
+            <ui:Button name="DownloadTokenSubmitButton" text="Submit"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="FunctionalRoot" style="flex-grow: 1; flex-direction: column;">
+        <uie:Toolbar name="ThespeonWindowToolbar">
+            <uie:ToolbarToggle name="ToggleOverviewTab" text="Overview"/>
+            <uie:ToolbarToggle name="ToggleSynthesisLabTab" text="Synthesis Lab"/>
+        </uie:Toolbar>
+        <ui:VisualElement name="PageContainer" style="flex-grow: 1; flex-direction: column;"/>
+    </ui:VisualElement>
+    <ui:VisualElement name="DownloadProgressContainer" style="display: none; padding: 4px 8px; border-top-width: 1px; border-top-color: rgba(0,0,0,0.2);">
+        <ui:Label name="DownloadProgressLabel" text="Downloading..."/>
+    </ui:VisualElement>
+</ui:UXML>

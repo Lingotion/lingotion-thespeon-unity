@@ -21,6 +21,11 @@ namespace Lingotion.Thespeon.Inputs
         /// The module type associated with the character.
         /// </summary>
         public ModuleType moduleType;
+        /// <summary>
+        /// The version of the module this asset was generated from, formatted as "major.minor.patch".
+        /// Populated automatically by the asset generator and empty on manually created assets.
+        /// </summary>
+        public string moduleVersion;
     }
 
     /// <summary>

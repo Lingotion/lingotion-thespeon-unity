@@ -186,6 +186,11 @@ namespace Lingotion.Thespeon.Editor
 
                     importedConfigs[parsed.Value.FrontFacingName] = fileName;
                 }
+                catch (InvalidDataException ex)
+                {
+
+                    LingotionLogger.Error($"Lingotion import rejected {fileName}: {ex.Message}");
+                }
                 catch (Exception ex)
                 {
                     LingotionLogger.Error($"Lingotion folder watcher failed! Error processing {jsonPath}: {ex.Message}\n{ex.StackTrace}");

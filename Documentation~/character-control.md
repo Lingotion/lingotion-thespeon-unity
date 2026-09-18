@@ -49,6 +49,22 @@ List<ThespeonInputSegment> segments = new() {
 ```
 This changes the emotion of which the character says that particular segment. Try experimenting with different emotions and text lengths!
 
+## Blending emotions and shaping delivery
+Instead of a single emotion, a segment can carry an emotion *blend* at its start and another at its end, plus speed and loudness values for each of those two boundaries:
+```csharp
+List<ThespeonInputSegment> segments = new() {
+  new("Hi! This is my voice ",
+      startEmotion: new() { { Emotion.Joy, 1f } },
+      endEmotion:   new() { { Emotion.Joy, 0.5f }, { Emotion.Anticipation, 0.5f } },
+      startSpeed: 1f, endSpeed: 1.2f),
+  new("generated in real time!",
+      startEmotion: new() { { Emotion.Anticipation, 1f } },
+      endEmotion:   new() { { Emotion.Anger, 1f } },
+      startLoudness: 1f, endLoudness: 1.4f)
+};
+```
+Weights are clamped to `[0,1]` and normalized to sum to 1. All the boundary values across the input act as keypoints on a single curve over the whole line, so values are interpolated smoothly between the keypoints you supply, held flat before the first and after the last one, and may jump where one segment ends and the next begins. Passing an empty blend (or one containing only `Emotion.None`) means "no opinion here" and lets the curve pass straight through that boundary.
+
 One may also change the language or and dialect of the speaker, provided that the character supports it. To see what options your imported character supports, go to the **Characters** tab of the Thespeon Info Window, and select a character in the list to see all installed modules. Expand the target module to see the supported languages and dialects.
 
 ![Character Information](./data/character-information.png?raw=true "Character Information")
@@ -98,8 +114,7 @@ Run the sample again, and you should hear the character speak Black Speech.
 # Changing Input-Wide Parameters
 The [`ThespeonInput`](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoninput) class itself allows you to select defaults for emotion, lanugage and dialect with the optional arguments _defaultEmotion_, _defaultLanguage_ and _defaultDialect_. Whenever a segment does not have a specified parameter, it will fall back on the global default. The default will in turn be selected for you if you do not do so yourself. You may use this field to clean up your code to avoid having to provide the same instructions to several segments.
 
-> [!WARNING]
-> Speed and loudness curves are currently not supported and will be ignored during synthesis. This feature will return in a future update.
+You may also supply _speed_ and _loudness_ as `AnimationCurve`s spanning the whole input. They are sampled at each segment boundary and interpolated over the line, so a rising speed curve gradually speeds the delivery up. Leaving a curve out (or leaving it flat at 1) keeps the per-segment values instead.
 
 > [!NOTE]
 > The mapping of specific characters includes **all** characters, including non-audible characters and blank spaces. If an output does not seem to match a substring, verify that surrounding special characters are included in the substring. 

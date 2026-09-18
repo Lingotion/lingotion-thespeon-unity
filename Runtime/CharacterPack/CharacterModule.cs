@@ -7,11 +7,8 @@ using Unity.InferenceEngine;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using Lingotion.Thespeon.Core.IO;
-using System.IO;
 using System;
 using System.Collections;
-using Metaonnx;
-using Google.Protobuf;
 
 namespace Lingotion.Thespeon.Character
 {
@@ -27,18 +24,6 @@ namespace Lingotion.Thespeon.Character
         private int _characterKey;
 
         private Dictionary<string, int> _phonemeToEncoderID;
-
-        private MetaGraph _metaGraph;
-
-        /// <summary>
-        /// Gets whether this module has a MetaGraph. Expected to be true for all character modules.
-        /// </summary>
-        public bool HasMetaGraph => _metaGraph != null;
-
-        /// <summary>
-        /// Gets the MetaGraph for this module.
-        /// </summary>
-        public MetaGraph MetaGraph => _metaGraph;
 
         /// <summary>
         /// Creates a new CharacterModule instance.
@@ -86,7 +71,7 @@ namespace Lingotion.Thespeon.Character
                     {
                         // Create a ModuleLanguage with just the iso639_2 code
                         ModuleLanguage moduleLang = new(iso639_2, null, null, null, null, null);
-                        languageModuleIDs[moduleLang.ToJson()] = baseModuleId;
+                        languageModuleIDs[moduleLang.ToJson()] = ResolveImportedLanguageModuleID(iso639_2, baseModuleId);
                     }
                 }
             }
@@ -124,32 +109,30 @@ namespace Lingotion.Thespeon.Character
         }
 
         /// <summary>
-        /// Attempts to load the MetaGraph from file mapping if it exists.
+        /// Resolves the language module a character pins to one that is actually imported. A module ID
+        /// encodes the content it was built from, so the same language rebuilt gets a different ID and the
+        /// pinned one stops resolving. Rather than lose the language entirely, any imported module serving
+        /// it is substituted.
         /// </summary>
-        private void TryLoadMetaGraph()
+        /// <param name="iso639_2">ISO 639-2 code the pinned module serves.</param>
+        /// <param name="requestedID">Language module ID the character was built against.</param>
+        /// <returns>An imported module ID serving the language, or <paramref name="requestedID"/> if none does.</returns>
+        private static string ResolveImportedLanguageModuleID(string iso639_2, string requestedID)
         {
-            try
+            if (ManifestHandler.Instance.HasLanguageModule(requestedID))
             {
-                // Look for metagraph in file mappings
-                if (!InternalFileMappings.TryGetValue("metagraph", out ModuleFile metagraphFile))
-                {
-                    // MetaGraph is optional
-                    _metaGraph = null;
-                    return;
-                }
+                return requestedID;
+            }
 
-                using Stream stream = RuntimeFileLoader.LoadFileAsStream(metagraphFile.filePath);
-                if (stream != null)
-                {
-                    _metaGraph = MetaGraph.Parser.ParseFrom(stream);
-                    LingotionLogger.Info($"Loaded MetaGraph from {metagraphFile.GetFilename()} (version {_metaGraph.MajorVersion}.{_metaGraph.MinorVersion}.{_metaGraph.PatchVersion})");
-                }
-            }
-            catch (Exception e)
+            string fallbackID = ManifestHandler.Instance.FindLanguageModuleIDForISO(iso639_2);
+            if (string.IsNullOrEmpty(fallbackID))
             {
-                LingotionLogger.Error($"Failed to load MetaGraph: {e.Message}");
-                _metaGraph = null;
+                LingotionLogger.Warning($"No imported language module serves '{iso639_2}'. Import a '{iso639_2}' language module to use this language.");
+                return requestedID;
             }
+
+            LingotionLogger.Warning($"Language module '{requestedID}' requested for '{iso639_2}' is not imported. Falling back to imported module '{fallbackID}'. Pronunciation may differ from what this character was built against.");
+            return fallbackID;
         }
 
         /// <summary>

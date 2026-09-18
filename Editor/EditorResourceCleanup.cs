@@ -27,7 +27,7 @@ namespace Lingotion.Thespeon.Editor
             if (state == PlayModeStateChange.ExitingPlayMode)
             {
                 // Get all active instances of ThespeonComponent
-                var components = Object.FindObjectsByType<ThespeonComponent>(FindObjectsSortMode.None);
+                var components = FindThespeonComponents();
                 foreach (var comp in components)
                 {
                     comp.StopAllCoroutines();
@@ -42,6 +42,15 @@ namespace Lingotion.Thespeon.Editor
         public static void CleanupResources()
         {
             InferenceResourceCleanup.CleanupResources();
+        }
+
+        private static ThespeonComponent[] FindThespeonComponents()
+        {
+        #if UNITY_6000_4_OR_NEWER
+            return Object.FindObjectsByType<ThespeonComponent>(FindObjectsInactive.Exclude);
+        #else
+            return Object.FindObjectsByType<ThespeonComponent>(FindObjectsSortMode.None);
+        #endif
         }
     }
 }

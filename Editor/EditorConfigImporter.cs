@@ -1,6 +1,7 @@
 // This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Lingotion.Thespeon.Core;
 using Newtonsoft.Json.Linq;
@@ -37,6 +38,7 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="config">The parsed JSON config.</param>
         /// <param name="configFilename">The config's filename (used as reference in manifest).</param>
         /// <returns>A parsed module config, or null if not a valid module config.</returns>
+        /// <exception cref="InvalidDataException">Thrown when a recognized module config carries no usable version.</exception>
         public static ParsedModuleConfig? TryParseConfigFile(JObject config, string configFilename)
         {
             string configType = config["type"]?.ToString();
@@ -68,6 +70,34 @@ namespace Lingotion.Thespeon.Editor
                     md5s.Add(md5);
             }
             return md5s;
+        }
+
+        /// <summary>
+        /// Parses a module config's version. A module without a valid version is rejected,
+        /// so an unversioned module can never enter the manifest.
+        /// </summary>
+        /// <param name="versionToken">The config's "version" token.</param>
+        /// <param name="configFilename">The config's filename, used in the error message.</param>
+        /// <returns>A JSON object holding the major, minor and patch version numbers.</returns>
+        /// <exception cref="InvalidDataException">Thrown when the config carries no usable version.</exception>
+        private static JObject ParseVersion(JToken versionToken, string configFilename)
+        {
+            if (versionToken is not JObject version
+                || version["major"]?.Type != JTokenType.Integer
+                || version["minor"]?.Type != JTokenType.Integer
+                || version["patch"]?.Type != JTokenType.Integer)
+            {
+                throw new InvalidDataException(
+                    $"Module config \"{configFilename}\" has no valid \"version\" field. Expected an object with integer " +
+                    $"\"major\", \"minor\" and \"patch\". Re-download the module from the Lingotion portal.");
+            }
+
+            return new JObject
+            {
+                ["major"] = version["major"].Value<int>(),
+                ["minor"] = version["minor"].Value<int>(),
+                ["patch"] = version["patch"].Value<int>()
+            };
         }
 
         private static ParsedModuleConfig ParseCharacterConfig(JObject config, string configFilename)
@@ -157,16 +187,6 @@ namespace Lingotion.Thespeon.Editor
                 }
             }
 
-            // Extract version (handle NOTFOUND placeholder)
-            JObject version = new JObject { ["major"] = 1, ["minor"] = 0, ["patch"] = 0 };
-            JToken versionToken = config["version"];
-            if (versionToken != null && versionToken.Type == JTokenType.Object)
-            {
-                version["major"] = versionToken["major"]?.Value<int>() ?? 1;
-                version["minor"] = versionToken["minor"]?.Value<int>() ?? 0;
-                version["patch"] = versionToken["patch"]?.Value<int>() ?? 0;
-            }
-
             JObject moduleMapping = new JObject
             {
                 ["name"] = frontFacingName,
@@ -175,7 +195,7 @@ namespace Lingotion.Thespeon.Editor
                 ["characters"] = new JArray(characterName),
                 ["quality"] = qualityTag,
                 ["languages"] = languages,
-                ["version"] = version
+                ["version"] = ParseVersion(config["version"], configFilename)
             };
 
             return new ParsedModuleConfig
@@ -233,7 +253,8 @@ namespace Lingotion.Thespeon.Editor
             {
                 ["name"] = name,
                 ["languages"] = languages,
-                ["jsonpath"] = configFilename
+                ["jsonpath"] = configFilename,
+                ["version"] = ParseVersion(config["version"], configFilename)
             };
 
             return new ParsedModuleConfig

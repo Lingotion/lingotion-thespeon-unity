@@ -46,7 +46,7 @@ namespace Lingotion.Thespeon.Inference
             foreach ((string md5, ModelRuntimeBinding binding) in models)
             {
                 _availableWorkers[md5] = new InferenceWorkload(binding);
-                LingotionLogger.Info($"Creating Workload {md5}, {binding.model.inputs}");
+                LingotionLogger.Info($"Creating Workload {md5}, inputs=[{string.Join(", ", binding.model.inputs.Select(modelInput => $"{modelInput.name}:{modelInput.dataType}"))}]");
             }
             module.AddLoadedBackend(config.PreferredBackendType);
         }
@@ -64,7 +64,7 @@ namespace Lingotion.Thespeon.Inference
             foreach ((string md5, ModelRuntimeBinding binding) in models)
             {
                 _availableWorkers[md5] = new InferenceWorkload(binding);
-                LingotionLogger.Info($"Creating Workload {md5}, {binding.model.inputs}");
+                LingotionLogger.Info($"Creating Workload {md5}, inputs=[{string.Join(", ", binding.model.inputs.Select(modelInput => $"{modelInput.name}:{modelInput.dataType}"))}]");
             }
             module.AddLoadedBackend(config.PreferredBackendType);
             UnityEngine.Profiling.Profiler.EndSample();
@@ -131,6 +131,16 @@ namespace Lingotion.Thespeon.Inference
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Checks whether a workload has been registered, regardless of whether it is in use.
+        /// </summary>
+        /// <param name="workloadID">The WorkloadID to look for.</param>
+        /// <returns>True if a workload with that ID is registered, false otherwise.</returns>
+        public bool HasWorkload(string workloadID)
+        {
+            return _availableWorkers.ContainsKey(workloadID);
         }
 
         /// <summary>

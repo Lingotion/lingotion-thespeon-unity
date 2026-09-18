@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="OverviewTab" style="flex-grow: 1;">
+        <ui:VisualElement name="InfoContainer" style="flex-direction: column; justify-content: space-between; min-height: 106px;">
+            <ui:Button name="DownloadGuideHelpBoxButton" class="unity-help-box unity-help-box--info helpbox-link">
+                <ui:VisualElement class="unity-help-box__icon unity-help-box__icon--info"/>
+                <ui:Label name="DownloadGuideHelpBoxLabel" class="unity-help-box__label" text="To download Lingotion files, please click here or go to: https://portal.lingotion.com/"/>
+            </ui:Button>
+            <ui:HelpBox name="MissingLanguageHelpBox"
+                message-type="Error"
+                style="display: none;" />
+            <ui:VisualElement name="ButtonContainer" style="flex-direction: row;">
+                <ui:Button name="ImportButton" text="Import" />
+                <ui:Button name="DeleteButton" text="Delete" enabled="false"/>
+                <ui:Button name="RegenerateInputsButton" text="Regenerate Input Assets" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <uie:Toolbar style="margin-top: 10px; height: 21px;">
+            <ui:Label text="Imported Characters" class="header-label" />
+        </uie:Toolbar>
+        <ui:ScrollView style="min-height: 83px; max-height: 249px; margin-left: 5px;">
+            <ui:ListView name="ImportedCharacterListView" virtualization-method="DynamicHeight" />
+        </ui:ScrollView>
+        <uie:Toolbar style="margin-top: 10px; max-height: 21px;">
+            <ui:Label text="Imported Languages" class="header-label" />
+        </uie:Toolbar>
+        <ui:ScrollView style="min-height: 83px; max-height: 100px; flex-grow: 1; margin-left: 5px;">
+            <ui:ListView name="ImportedLanguageListView" virtualization-method="DynamicHeight" />
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

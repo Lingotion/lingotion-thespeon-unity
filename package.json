@@ -1,10 +1,10 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
-    "unity": "6.0",
-    "unityRelease": "0b5",
+    "unity": "6000.0",
+    "unityRelease": "83f1",
     "documentationUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md",
     "changelogUrl": "https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/CHANGELOG.md",
     "licensesUrl": "https://lingotion.com/terms-of-service/",
@@ -14,7 +14,7 @@
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": "# [2.0.0] - 2026-03-06\n### Added\n* Characters can now be loaded onto and unloaded from several backends independently.\n* New acting models with increased fidelity and performance. New _.lingotion_ files will need to be downloaded and imported to replace existing characters and languages.\n### Changed\n* `ThespeonEngine` has been renamed to `ThespeonComponent`.\n* `ThespeonComponent` bindable actions have been reworked and now give adequate information to identify their source.\n* Logs are now more descriptive and helpful in troubleshooting.\n* Moved config defaults to a ScriptableObject for easier access.\n* API Docs have been streamlined and made easier to navigate.\n### Fixed\n* Release builds will no longer freeze when synthesizing with unknown words.\n* Manual asset regeneration now properly updates corrupted assets.\n* Ordinals in text are now properly pronounced.\n* CPU backend no longer causes severe stutters on high-end devices.\n### Removed\n* Speed and loudness control has been temporarily removed. Usage will be ignored."},
+    "changelog": " [2.1.0] - 2026-09-10\nThis version requires updated character and language modules, please re-download your characters to enable the new functionality.\n\n### Added\n* Segments can now carry an emotion *blend* at their start and end, letting a line move gradually between several emotions.\n* Segments can now carry start/end speed and loudness values.\n* The Advanced GUI sample now has a karaoke overlay showing the speaker's portrait and revealing the line in time with the audio, matching the Unreal demo.\n* The Thespeon Info Window now shows the module version for every imported character and language module, in both the Overview and the Synthesis Lab.\n### Changed\n* Speed and loudness are supported again. Input-wide `AnimationCurve`s are sampled at each segment boundary, and per-segment values are used where no curve is supplied.\n* Emotion, speed and loudness boundary values are treated as keypoints on a single curve over the whole line, so values stay continuous across segment boundaries and across segments split by number conversion.\n### Fixed\n* Inference should no longer crash when the input contains a word longer than 150 characters\n* A character whose pinned language module is not imported now falls back to any imported module serving the same language, warning that pronunciation may differ, instead of failing synthesis with \"Language was never imported\".\n* Fixed a missing dependency in the Protobuf library on Unity versions earlier than 6000.3.\n"},
    "keywords": [ 
       "AI",
       "Lingotion",
@@ -23,15 +23,16 @@
       "Thespeon"
     ],
     "author": {
-      "name": "Lingotion",
+      "name": "Lingotion AB",
       "email": "sales@lingotion.com",
       "url": "https://lingotion.com/"
     },
-    "samples": [ { "displayName": "Demo GUI", "description": "A demo GUI that showcases the flexibility of Thespeon.", "path": "Samples~/GUISampleScene" },
+    "samples": [ { "displayName": "Demo GUI", "description": "A demo GUI that showcases the flexibility of Thespeon.", "path": "Samples~/Advanced GUI" },
     { "displayName": "Minimal Character", "description": "A script showing the bare minimum required to get started with Thespeon.", "path": "Samples~/Minimal Character" },
     { "displayName": "Simple Character", "description": "A script showcasing the basics of using Thespeon.", "path": "Samples~/Simple Character" },
     { "displayName": "Configuration Example", "description": "A script showing how to finely control Thespeon performance and resource consumption.", "path": "Samples~/Configuration Example" },
     { "displayName": "Advanced Character", "description": "A script showcasing advanced usage of Thespeon.", "path": "Samples~/Advanced Character" },
-    { "displayName": "Audio Callback", "description": "A script showcasing how audio sample requests can be used for trigger events based on audio output.", "path": "Samples~/Audio Callback" }
+    { "displayName": "Audio Callback", "description": "A script showcasing how audio sample requests can be used to trigger events based on audio output.", "path": "Samples~/Audio Callback" },
+    { "displayName": "Emotion Blending", "description": "A script showcasing how to blend between emotions and control speed and loudness across a line.", "path": "Samples~/Emotion Blending" }
     ]
   }

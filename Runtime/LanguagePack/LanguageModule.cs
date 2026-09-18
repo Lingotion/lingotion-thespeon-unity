@@ -22,7 +22,6 @@ namespace Lingotion.Thespeon.Language
         private int lookupTableSize;
 
         private Dictionary<string, int> _graphemeToID;
-        private Dictionary<string, int> _phonemeToID;
         private Dictionary<int, string> _IDToPhoneme;
 
         /// <summary>
@@ -58,8 +57,9 @@ namespace Lingotion.Thespeon.Language
                         case "grapheme_ivocab":
                             continue;
 
+                        // The phonemizer graph seeds its own decoder from the <sos> token baked in at
+                        // pack build time, so the forward phoneme vocabulary is no longer read here.
                         case "phoneme_vocab":
-                            _phonemeToID = vocab.ToObject<Dictionary<string, int>>();
                             continue;
 
                         case "phoneme_ivocab":
@@ -73,7 +73,7 @@ namespace Lingotion.Thespeon.Language
                 }
             }
 
-            if (_graphemeToID == null || _phonemeToID == null || _IDToPhoneme == null)
+            if (_graphemeToID == null || _IDToPhoneme == null)
             {
                 throw new ArgumentException("Grapheme or phoneme vocabularies are not defined in the module.");
             }
@@ -97,6 +97,9 @@ namespace Lingotion.Thespeon.Language
             {
                 throw new ArgumentException("lookuptable_size must be a positive integer in the language module configuration.");
             }
+
+            // The phonemizer's autoregressive loop lives in the pack's MetaGraph rather than in this repo.
+            TryLoadMetaGraph();
         }
 
         /// <summary>
@@ -113,13 +116,15 @@ namespace Lingotion.Thespeon.Language
             }
             Dictionary<string, ModelRuntimeBinding> idModelMapping = new();
 
-            Dictionary<string, ModuleFile> standardFiles = InternalFileMappings
-                .Where(kvp => !workloadIDs.Contains(Module.GetWorkloadID(kvp.Value.md5, preferredBackendType)) && kvp.Key != "lookuptable")
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            Dictionary<string, ModuleFile> standardFiles = GetModelFilesToBind(workloadIDs, preferredBackendType);
 
             foreach ((string internalName, ModuleFile fileInfo) in standardFiles)
             {
-                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(fileInfo.filePath));
+                Model model = LoadModel(internalName, fileInfo);
+                if (model == null)
+                {
+                    continue;
+                }
                 string workloadID = Module.GetWorkloadID(fileInfo.md5, preferredBackendType);
                 idModelMapping[workloadID] = new ModelRuntimeBinding
                 {
@@ -130,22 +135,65 @@ namespace Lingotion.Thespeon.Language
             return idModelMapping;
         }
 
+        /// <summary>
+        /// Selects the module files that should be bound as runtime models, skipping any already loaded.
+        /// Driven by the parsed model mappings rather than by excluding known non-model keys by name, so a
+        /// pack carrying any other companion file cannot end up being deserialized as a model.
+        /// </summary>
+        /// <param name="loadedWorkloadIDs">WorkloadIDs already loaded, which are skipped.</param>
+        /// <param name="preferredBackendType">Backend the workloadIDs are formed against.</param>
+        /// <returns>Internal name to file mapping for each model still to be bound.</returns>
+        private Dictionary<string, ModuleFile> GetModelFilesToBind(HashSet<string> loadedWorkloadIDs, BackendType preferredBackendType)
+        {
+            return InternalFileMappings
+                .Where(kvp => InternalModelMappings.ContainsKey(kvp.Key)
+                    && !loadedWorkloadIDs.Contains(Module.GetWorkloadID(kvp.Value.md5, preferredBackendType)))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
+
+        /// <summary>
+        /// Loads one model file, naming the file if it cannot be read. The deserializer reports only that a
+        /// stream ended early, which is impossible to act on when a module holds several files.
+        /// </summary>
+        /// <param name="internalName">Internal name of the file within the module.</param>
+        /// <param name="fileInfo">The file to load.</param>
+        /// <returns>The loaded model, or null if it could not be read.</returns>
+        private static Model LoadModel(string internalName, ModuleFile fileInfo)
+        {
+            using Stream stream = RuntimeFileLoader.LoadFileAsStream(fileInfo.filePath);
+            if (stream == null)
+            {
+                LingotionLogger.Error($"LanguageModule: could not open model '{internalName}' ({fileInfo.GetFilename()}) at {fileInfo.filePath}.");
+                return null;
+            }
+
+            Model model = ModelLoader.Load(stream);
+            if (model == null)
+            {
+                LingotionLogger.Error($"LanguageModule: failed to load model '{internalName}' from {fileInfo.GetFilename()} - the file is missing, truncated or not a serialized model.");
+            }
+            return model;
+        }
+
         public override IEnumerator CreateRuntimeBindingsCoroutine(HashSet<string> md5s, BackendType preferredBackendType, Action<Dictionary<string, ModelRuntimeBinding>> onComplete)
         {
             UnityEngine.Profiling.Profiler.BeginSample("Thespeon LanguageModule.CreateRuntimeBindingsCoroutine");
             Dictionary<string, ModelRuntimeBinding> idModelMapping = new();
 
-            Dictionary<string, ModuleFile> standardFiles = InternalFileMappings
-                .Where(kvp => !md5s.Contains(Module.GetWorkloadID(kvp.Value.md5, preferredBackendType)) && kvp.Key != "lookuptable")
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            Dictionary<string, ModuleFile> standardFiles = GetModelFilesToBind(md5s, preferredBackendType);
 
             foreach ((string internalName, ModuleFile fileInfo) in standardFiles)
             {
                 UnityEngine.Profiling.Profiler.BeginSample($"Thespeon Load Model {internalName}");
-                Model model = ModelLoader.Load(RuntimeFileLoader.LoadFileAsStream(fileInfo.filePath));
+                Model model = LoadModel(internalName, fileInfo);
                 if (preferredBackendType != BackendType.CPU)
                 {
                     throw new NotSupportedException($"LanguageModule currently only supports CPU backend. Attempted to create runtime binding for backend type {preferredBackendType}.");
+                }
+                if (model == null)
+                {
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    continue;
                 }
                 string workloadID = Module.GetWorkloadID(fileInfo.md5, preferredBackendType);
                 idModelMapping[workloadID] = new ModelRuntimeBinding
@@ -182,32 +230,6 @@ namespace Lingotion.Thespeon.Language
                     else
                     {
                         LingotionLogger.Warning($"Lookup for grapheme '{c}' not found in vocabulary. Character will be filtered out.");
-                        return -1;
-                    }
-                }).Where(id => id != -1)
-                .ToList();
-        }
-
-        /// <summary>
-        /// Encodes phonemes into their corresponding IDs based on the phoneme vocabulary.
-        /// </summary>
-        /// <param name="phonemes">String of phonemes to encode.</param>
-        /// <returns>A list of encoded phoneme IDs and a list of indices for not found phonemes.</returns>
-        public List<int> EncodePhonemes(string phonemes)
-        {
-            if (_phonemeToID.TryGetValue(phonemes, out int id))
-                return new List<int> { id };
-
-            return phonemes
-                .Select(c =>
-                {
-                    if (_phonemeToID.TryGetValue(c.ToString(), out int id))
-                    {
-                        return id;
-                    }
-                    else
-                    {
-                        LingotionLogger.Warning($"Lookup for phoneme '{c}' not found in vocabulary. Character will be filtered out.");
                         return -1;
                     }
                 }).Where(id => id != -1)

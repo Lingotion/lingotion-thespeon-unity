@@ -24,9 +24,42 @@ namespace Lingotion.Thespeon.Inference
     public class ThespeonInference : InferenceSession<ThespeonInput, ThespeonInputSegment>
     {
 
+        // Tracks how many Profiler samples this class has opened, so an exception thrown while samples are
+        // nested can unwind all of them. Unity force-closes leaked samples at the end of the frame, which
+        // makes every later EndSample report as "Non-matching Profiler.EndSample" and buries the real error.
+        private static int openProfilerSamples;
+
         public ThespeonInference(string sessionID, Action<ThespeonDataPacket> packetCallback)
         : base(sessionID, packetCallback)
         {
+        }
+
+        private static void BeginProfilerSample(string name)
+        {
+            Profiler.BeginSample(name);
+            openProfilerSamples++;
+        }
+
+        private static void EndProfilerSample()
+        {
+            if (openProfilerSamples <= 0)
+            {
+                return;
+            }
+            Profiler.EndSample();
+            openProfilerSamples--;
+        }
+
+        /// <summary>
+        /// Closes every Profiler sample this class still has open. Call from error paths so a throw from
+        /// within a nested sample cannot leave the profiler stack unbalanced.
+        /// </summary>
+        private static void UnwindProfilerSamples()
+        {
+            while (openProfilerSamples > 0)
+            {
+                EndProfilerSample();
+            }
         }
 
         /// <summary>
@@ -44,6 +77,7 @@ namespace Lingotion.Thespeon.Inference
             }
             catch (Exception e)
             {
+                UnwindProfilerSamples();
                 string errorMessage = e.InnerException?.Message ?? e.Message;
                 LingotionLogger.Error($"Failed to preload character {characterName} ({moduleType}): {errorMessage}");
                 return false;
@@ -143,7 +177,7 @@ namespace Lingotion.Thespeon.Inference
                 yield return null;
                 yield return new WaitForEndOfFrame();
             }
-            Profiler.BeginSample("Thespeon Inference preparation");
+            BeginProfilerSample("Thespeon Inference preparation");
             CharacterModule characterModule;
             Dictionary<string, LanguageModule> languageModules;
             ThespeonInput processedInput;
@@ -151,29 +185,47 @@ namespace Lingotion.Thespeon.Inference
             List<List<float>> markerPositionsBySegment;
             try
             {
-                Profiler.BeginSample("Thespeon Setup modules");
+                BeginProfilerSample("Thespeon Setup modules");
                 (characterModule, languageModules) = SetupModules(input.CharacterName, input.ModuleType, config);
-                Profiler.EndSample();
+                EndProfilerSample();
+                #if UNITY_EDITOR
+                if(SessionID != Thespeon.Engine.ThespeonComponent.WARMUP_SESSION_ID)
+                {
+                    Dictionary<Emotion, int> emotionCharCounts = input.Segments.GroupBy(segment => segment.Emotion == Emotion.None ? config.FallbackEmotion : segment.Emotion)
+                        .ToDictionary(group => group.Key, group => group.Sum(segment => segment.Text.Length));
+                    Dictionary<string, int> moduleData = new()
+                    {
+                        { DataCacheKeys.nbrSynths.ToString(), 1 }
+                    };
+                    foreach(var kvp in emotionCharCounts)
+                    {
+                        moduleData[kvp.Key.ToString().ToLowerInvariant()] = kvp.Value;
+                    }
+                    InferenceEditorSignals.OnSynthesisDataSignal?.Invoke(new CacheData(characterModule.ModuleID, moduleData));
+                }
+                #endif
                 input.DefaultLanguage ??= config.FallbackLanguage;
                 input.DefaultEmotion = input.DefaultEmotion == Emotion.None ? config.FallbackEmotion : input.DefaultEmotion;
-                Profiler.BeginSample("Thespeon Text preprocessing");
+                BeginProfilerSample("Thespeon Text preprocessing");
                 processedInput = TextPreprocessor.PreprocessInput(input);
-                Profiler.EndSample();
-                Profiler.BeginSample("Thespeon Find unknown words");
+                EndProfilerSample();
+                BeginProfilerSample("Thespeon Find unknown words");
                 (unknownWordsByLanguage, markerPositionsBySegment) = FindUnknownWordsAndMarkerPositions(processedInput, characterModule, languageModules);
-                Profiler.EndSample();
+                EndProfilerSample();
             }
             catch (Exception e)
             {
                 LingotionLogger.Error($"Error during inference preparation: {e.Message}");
                 TensorPool.Dispose();
-                Profiler.EndSample();
+                UnwindProfilerSamples();
                 SendPacketCallback(ThespeonDataPacket.CreateErrorPacket(e.Message));
                 yield break;
             }
-            Profiler.EndSample();
+            EndProfilerSample();
 
             int nbrWordsNotInLookup = unknownWordsByLanguage.Values.Sum(x => x.Count);
+
+            Func<bool> shouldStop = () => TensorPool.IsDisposed();
 
             // Run phonemizer if needed
             if (nbrWordsNotInLookup > 0)
@@ -181,8 +233,8 @@ namespace Lingotion.Thespeon.Inference
                 foreach ((string languageAsJson, List<string> uniqueWords) in unknownWordsByLanguage)
                 {
                     ModuleLanguage language = JsonConvert.DeserializeObject<ModuleLanguage>(languageAsJson);
-                    Profiler.BeginSample("Thespeon Phonemizer preparation " + language.Iso639_2);
-                    LanguageModule currentLanguageModule = languageModules[characterModule.languageModuleIDs[languageAsJson]];
+                    BeginProfilerSample("Thespeon Phonemizer preparation " + language.Iso639_2);
+                    LanguageModule currentLanguageModule = ResolveLanguageModule(characterModule, languageModules, language);
                     int maxInLength = 0;
                     List<List<int>> phonemizerInputs = uniqueWords.Select(word => currentLanguageModule.EncodeGraphemes(word)).ToList();
 
@@ -192,81 +244,52 @@ namespace Lingotion.Thespeon.Inference
                         maxInLength = Math.Max(maxInLength, wordIDs.Count);
                     });
 
-                    int batchSize = BuildPhonemizerTensors(maxInLength, phonemizerInputs, currentLanguageModule.EncodePhonemes("<sos>")[0]);
-                    string phonemizerMD5 = currentLanguageModule.GetInternalModelID("phonemizer");
-                    string phonemizerWorkloadID = Module.GetWorkloadID(phonemizerMD5, BackendType.CPU);
-                    InferenceWorkload phonemizerWorkLoad = null;
+                    // The decode loop, its seed tensors and its termination condition all live in the
+                    // pack's MetaGraph, so only 'src' - the graph's one external input - is built here.
+                    BuildPhonemizerSrcTensor(maxInLength, phonemizerInputs);
 
-                    Profiler.EndSample();
-                    if (!InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerWorkloadID, ref phonemizerWorkLoad))
+                    EndProfilerSample();
+
+                    if (currentLanguageModule.MetaGraph == null)
                     {
-                        yield return new WaitUntil(() => InferenceWorkloadManager.Instance.AcquireWorkload(phonemizerWorkloadID, ref phonemizerWorkLoad));
-                        yield return new WaitForEndOfFrame();
-                    }
-
-                    bool PhonemizerDoneCondition(int currentIteration)
-                    {
-                        if(
-                            !TensorPool.TryRenameTensor("new_tgt", "tgt") ||
-                            !TensorPool.TryRenameTensor("new_finished_indices", "finished_indices") ||
-                            !TensorPool.TryRenameTensor("new_mask", "mask_tensor")
-                        )
-                        {
-                            throw new InvalidOperationException("Error renaming phonemizer output tensors. This likely means the phonemizer workload produced unexpected tensor names.");
-                        }
-                        Tensor<int> srcTensor = TensorPool.GetTensor("src") as Tensor<int>;
-                        TensorShape graphemesShape = srcTensor.shape;
-                        int phonemizedLimit = graphemesShape[1] * 5;
-                        if (currentIteration >= phonemizedLimit || currentIteration >= 200)
-                        {
-                            LingotionLogger.Warning($"Phonemizer reached max number of iterations {currentIteration}, forcing completion.");
-
-                            Tensor<int> finished_indicesTensor = TensorPool.GetTensor("finished_indices") as Tensor<int>;
-                            int[] finished_indices = finished_indicesTensor.DownloadToArray();
-                            List<int> new_finished_indices = new();
-                            foreach (int index in finished_indices)
-                            {
-                                if (index <= 0)
-                                {
-                                    new_finished_indices.Add(-1);
-                                }
-                                else
-                                {
-                                    new_finished_indices.Add(index);
-                                }
-                            }
-                            TensorPool.SetTensor("finished_indices", new Tensor<int>(finished_indicesTensor.shape, new_finished_indices.ToArray()));
-                            return true;
-                        }
-
-                        Tensor<int> num_finishedTensor = TensorPool.GetTensor("num_finished") as Tensor<int>;
-                        int[] numFinished = num_finishedTensor.DownloadToArray();
-                        return numFinished.Last() >= batchSize;
+                        string errorMessage = $"Language module {currentLanguageModule.ModuleID} does not contain a MetaGraph. Cannot phonemize. Please re-import your language pack.";
+                        LingotionLogger.Error(errorMessage);
+                        TensorPool.Dispose();
+                        UnwindProfilerSamples();
+                        SendPacketCallback(ThespeonDataPacket.CreateErrorPacket(errorMessage));
+                        yield break;
                     }
 
                     yield return null;
                     yield return new WaitForEndOfFrame();
                     LingotionLogger.Info($"Starting phonemizer inference for language {language.Iso639_2} with {uniqueWords.Count} unknown words.");
-                    var phonemizerInfer = phonemizerWorkLoad.InferAutoregressive(TensorPool, config, PhonemizerDoneCondition, phonemizerWorkloadID, debugName: "phonemizer", budgetAdjustment: 1f);
-                    while (phonemizerInfer.MoveNext()) { yield return phonemizerInfer.Current; }
 
-                    InferenceWorkloadManager.Instance.ReleaseWorkload(phonemizerWorkloadID);
-                    if (CheckInferenceAbort(phonemizerWorkloadID))
+                    MetaGraphRunner phonemizerRunner = new(
+                        TensorPool,
+                        currentLanguageModule,
+                        config,
+                        SendPacketCallback,
+                        shouldStop
+                    );
+                    var runPhonemizer = phonemizerRunner.Run(currentLanguageModule.MetaGraph, config.Verbosity == VerbosityLevel.Debug);
+                    while (runPhonemizer.MoveNext()) { yield return runPhonemizer.Current; }
+
+                    if (CheckInferenceAbort())
                     {
                         SendPacketCallback(ThespeonDataPacket.CreateErrorPacket("Inference aborted during synthesis"));
                         yield break;
                     }
                     try
                     {
-                        Profiler.BeginSample("Thespeon Phonemizer resolution");
+                        BeginProfilerSample("Thespeon Phonemizer resolution");
                         ResolvePhonemizerResult(currentLanguageModule, uniqueWords);
-                        Profiler.EndSample();
+                        EndProfilerSample();
                     }
                     catch (Exception e)
                     {
                         LingotionLogger.Error($"Error resolving phonemizer result: {e.Message} {e.StackTrace}");
                         TensorPool.Dispose();
-                        Profiler.EndSample();
+                        UnwindProfilerSamples();
                         SendPacketCallback(ThespeonDataPacket.CreateErrorPacket(e.Message));
                         yield break;
                     }
@@ -274,31 +297,28 @@ namespace Lingotion.Thespeon.Inference
             }
 
             // Prepare input tensors for MetaGraph
-            Profiler.BeginSample("Thespeon MetaGraph preparation");
+            BeginProfilerSample("Thespeon MetaGraph preparation");
             try
             {
-                List<string> originalTexts = processedInput.Segments.Select(segment => segment.Text).ToList();
-                (Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage, List<int> globalMarkerPositions) = PhonemizeInput(ref processedInput, characterModule, languageModules, markerPositionsBySegment);
+                (_, List<int> globalMarkerPositions) = PhonemizeInput(ref processedInput, characterModule, languageModules, markerPositionsBySegment);
                 LingotionLogger.Debug($"Phonemized input for MetaGraph: {processedInput.ToJson()}");
-                SetMetaGraphInputTensors(characterModule, processedInput, lengthChangesByLanguage, originalTexts, globalMarkerPositions);
+                SetMetaGraphInputTensors(characterModule, processedInput, globalMarkerPositions);
             }
             catch (Exception e)
             {
                 LingotionLogger.Error($"Error preparing tensors for MetaGraph inference: {e.Message} {e.StackTrace}");
                 TensorPool.Dispose();
-                Profiler.EndSample();
+                UnwindProfilerSamples();
                 SendPacketCallback(ThespeonDataPacket.CreateErrorPacket(e.Message));
                 yield break;
             }
-            Profiler.EndSample();
+            EndProfilerSample();
 
             yield return null;
             yield return new WaitForEndOfFrame();
 
             // Create and run the MetaGraphRunner
             LingotionLogger.Info($"Starting MetaGraph execution for character {processedInput.CharacterName}");
-
-            Func<bool> shouldStop = () => TensorPool.IsDisposed();
 
             var runner = new MetaGraphRunner(
                 TensorPool,
@@ -336,47 +356,48 @@ namespace Lingotion.Thespeon.Inference
         private static (CharacterModule, Dictionary<string, LanguageModule>) SetupModules(string characterName, ModuleType moduleType, InferenceConfig config)
         {
             LingotionLogger.Info($"Setting up modules for character {characterName} with module type {moduleType}.");
-            Profiler.BeginSample($"Thespeon Loading {characterName} {moduleType}");
+            BeginProfilerSample($"Thespeon Loading {characterName} {moduleType}");
 
-            Profiler.BeginSample("Thespeon Get character module entry");
+            BeginProfilerSample("Thespeon Get character module entry");
             ModuleEntry targetModuleInfo = ManifestHandler.Instance.GetCharacterModuleEntry(characterName, moduleType);
-            Profiler.EndSample();
-            Profiler.BeginSample("Thespeon Acquire module");
+            EndProfilerSample();
+            BeginProfilerSample("Thespeon Acquire module");
             CharacterModule characterModule = ModuleHandler.Instance.AcquireModule<CharacterModule>(targetModuleInfo);
-            Profiler.EndSample();
+            EndProfilerSample();
             Dictionary<string, LanguageModule> languageModules = new();
 
             foreach (var kvp in characterModule.languageModuleIDs)
             {
-                Profiler.BeginSample($"Thespeon Get language module entry {kvp.Key}");
+                BeginProfilerSample($"Thespeon Get language module entry {kvp.Key}");
                 string id = kvp.Value;
                 targetModuleInfo = ManifestHandler.Instance.GetLanguageModuleEntry(id);
-                Profiler.EndSample();
+                EndProfilerSample();
                 if (targetModuleInfo.IsEmpty())
                 {
+                    LingotionLogger.Warning($"Skipping language {kvp.Key} for character {characterName}: its language module '{id}' is not imported. Text in this language will not be phonemized correctly.");
                     continue;
                 }
-                Profiler.BeginSample($"Thespeon Acquire language module {kvp.Key}");
+                BeginProfilerSample($"Thespeon Acquire language module {kvp.Key}");
                 LanguageModule langModule = ModuleHandler.Instance.AcquireModule<LanguageModule>(targetModuleInfo);
                 languageModules.Add(id, langModule);
-                Profiler.EndSample();
-                Profiler.BeginSample($"Thespeon Register language module {langModule.moduleLanguage.Iso639_2}");
+                EndProfilerSample();
+                BeginProfilerSample($"Thespeon Register language module {langModule.moduleLanguage.Iso639_2}");
                 InferenceConfig langConfig = new InferenceConfig
                 {
 
                     PreferredBackendType = BackendType.CPU,
                 };
                 InferenceWorkloadManager.Instance.RegisterModule(langModule, langConfig);
-                Profiler.EndSample();
-                Profiler.BeginSample($"Thespeon Register lookup table {langModule.moduleLanguage.Iso639_2}");
+                EndProfilerSample();
+                BeginProfilerSample($"Thespeon Register lookup table {langModule.moduleLanguage.Iso639_2}");
                 LookupTableHandler.Instance.RegisterLookupTable(langModule);
-                Profiler.EndSample();
+                EndProfilerSample();
             }
 
-            Profiler.BeginSample("Thespeon Register character module");
+            BeginProfilerSample("Thespeon Register character module");
             InferenceWorkloadManager.Instance.RegisterModule(characterModule, config);
-            Profiler.EndSample();
-            Profiler.EndSample();
+            EndProfilerSample();
+            EndProfilerSample();
 
             return (characterModule, languageModules);
         }
@@ -424,6 +445,7 @@ namespace Lingotion.Thespeon.Inference
                 Profiler.EndSample();
                 if (targetModuleInfo.IsEmpty())
                 {
+                    LingotionLogger.Warning($"Skipping language {kvp.Key} for character {characterName}: its language module '{id}' is not imported. Text in this language will not be phonemized correctly.");
                     continue;
                 }
                 if (CheckFrameBreak(startTime, config))
@@ -486,6 +508,28 @@ namespace Lingotion.Thespeon.Inference
             return timeLeftOfFrame < 0 || timeLeftOfBudget < 0;
         }
 
+        /// <summary>
+        /// Looks up the loaded language module serving a segment's language, distinguishing a character that
+        /// declares no module for the language from one whose module failed to load.
+        /// </summary>
+        /// <param name="characterModule">Character whose declared language modules are consulted.</param>
+        /// <param name="languageModules">Language modules loaded for this character, keyed by module ID.</param>
+        /// <param name="language">Language to resolve, already matched against the imported languages.</param>
+        /// <returns>The loaded language module for that language.</returns>
+        /// <exception cref="FileNotFoundException">No module for the language is declared or loaded.</exception>
+        private static LanguageModule ResolveLanguageModule(CharacterModule characterModule, Dictionary<string, LanguageModule> languageModules, ModuleLanguage language)
+        {
+            if (!characterModule.languageModuleIDs.TryGetValue(language.ToJson(), out string moduleID))
+            {
+                throw new FileNotFoundException($"Character '{characterModule.ModuleID}' declares no language module for '{language.ToJson()}'. Its available languages are: {string.Join(", ", characterModule.languageModuleIDs.Keys)}.");
+            }
+            if (!languageModules.TryGetValue(moduleID, out LanguageModule languageModule))
+            {
+                throw new FileNotFoundException($"Language module '{moduleID}' for '{language.ToJson()}' is not imported. Please import a language module for '{language.Iso639_2}'.");
+            }
+            return languageModule;
+        }
+
         private (Dictionary<string, Dictionary<string, int>>, List<int>) PhonemizeInput(ref ThespeonInput processedInput, CharacterModule characterModule, Dictionary<string, LanguageModule> languageModules, List<List<float>> markerPositionsBySegment)
         {
             Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage = new();
@@ -508,12 +552,9 @@ namespace Lingotion.Thespeon.Inference
                     lengthChangesByLanguage[segmentLanguage.ToJson()] = new();
                 }
                 ModuleLanguage language = ModuleLanguage.BestMatch(ManifestHandler.Instance.GetAllLanguageModuleLanguages(), segmentLanguage.Iso639_2, null);
-                if (!languageModules.ContainsKey(characterModule.languageModuleIDs[language.ToJson()]))
-                {
-                    throw new FileNotFoundException($"Language '{language.ToJson()}' was never imported. Please import a language.");
-                }
+                LanguageModule segmentLanguageModule = ResolveLanguageModule(characterModule, languageModules, language);
 
-                RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(languageModules[characterModule.languageModuleIDs[language.ToJson()]].GetLookupTableID());
+                RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(segmentLanguageModule.GetLookupTableID());
 
                 MatchCollection matches = TextPreprocessor.WordRegex.Matches(segment.Text);
                 StringBuilder sb = new(segment.Text);
@@ -570,11 +611,8 @@ namespace Lingotion.Thespeon.Inference
                 }
                 ModuleLanguage segmentLanguage = segment.Language ?? input.DefaultLanguage;
                 ModuleLanguage language = ModuleLanguage.BestMatch(ManifestHandler.Instance.GetAllLanguageModuleLanguages(), segmentLanguage.Iso639_2, null);
-                if (!languageModules.ContainsKey(characterModule.languageModuleIDs[language.ToJson()]))
-                {
-                    throw new FileNotFoundException($"Language '{language.ToJson()}' was never imported. Please import a language.");
-                }
-                RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(languageModules[characterModule.languageModuleIDs[language.ToJson()]].GetLookupTableID());
+                LanguageModule segmentLanguageModule = ResolveLanguageModule(characterModule, languageModules, language);
+                RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(segmentLanguageModule.GetLookupTableID());
                 (string cleanedText, List<int> markerCleanIdx) = StripMarkers(segment.Text);
                 MatchCollection matches = TextPreprocessor.WordRegex.Matches(cleanedText);
                 foreach (Match match in matches)
@@ -597,7 +635,14 @@ namespace Lingotion.Thespeon.Inference
             return (unknownWordsByLanguage, markerPositionsBySegment);
         }
 
-        private int BuildPhonemizerTensors(int maxInLength, List<List<int>> phonemizerInputs, int sosID)
+        /// <summary>
+        /// Builds 'src', the phonemizer graph's only external input: one row of grapheme IDs per word,
+        /// zero-padded to the longest. The graph supplies its own decode-state tensors ('tgt.in',
+        /// 'mask_tensor.in', 'finished_indices.in') from declared defaults sized against 'src' dim 0.
+        /// </summary>
+        /// <param name="maxInLength">Row width to pad every word out to.</param>
+        /// <param name="phonemizerInputs">Grapheme IDs per word, boundary tokens already inserted.</param>
+        private void BuildPhonemizerSrcTensor(int maxInLength, List<List<int>> phonemizerInputs)
         {
             try
             {
@@ -613,19 +658,7 @@ namespace Lingotion.Thespeon.Inference
                     }
                 }
 
-                Tensor<int> tgtIndices = new(
-                    new TensorShape(batchSize, 1), new int[batchSize].Select(x => sosID).ToArray()
-                );
-
-                Tensor<int> eos_mask = new(new TensorShape(batchSize, 1), Enumerable.Repeat(1, batchSize).ToArray());
-                Tensor<int> finished_indices = new(new TensorShape(batchSize));
-
-
                 TensorPool.SetTensor("src", inputTensor);
-                TensorPool.SetTensor("tgt", tgtIndices);
-                TensorPool.SetTensor("mask_tensor", eos_mask);
-                TensorPool.SetTensor("finished_indices", finished_indices);
-                return batchSize;
             }
             catch (Exception e)
             {
@@ -642,9 +675,11 @@ namespace Lingotion.Thespeon.Inference
         /// <param name="uniqueWords"></param>
         private void ResolvePhonemizerResult(LanguageModule targetLanguageModule, List<string> uniqueWords)
         {
-            Tensor<int> castedTensor = TensorPool.GetTensor("tgt") as Tensor<int>;
+            // The graph's post-actions rename each step's outputs back onto the '.in' names, so these
+            // hold the final decode state once the loop has exited.
+            Tensor<int> castedTensor = TensorPool.GetTensor("tgt.in") as Tensor<int>;
             int[] phonemeIndices = castedTensor.DownloadToArray();
-            Tensor<int> finished_indicesTensor = TensorPool.GetTensor("finished_indices") as Tensor<int>;
+            Tensor<int> finished_indicesTensor = TensorPool.GetTensor("finished_indices.in") as Tensor<int>;
             int[] finished_indices = finished_indicesTensor.DownloadToArray();
             RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(targetLanguageModule.GetLookupTableID());
             int batchSize = uniqueWords.Count;
@@ -675,78 +710,6 @@ namespace Lingotion.Thespeon.Inference
             }
         }
 
-        private (List<float> speed, List<float> loudness) BuildRLECurves(ThespeonInput input, Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage, List<string> originalSegmentTexts)
-        {
-
-            List<float> speed = new() { input.Speed.Evaluate(0) };
-
-            List<float> loudness = new() { input.Loudness.Evaluate(0) };
-
-            int totalLength = originalSegmentTexts.Sum(text => text.Length);
-            int segmentStart = 0;
-            for (int i = 0; i < input.Segments.Count; i++)
-            {
-                ThespeonInputSegment segment = input.Segments[i];
-                if (segment.IsCustomPronounced)
-                {
-                    speed.AddRange(ResampleCurveRange(input.Speed, (float)segmentStart / totalLength, (float)(segmentStart + originalSegmentTexts[i].Length) / totalLength, originalSegmentTexts[i].Length, "speed"));
-                    loudness.AddRange(ResampleCurveRange(input.Loudness, (float)segmentStart / totalLength, (float)(segmentStart + originalSegmentTexts[i].Length) / totalLength, originalSegmentTexts[i].Length, "loudness"));
-                    segmentStart += segment.Text.Length;
-                    continue;
-                }
-                ModuleLanguage segmentLanguage = segment.Language ?? input.DefaultLanguage;
-
-                MatchCollection matches = TextPreprocessor.WordRegex.Matches(originalSegmentTexts[i]);
-                int lastEnd = segmentStart;
-                foreach (Match match in matches)
-                {
-                    string word = match.Value;
-                    int oldLength = word.Length;
-                    int globalStart = match.Index + segmentStart;
-                    speed.AddRange(ResampleCurveRange(input.Speed, (float)lastEnd / totalLength, (float)globalStart / totalLength, globalStart - lastEnd, "speed"));
-                    loudness.AddRange(ResampleCurveRange(input.Loudness, (float)lastEnd / totalLength, (float)globalStart / totalLength, globalStart - lastEnd, "loudness"));
-                    if (lengthChangesByLanguage[segmentLanguage.ToJson()].TryGetValue(word, out int newLength))
-                    {
-                        speed.AddRange(ResampleCurveRange(input.Speed, (float)globalStart / totalLength, (float)(globalStart + oldLength) / totalLength, newLength, "speed"));
-                        loudness.AddRange(ResampleCurveRange(input.Loudness, (float)globalStart / totalLength, (float)(globalStart + oldLength) / totalLength, newLength, "loudness"));
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException($"Word '{word}' not found in lengthChangesByLanguage dictionary for language {segmentLanguage.ToJson()}. This should never happen. Languages: {string.Join(", ", lengthChangesByLanguage.Keys)} \n for this language:{string.Join(", ", lengthChangesByLanguage[segmentLanguage.ToJson()].Select(kvp => $"{kvp.Key}: {kvp.Value}"))}");
-                    }
-                    lastEnd = globalStart + oldLength;
-                }
-                if (lastEnd < segmentStart + originalSegmentTexts[i].Length)
-                {
-                    speed.AddRange(ResampleCurveRange(input.Speed, (float)lastEnd / totalLength, (float)(segmentStart + originalSegmentTexts[i].Length) / totalLength, segmentStart + originalSegmentTexts[i].Length - lastEnd, "speed"));
-                    loudness.AddRange(ResampleCurveRange(input.Loudness, (float)lastEnd / totalLength, (float)(segmentStart + originalSegmentTexts[i].Length) / totalLength, segmentStart + originalSegmentTexts[i].Length - lastEnd, "loudness"));
-                }
-                segmentStart += originalSegmentTexts[i].Length;
-            }
-
-            speed.Add(input.Speed.Evaluate(1));
-
-            loudness.Add(input.Loudness.Evaluate(1));
-            return (speed, loudness);
-        }
-        /// <summary>
-        /// Resamples the given curve in the range from 'from' to 'to' (non inclusive) with the specified sample count.
-        /// </summary>
-        private List<float> ResampleCurveRange(AnimationCurve curve, float from, float to, int sampleCount, string curveName)
-        {
-            if (sampleCount == 0) return new();
-            List<float> samples = new(sampleCount);
-            float step = (to - from) / sampleCount;
-            float lowerBound = curveName == "speed" ? 0.5f : 0.1f;
-            for (int i = 0; i < sampleCount; i++)
-            {
-                float t = from + i * step;
-                float val = curve.Evaluate(t);
-                val = Math.Clamp(val, lowerBound, 2.0f);
-                samples.Add(val);
-            }
-            return samples;
-        }
         private bool CheckInferenceAbort(string modelID = null)
         {
             if (TensorPool.IsDisposed())
@@ -823,117 +786,280 @@ namespace Lingotion.Thespeon.Inference
         }
 
         /// <summary>
+        /// Dumps every per-token control value fed to the metagraph, so a run can be checked against the
+        /// per-segment keypoints that produced it. Only builds its strings at Debug verbosity.
+        /// </summary>
+        private static void LogControlTensors(
+            ThespeonInput input,
+            List<Emotion> distinctEmotions,
+            List<SegmentControlSpan> controlSpans,
+            float[] blending,
+            float[] speedValues,
+            float[] loudnessValues,
+            int textLength,
+            int k)
+        {
+            if (LingotionLogger.CurrentLevel < VerbosityLevel.Debug)
+            {
+                return;
+            }
+
+            StringBuilder sb = new();
+            sb.AppendLine($"=== Metagraph control tensors (k={k}, N={textLength}) ===");
+
+            sb.AppendLine("Per-segment keypoints (post curve resampling):");
+            for (int s = 0; s < input.Segments.Count; s++)
+            {
+                ThespeonInputSegment segment = input.Segments[s];
+                int tokenCount = s < controlSpans.Count ? controlSpans[s].TokenCount : -1;
+                sb.AppendLine($"  [{s}] tokens={tokenCount} custom={segment.IsCustomPronounced}");
+                sb.AppendLine($"       emotion  {BlendText(segment.StartEmotion)} -> {BlendText(segment.EndEmotion)}");
+                sb.AppendLine($"       speed    {segment.StartSpeed:0.###} -> {segment.EndSpeed:0.###}");
+                sb.AppendLine($"       loudness {segment.StartLoudness:0.###} -> {segment.EndLoudness:0.###}");
+                sb.AppendLine($"       text     '{segment.Text}'");
+            }
+
+            // Token 0 is SOS and token N-1 is EOS; the tokens between belong to the segments in order.
+            sb.AppendLine("Per-token values (token: speed loudness | blend):");
+            for (int c = 0; c < textLength; c++)
+            {
+                string label = c == 0 ? "SOS" : c == textLength - 1 ? "EOS" : c.ToString();
+                // speed holds two entries per token; they are written identically, so report the first.
+                sb.Append($"  {label,5}: spd={speedValues[2 * c]:0.###} lou={loudnessValues[c]:0.###} |");
+                for (int r = 0; r < k; r++)
+                {
+                    sb.Append($" {distinctEmotions[r]}={blending[r * textLength + c]:0.###}");
+                }
+                sb.AppendLine();
+            }
+
+            // A column that does not sum to 1 means the blend was built wrong, which is easy to miss by eye.
+            float minSum = float.MaxValue;
+            float maxSum = float.MinValue;
+            for (int c = 0; c < textLength; c++)
+            {
+                float sum = 0f;
+                for (int r = 0; r < k; r++)
+                {
+                    sum += blending[r * textLength + c];
+                }
+                minSum = Math.Min(minSum, sum);
+                maxSum = Math.Max(maxSum, sum);
+            }
+            sb.AppendLine($"Blend column sums range [{minSum:0.####}, {maxSum:0.####}] (should both be 1)");
+            sb.AppendLine($"Speed range [{speedValues.Min():0.###}, {speedValues.Max():0.###}], loudness range [{loudnessValues.Min():0.###}, {loudnessValues.Max():0.###}]");
+            LingotionLogger.Debug(sb.ToString());
+        }
+
+        /// <summary>
+        /// Formats an emotion blend as a compact "Emotion:weight" list for logging.
+        /// </summary>
+        private static string BlendText(Dictionary<Emotion, float> blend)
+        {
+            if (blend == null || blend.Count == 0)
+            {
+                return "{}";
+            }
+            return "{" + string.Join(", ", blend.Select(pair => $"{pair.Key}:{pair.Value:0.###}")) + "}";
+        }
+
+        /// <summary>
+        /// Per-segment token span and its emotion/speed/loudness boundary keypoints, recorded while encoding.
+        /// </summary>
+        private struct SegmentControlSpan
+        {
+            public int TokenCount;
+            public float[] StartVec;
+            public float[] EndVec;
+            public float StartSpeed;
+            public float EndSpeed;
+            public float StartLoudness;
+            public float EndLoudness;
+        }
+
+        /// <summary>
         /// Sets up input tensors for MetaGraph inference.
-        /// Uses different tensor names than the language model: phoneme_keys instead of txt, with text_lengths.
+        /// The encoder token sequence is SOS (⏩), every segment's encoded phoneme tokens in order, then EOS (⏪).
+        /// Emotion blending, speed and loudness are expanded from each segment's boundary keypoints onto that token layout.
         /// </summary>
         private void SetMetaGraphInputTensors(
             CharacterModule characterModule,
             ThespeonInput input,
-            Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage,
-            List<string> originalSegmentTexts,
             List<int> requestedMarkerIndices)
         {
             List<int> phonemeKeys = new() { characterModule.EncodePhonemes("⏩").Item1[0] };
-            List<int> emotionKeys = new();
             List<int> languageKeys = new();
-            int characterKey = characterModule.GetCharacterKey();
-            int i = 0;
-            int runningLength = 0;
-            List<int> indecesFiltered = new();
+
+            // Collect the distinct emotions used across all segments' start/end blends in first-appearance order.
+            // Each becomes a row in the k x N emotions / emotions_blending tensors. The blends have already been
+            // sanitized by the keypoint population pass, so they contain no Emotion.None and sum to 1.
+            List<Emotion> distinctEmotions = new();
+            Dictionary<Emotion, int> emotionRow = new();
+            foreach (ThespeonInputSegment segment in input.Segments)
+            {
+                foreach (Dictionary<Emotion, float> blend in new[] { segment.StartEmotion, segment.EndEmotion })
+                {
+                    foreach (Emotion emotion in blend.Keys)
+                    {
+                        if (!emotionRow.ContainsKey(emotion))
+                        {
+                            emotionRow[emotion] = distinctEmotions.Count;
+                            distinctEmotions.Add(emotion);
+                        }
+                    }
+                }
+            }
+            int k = distinctEmotions.Count;
+            if (k == 0)
+            {
+                throw new ArgumentException("No emotions were resolved for this input. At least one emotion keypoint is required.");
+            }
+
+            float[] MapToVector(Dictionary<Emotion, float> blend)
+            {
+                float[] vector = new float[k];
+                foreach (KeyValuePair<Emotion, float> pair in blend)
+                {
+                    vector[emotionRow[pair.Key]] = pair.Value;
+                }
+                return vector;
+            }
+
+            List<SegmentControlSpan> controlSpans = new(input.Segments.Count);
+            int lastLanguageKey = 0;
+            bool isFirstSegment = true;
 
             foreach (ThespeonInputSegment segment in input.Segments)
             {
                 ModuleLanguage segmentLanguage = segment.Language ?? input.DefaultLanguage;
-                Emotion segmentEmotion = segment.Emotion != Emotion.None ? segment.Emotion : input.DefaultEmotion;
-                if (segmentEmotion == Emotion.None)
-                    throw new ArgumentException("Segment emotion should never be None.");
-
-                int soseosAdjust = (i == 0 ? 1 : 0) + (i == input.Segments.Count - 1 ? 1 : 0);
-                (List<int> segmentPhonemes, List<int> filteredIndeces) = characterModule.EncodePhonemes(segment.Text);
+                int languageKey = characterModule.GetLanguageKey(segmentLanguage);
+                if (languageKey == -1)
+                {
+                    throw new ArgumentException($"Character module does not have a valid language key for language: {segmentLanguage.ToJson()}");
+                }
+                (List<int> segmentPhonemes, _) = characterModule.EncodePhonemes(segment.Text);
                 phonemeKeys.AddRange(segmentPhonemes);
-                emotionKeys.AddRange(Enumerable.Repeat((int)segmentEmotion, segmentPhonemes.Count + soseosAdjust));
-                languageKeys.AddRange(Enumerable.Repeat(characterModule.GetLanguageKey(segmentLanguage), segmentPhonemes.Count + soseosAdjust));
-                indecesFiltered.AddRange(filteredIndeces.Select(index => index + runningLength + (i == 0 ? 1 : 0)).ToList());
-                i++;
-                runningLength += segment.Text.Length + soseosAdjust;
+
+                languageKeys.AddRange(Enumerable.Repeat(languageKey, segmentPhonemes.Count + (isFirstSegment ? 1 : 0)));
+                isFirstSegment = false;
+                lastLanguageKey = languageKey;
+
+                controlSpans.Add(new SegmentControlSpan
+                {
+                    TokenCount = segmentPhonemes.Count,
+                    StartVec = MapToVector(segment.StartEmotion),
+                    EndVec = MapToVector(segment.EndEmotion),
+                    StartSpeed = segment.StartSpeed,
+                    EndSpeed = segment.EndSpeed,
+                    StartLoudness = segment.StartLoudness,
+                    EndLoudness = segment.EndLoudness
+                });
             }
 
             phonemeKeys.Add(characterModule.EncodePhonemes("⏪").Item1[0]);
 
-            (List<float> speedKeys, List<float> loudnessKeys) = BuildRLECurves(input, lengthChangesByLanguage, originalSegmentTexts);
-            indecesFiltered.Sort((a, b) => b.CompareTo(a));
-            foreach (int idx in indecesFiltered)
+            languageKeys.Add(lastLanguageKey);
+
+            int textLength = phonemeKeys.Count;
+            if (languageKeys.Count != textLength)
             {
-                if (idx < 0 || idx >= speedKeys.Count)
-                {
-                    LingotionLogger.Error($"Index {idx} is out of bounds for phonemeKeys with length {phonemeKeys.Count}. This should never happen.");
-                    continue;
-                }
-                speedKeys.RemoveAt(idx);
-                loudnessKeys.RemoveAt(idx);
+                throw new ArgumentException($"Mismatch in tensor lengths: phonemeKeys: {textLength}, languageKeys: {languageKeys.Count}.");
             }
 
-            if (phonemeKeys.Count != emotionKeys.Count ||
-                phonemeKeys.Count != languageKeys.Count ||
-                phonemeKeys.Count != speedKeys.Count ||
-                phonemeKeys.Count != loudnessKeys.Count)
+            // Build the scalar controls and the k x N emotion tensors from the keypoints.
+            // emotions_blending[:,c] is the blend at token c (sums to 1), lerped between each segment's boundaries.
+            // emotions[:,c] is the constant list of the k distinct emotion IDs. Both are row-major for shape {k, textLength}.
+            // Speed follows the encoder's doubled sequence, so each token's interpolated speed is written twice.
+            float[] speedValues = new float[2 * textLength];
+            float[] loudnessValues = new float[textLength];
+            float[] blending = new float[k * textLength];
+            for (int idx = 0; idx < speedValues.Length; idx++)
             {
-                throw new ArgumentException("Mismatch in tensor lengths: " +
-                    $"phonemeKeys: {phonemeKeys.Count}, " +
-                    $"emotionKeys: {emotionKeys.Count}, " +
-                    $"languageKeys: {languageKeys.Count}, " +
-                    $"speedKeys: {speedKeys.Count}, " +
-                    $"loudnessKeys: {loudnessKeys.Count} ");
+                speedValues[idx] = 1f;
+            }
+            for (int idx = 0; idx < loudnessValues.Length; idx++)
+            {
+                loudnessValues[idx] = 1f;
+            }
+
+            void WriteControlSample(int tokenIndex, float speedValue, float loudnessValue)
+            {
+                speedValues[2 * tokenIndex] = speedValue;
+                speedValues[2 * tokenIndex + 1] = speedValue;
+                loudnessValues[tokenIndex] = loudnessValue;
+            }
+
+            if (controlSpans.Count > 0)
+            {
+                // SOS takes the first segment's start keypoints.
+                SegmentControlSpan first = controlSpans[0];
+                WriteControlSample(0, first.StartSpeed, first.StartLoudness);
+                for (int r = 0; r < k; r++)
+                {
+                    blending[r * textLength] = first.StartVec[r];
+                }
+
+                int cursor = 1;
+                foreach (SegmentControlSpan span in controlSpans)
+                {
+                    int spanLength = span.TokenCount;
+                    for (int j = 0; j < spanLength; j++)
+                    {
+                        float t = spanLength == 1 ? 0.5f : j / (float)(spanLength - 1);
+                        WriteControlSample(
+                            cursor + j,
+                            Mathf.Lerp(span.StartSpeed, span.EndSpeed, t),
+                            Mathf.Lerp(span.StartLoudness, span.EndLoudness, t)
+                        );
+                        for (int r = 0; r < k; r++)
+                        {
+                            blending[r * textLength + cursor + j] = span.StartVec[r] + (span.EndVec[r] - span.StartVec[r]) * t;
+                        }
+                    }
+                    cursor += spanLength;
+                }
+
+                // EOS takes the last segment's end keypoints.
+                SegmentControlSpan last = controlSpans[^1];
+                WriteControlSample(textLength - 1, last.EndSpeed, last.EndLoudness);
+                for (int r = 0; r < k; r++)
+                {
+                    blending[r * textLength + textLength - 1] = last.EndVec[r];
+                }
+            }
+
+            int[] emotionIds = new int[k * textLength];
+            for (int r = 0; r < k; r++)
+            {
+                int id = (int)distinctEmotions[r];
+                for (int c = 0; c < textLength; c++)
+                {
+                    emotionIds[r * textLength + c] = id;
+                }
+            }
+
+            int characterKey = characterModule.GetCharacterKey();
+            if (characterKey == -1)
+            {
+                LingotionLogger.Warning("Character module does not have a valid character key. Falling back to 1.");
+                characterKey = 1;
             }
 
             LingotionLogger.Debug($"Phoneme keys: {string.Join(", ", phonemeKeys)}");
-            LingotionLogger.Debug($"Emotion keys: {string.Join(", ", emotionKeys)}");
             LingotionLogger.Debug($"Character key: {characterKey}");
             LingotionLogger.Debug($"Language keys: {string.Join(", ", languageKeys)}");
+            LingotionLogger.Debug($"Emotion tensors: k={k}, N={textLength}, emotions=[{string.Join(", ", distinctEmotions.Select(emotion => $"{emotion}({(int)emotion})"))}]");
+            LogControlTensors(input, distinctEmotions, controlSpans, blending, speedValues, loudnessValues, textLength, k);
 
-            int textLength = phonemeKeys.Count;
-
-            Tensor<int> phonemeKeysTensor = new(
-                new TensorShape(1, textLength), phonemeKeys.ToArray()
-            );
-            Tensor<int> textLengthsTensor = new(
-                new TensorShape(1), new int[] { textLength }
-            );
-            Tensor<int> emotions = new(
-                new TensorShape(1, textLength), emotionKeys.ToArray()
-            );
-            Tensor<int> characters = new(
-                new TensorShape(1, 1), new int[] { characterKey }
-            );
-            Tensor<int> languages = new(
-                new TensorShape(1, textLength), languageKeys.ToArray()
-            );
-            Tensor<float> speed = new(
-                new TensorShape(1, textLength), speedKeys.ToArray()
-            );
-            Tensor<float> loudness = new(
-                new TensorShape(1, textLength), loudnessKeys.ToArray()
-            );
-
-            // Create target_phoneme_indices - indices for each phoneme position (initialized to sequence 0, 1, 2, ...)
-            // Note: This tensor is 1D (textLength), not 2D (1, textLength)
-            int[] targetIndices = new int[textLength];
-            for (int idx = 0; idx < textLength; idx++)
-            {
-                targetIndices[idx] = idx;
-            }
-            Tensor<int> targetPhonemeIndices = new(
-                new TensorShape(requestedMarkerIndices.Count), requestedMarkerIndices.ToArray()
-            );
-
-            TensorPool.SetTensor("phoneme_keys", phonemeKeysTensor);
-            TensorPool.SetTensor("text_lengths", textLengthsTensor);
-            TensorPool.SetTensor("target_phoneme_indices", targetPhonemeIndices);
-            TensorPool.SetTensor("emotions", emotions);
-            TensorPool.SetTensor("actors.1", characters);
-            TensorPool.SetTensor("languages.1", languages);
-            TensorPool.SetTensor("speed", speed);
-            TensorPool.SetTensor("loudness", loudness);
+            TensorPool.SetTensor("phoneme_keys", new Tensor<int>(new TensorShape(1, textLength), phonemeKeys.ToArray()));
+            TensorPool.SetTensor("emotions", new Tensor<int>(new TensorShape(1, k, textLength), emotionIds));
+            TensorPool.SetTensor("emotions_blending", new Tensor<float>(new TensorShape(1, k, textLength), blending));
+            TensorPool.SetTensor("actors", new Tensor<int>(new TensorShape(1, 1), new int[] { characterKey }));
+            TensorPool.SetTensor("languages", new Tensor<int>(new TensorShape(1, textLength), languageKeys.ToArray()));
+            TensorPool.SetTensor("text_lengths", new Tensor<int>(new TensorShape(1), new int[] { textLength }));
+            TensorPool.SetTensor("speed", new Tensor<float>(new TensorShape(1, 2 * textLength), speedValues));
+            TensorPool.SetTensor("loudness", new Tensor<float>(new TensorShape(1, 1, textLength), loudnessValues));
+            TensorPool.SetTensor("target_phoneme_indices", new Tensor<int>(new TensorShape(requestedMarkerIndices.Count), requestedMarkerIndices.ToArray()));
         }
 
     }

@@ -14,4 +14,3 @@ Examples of heteronyms:
 * If an audio sample request appears inside of a numerical part of the input line the timing may be slightly off due to how numbers are parsed into text and the marker heuristically reinserted before being converted to text.
 * Certain combinations of random consonants might cause the engine to get confused and generate a long series of gibberish. 
 * Very short syntheses - shorter than about 1/3 of a second - are currently blocked.
-* Speed and loudness curves are currently not supported. Any provided curves will be ignored during synthesis. This feature will return in a future update.

@@ -184,6 +184,60 @@ Pushy, self-assertive. Driven by anger. Message: I must remove obstacles. Exampl
 
 Configuration settings for the inference engine.
 
+## Class `KeypointUtils`
+
+Builds the piecewise-linear keypoint curves that drive emotion blending, speed and loudness. Each segment contributes up to two keypoints - one at its first character and one at its last - placed on a global character position axis. Every segment boundary is then resampled from that curve, so values stay continuous across segment splits, are flat-held outside the outermost keypoints and may be discontinuous where one segment ends and the next begins at the same character.
+### Methods
+
+#### `bool SanitizeEmotionBlend(Dictionary<Emotion, float> blend)`
+
+Removes `Emotion.None`, clamps every weight to [0,1], drops non-positive weights and normalizes the rest to sum to 1. The blend is mutated in place.
+
+**Parameters:**
+
+- `blend`: The emotion blend to sanitize. May be null.
+
+**Returns:** True if the blend holds at least one meaningful emotion after sanitization, false if it collapsed to empty ("no opinion").
+#### `Dictionary<Emotion, float> InterpolateEmotionKeypoints(Dictionary<Emotion, float> startBlend, Dictionary<Emotion, float> endBlend, float alpha)`
+
+Linearly interpolates between two emotion blends over the union of their keys, treating a missing key as weight 0.
+
+**Parameters:**
+
+- `startBlend`: The blend at alpha 0.
+- `endBlend`: The blend at alpha 1.
+- `alpha`: The interpolation factor, clamped to [0,1].
+
+**Returns:** A new normalized blend.
+#### `bool PopulateEmotionKeypoints<TSegment>(IReadOnlyList<TSegment> segments, Emotion defaultEmotion)`
+
+Resamples every segment's start and end emotion blends from the curve formed by all supplied blends.
+
+**Parameters:**
+
+- `segments`: The segments to populate. Modified in place.
+- `defaultEmotion`: The fallback emotion used when no segment supplies a blend. `Emotion.None` means there is no valid fallback.
+
+**Returns:** True on success, false if population failed and the request should be aborted.
+#### `bool PopulateSpeedKeypoints<TSegment>(IReadOnlyList<TSegment> segments)`
+
+Resamples every segment's start and end speed from the curve formed by all supplied speed values.
+
+**Parameters:**
+
+- `segments`: The segments to populate. Modified in place.
+
+**Returns:** True on success, false if population failed and the request should be aborted.
+#### `bool PopulateLoudnessKeypoints<TSegment>(IReadOnlyList<TSegment> segments)`
+
+Resamples every segment's start and end loudness from the curve formed by all supplied loudness values.
+
+**Parameters:**
+
+- `segments`: The segments to populate. Modified in place.
+
+**Returns:** True on success, false if population failed and the request should be aborted.
+
 ## Class `LingotionLogger`
 
 Static class for logging messages with different verbosity levels.
@@ -281,6 +335,43 @@ Finds a specific language module.
 - `moduleName`: Target module name.
 
 **Returns:** A module entry of the corresponding language.
+#### `bool HasLanguageModule(string moduleID)`
+
+Checks whether a language module with the exact given ID has been imported.
+
+**Parameters:**
+
+- `moduleID`: Target language module ID.
+
+**Returns:** True if the module is present in the manifest.
+#### `string FindLanguageModuleIDForISO(string iso639_2)`
+
+Finds the ID of any imported language module serving the given language. Used to substitute a language module a character pins but which is not imported, since a module ID also encodes the content it was built from and so differs between builds of the same language.
+
+**Parameters:**
+
+- `iso639_2`: ISO 639-2 code of the language to find a module for.
+
+**Returns:** The ID of an imported module serving that language, or null if none does.
+#### `string GetCharacterModuleVersion(string characterName, ModuleType type)`
+
+Fetches the version of a specific character module.
+
+**Parameters:**
+
+- `characterName`: Target character name.
+- `type`: Target module type.
+
+**Returns:** The module version formatted as "major.minor.patch", or "Unknown" if it cannot be determined.
+#### `string GetLanguageModuleVersion(string moduleName)`
+
+Fetches the version of a specific language module.
+
+**Parameters:**
+
+- `moduleName`: Target module name.
+
+**Returns:** The module version formatted as "major.minor.patch", or "Unknown" if it cannot be determined.
 #### `List<string> GetAllCharacterNames()`
 
 Fetches all available character names.
@@ -300,7 +391,7 @@ Returns the config filename for a file by its display name.
 Fetches all available language names.
 
 **Returns:** List of all language names.
-#### `List<string> GetAllModuleInfoInCharacter(string name)`
+#### `List<(string info, string version)> GetAllModuleInfoInCharacter(string name)`
 
 Summarizes all module info inside a character.
 
@@ -308,8 +399,8 @@ Summarizes all module info inside a character.
 
 - `name`: The specific name to find.
 
-**Returns:** A list of strings summarizing the modules inside the character.
-#### `List<string> GetAllModuleInfoInLanguage(string name)`
+**Returns:** A list of summary and version pairs, one per module inside the character.
+#### `List<(string info, string version)> GetAllModuleInfoInLanguage(string name)`
 
 Summarizes all module info inside an language module.
 
@@ -317,7 +408,7 @@ Summarizes all module info inside an language module.
 
 - `name`: The specific language name to find.
 
-**Returns:** A list of strings summarizing the language modules.
+**Returns:** A list of summary and version pairs, one per language module.
 #### `List<string> GetMissingLanguages()`
 
 Fetches all missing languages that are required by the character. This is useful for identifying which languages need to be installed for the character to function correctly.
@@ -375,6 +466,29 @@ Constructor for ModelInput. Initializes a new instance of ModelInput with the sp
 ## Class `ModelInputSegment`
 
 Base class for model input segments, providing common properties and methods for all model input segments.
+### Properties
+
+#### `Emotion Emotion`
+
+Legacy single emotion. Kept for backwards compatibility; inference reads `StartEmotion` and `EndEmotion` instead.
+#### `Dictionary<Emotion, float> StartEmotion`
+
+Emotion blend at the start of the segment. Keys are emotions, values are intensities that sum to 1. A blend containing only `Core.Emotion.None` (or an empty blend) means "no opinion" and contributes no keypoint to the emotion curve.
+#### `Dictionary<Emotion, float> EndEmotion`
+
+Emotion blend at the end of the segment. See `StartEmotion`.
+#### `float StartSpeed`
+
+Speed at the start of the segment.
+#### `float EndSpeed`
+
+Speed at the end of the segment.
+#### `float StartLoudness`
+
+Loudness at the start of the segment.
+#### `float EndLoudness`
+
+Loudness at the end of the segment.
 ### Constructors
 
 #### `ModelInputSegment(ModelInputSegment other)`
@@ -403,8 +517,44 @@ Constructor for ModelInputSegment. Initializes a new instance of ModelInputSegme
 **Exceptions:**
 
 - `System.ArgumentException`: Thrown if the text is null or empty.
+#### `ModelInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, string language = null, string dialect = null, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)`
+
+Constructor for ModelInputSegment taking emotion blends and speed/loudness boundary values. The blends and scalars are treated as keypoints on a piecewise-linear curve over the whole input, so values stay continuous across segment boundaries.
+
+**Parameters:**
+
+- `text`: The text of the segment.
+- `startEmotion`: The emotion blend at the start of the segment. Weights are clamped to [0,1] and normalized to sum to 1. Pass an empty blend (or one containing only `Core.Emotion.None`) to contribute no keypoint.
+- `endEmotion`: The emotion blend at the end of the segment.
+- `language`: The ISO-639 language code of the segment. Optional, can be null.
+- `dialect`: The ISO-3166 dialect code of the segment. Optional, can be null.
+- `isCustomPronounced`: Indicates whether the segment is custom pronounced.
+- `startSpeed`: Speed at the start of the segment.
+- `endSpeed`: Speed at the end of the segment.
+- `startLoudness`: Loudness at the start of the segment.
+- `endLoudness`: Loudness at the end of the segment.
+
+**Exceptions:**
+
+- `System.ArgumentException`: Thrown if the text is null or empty.
 ### Methods
 
+#### `Dictionary<Emotion, float> CopyBlend(Dictionary<Emotion, float> blend)`
+
+Creates a shallow copy of an emotion blend, returning an empty blend when the source is null.
+
+**Parameters:**
+
+- `blend`: The blend to copy.
+
+**Returns:** A new dictionary holding the same emotion weights.
+#### `void SetEmotion(Emotion emotion)`
+
+Sets a single emotion for the whole segment, pinning both the start and end emotion blends to it.
+
+**Parameters:**
+
+- `emotion`: The emotion to apply. `Core.Emotion.None` clears the segment's opinion, letting the surrounding segments' emotion curve pass through it.
 #### `string ToJson()`
 
 Returns a string representation of the ModelInputSegment in JSON format after filtering out any null or None elements and isCustomPronounced if set to false.
@@ -437,6 +587,12 @@ The path to the module's JSON configuration file.
 #### `string Version`
 
 The version string of this module.
+#### `bool HasMetaGraph`
+
+Gets whether this module has a MetaGraph describing how its models are executed.
+#### `Metaonnx.MetaGraph MetaGraph`
+
+Gets the MetaGraph for this module, or null if the module ships without one.
 ### Methods
 
 #### `Dictionary<string, ModelRuntimeBinding> CreateRuntimeBindings(HashSet<string> md5s, BackendType preferredBackedType)`
@@ -445,9 +601,6 @@ Creates runtime bindings for the module's models, pairing them with their MD5s.
 
 **Parameters:**
 
-- `moduleInfo`: The module entry containing the ID, JSON path, and version.
-- `files`: The JSON "files" array from the config.
-- `isModelFile`: Predicate that determines whether a file extension represents a model file for runtime binding purposes.
 - `md5s`: MD5 strings of already existing bindings.
 - `preferredBackedType`: The preferred backend type for the models.
 
@@ -455,7 +608,6 @@ Creates runtime bindings for the module's models, pairing them with their MD5s.
 
 **Exceptions:**
 
-- `ArgumentNullException`: Thrown when the module ID or JSON path is null.
 - `NotImplementedException`: Thrown if the method is not implemented in the derived class.
 #### `IEnumerator CreateRuntimeBindingsCoroutine(HashSet<string> md5s, BackendType preferredBackendType, Action<Dictionary<string, ModelRuntimeBinding>> onComplete)`
 
@@ -542,9 +694,14 @@ Generates a WorkloadID string based on the provided MD5 hash and backend type, f
 ## Struct `ModuleEntry`
 
 A simple representation of a module with its properties.
+### Properties
+
+#### `string Version`
+
+The version of the module, formatted as "major.minor.patch".
 ### Constructors
 
-#### `ModuleEntry(string id, string path)`
+#### `ModuleEntry(string id, string path, string version = null)`
 
 Initializes a new instance of the ModuleEntry struct.
 
@@ -552,6 +709,7 @@ Initializes a new instance of the ModuleEntry struct.
 
 - `id`: The ID of the module.
 - `path`: The path to the module's JSON file.
+- `version`: The version of the module, formatted as "major.minor.patch".
 ### Methods
 
 #### `bool IsEmpty()`
@@ -841,11 +999,6 @@ Creates an error packet with the specified error message as its string payload.
 ## Class `ThespeonDefaultSettings`
 
 A ScriptableObject that holds default values for `InferenceConfig`. Users may edit these in the Inspector to override hard-coded defaults project-wide. At runtime, InferenceConfig's default constructor reads from this asset via Resources.Load. Place the asset at Assets/Lingotion Thespeon/Resources/ThespeonDefaultSettings.asset.
-### Properties
-
-#### `SupportedBackendType PreferredBackendType`
-
-Returns the singleton instance loaded from Resources. Falls back to a transient instance with hard-coded defaults if no asset is found.
 ### Methods
 
 #### `void ResetToHardCodedDefaults()`

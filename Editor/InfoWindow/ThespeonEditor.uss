@@ -1,0 +1,58 @@
+.header-label {
+    -unity-font-style: bold;
+    align-self: center;
+    margin-left: 5px;
+}
+
+.list-item-name {
+    font-size: 14px;
+    margin-top: 3px;
+    margin-bottom: 4px;
+    margin-left: 3px;
+}
+
+.list-item-sub {
+    margin-left: 10px;
+}
+
+.list-item-version {
+    margin-left: 10px;
+    -unity-font-style: italic;
+    color: rgb(160, 160, 160);
+}
+
+/* Removes chrome from read-only TextFields used as selectable labels */
+.selectable-label > #unity-text-input {
+    -unity-font-style: normal;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+    border-top-width: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    cursor: link;
+}
+
+.helpbox-link,
+.helpbox-link * {
+    padding: 0;
+    margin: 0;
+    cursor: link;
+}
+
+.helpbox-link .unity-help-box__label {
+    color: rgb(217, 217, 217);
+}
+
+.helpbox-link:hover .unity-help-box__label {
+    color: rgb(102, 178, 255);
+}
+
+.section-separator {
+    height: 1px;
+    background-color: rgb(77, 77, 77);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    flex-grow: 1;
+}

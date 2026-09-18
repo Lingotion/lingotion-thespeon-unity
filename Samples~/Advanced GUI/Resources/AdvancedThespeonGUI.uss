@@ -1,0 +1,621 @@
+/* Styling for the Advanced GUI sample. Loaded at runtime through Resources.Load<StyleSheet>.
+   Colours follow the Lingotion brand palette (https://lingotion.com/brand/):
+     Main Blue  #009ade      Black  #1d1d1b
+     Blue Dark  #0071ce      Blue Light  #8dc6e8
+     Storm  #3a3a3b   Rain  #54595f   Lava  #ea6852
+   The neutrals between Black and Storm are tints derived from those two.
+
+   The variables are declared on .lt-theme, which the sample adds to the UIDocument root. That element is
+   also where floating menus and modals are parented, so they inherit the palette too. */
+
+.lt-theme {
+    --lt-black: rgb(29, 29, 27);
+    --lt-surface: rgb(35, 35, 34);
+    --lt-surface-raised: rgb(44, 44, 43);
+    --lt-surface-hover: rgb(54, 54, 53);
+    --lt-storm: rgb(58, 58, 59);
+    --lt-rain: rgb(84, 89, 95);
+
+    --lt-blue: rgb(0, 154, 222);
+    --lt-blue-dark: rgb(0, 113, 206);
+    --lt-blue-light: rgb(141, 198, 232);
+    --lt-lava: rgb(234, 104, 82);
+
+    --lt-text: rgb(242, 242, 240);
+    --lt-text-dim: rgb(154, 158, 162);
+    --lt-text-faint: rgb(108, 112, 117);
+}
+
+/* ---------------------------------------------------------------- layout root */
+
+.lt-root {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background-color: var(--lt-black);
+}
+
+.lt-window {
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    max-width: 1180px;
+    max-height: 900px;
+    background-color: var(--lt-surface);
+    border-radius: 22px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- left rail */
+
+.lt-rail {
+    width: 260px;
+    padding: 28px 24px;
+    background-color: var(--lt-black);
+    border-right-width: 1px;
+    border-right-color: var(--lt-storm);
+}
+
+.lt-rail__spacer {
+    flex-grow: 1;
+    min-height: 24px;
+}
+
+.lt-caption {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.lt-caption--spaced {
+    margin-top: 14px;
+}
+
+/* ---------------------------------------------------------------- portrait */
+
+.lt-portrait {
+    width: 178px;
+    height: 178px;
+    margin-top: 22px;
+    align-self: flex-start;
+    background-color: var(--lt-surface-raised);
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.lt-portrait__image {
+    width: 100%;
+    height: 100%;
+}
+
+/* Shown until a real portrait image is supplied for the selected character. */
+.lt-portrait__initials {
+    -unity-font-style: bold;
+    font-size: 46px;
+    color: var(--lt-rain);
+}
+
+.lt-portrait__hint {
+    font-size: 10px;
+    color: var(--lt-text-faint);
+    margin-top: 4px;
+}
+
+/* ---------------------------------------------------------------- karaoke overlay */
+
+/* Sits over the panel along the bottom of the screen while a line is spoken, mirroring the Unreal demo's
+   subtitle overlay: portrait and name on the left, the line revealing itself on the right. */
+
+.lt-karaoke {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 16px;
+    background-color: rgba(29, 29, 27, 0.94);
+    border-radius: 22px;
+    border-width: 1px;
+    border-color: var(--lt-blue);
+}
+
+.lt-karaoke__speaker {
+    width: 200px;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    background-color: var(--lt-surface-raised);
+    border-radius: 16px;
+}
+
+.lt-karaoke__portrait {
+    width: 128px;
+    height: 128px;
+    border-radius: 64px;
+    background-color: var(--lt-storm);
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+.lt-karaoke__name {
+    -unity-font-style: bold;
+    font-size: 20px;
+    color: var(--lt-text);
+    margin-top: 12px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.lt-karaoke__bubble {
+    flex-grow: 1;
+    min-height: 170px;
+    margin-left: 16px;
+    padding: 20px 24px;
+    background-color: var(--lt-rain);
+    border-radius: 16px;
+}
+
+.lt-karaoke__line {
+    -unity-font-style: bold;
+    font-size: 30px;
+    color: var(--lt-text);
+    white-space: normal;
+    -unity-text-align: upper-left;
+}
+
+/* ---------------------------------------------------------------- pill dropdown */
+
+.lt-pill {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+    padding: 8px 14px;
+    background-color: var(--lt-surface-raised);
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    margin: 0;
+}
+
+.lt-pill:hover {
+    background-color: var(--lt-surface-hover);
+    border-color: var(--lt-blue);
+}
+
+.lt-pill:disabled {
+    opacity: 0.5;
+}
+
+/* Shrink and wrap instead of running past the pill's rounded edge: the rail is a fixed
+   width, so a long name grows the pill downwards rather than sideways. */
+.lt-pill__label {
+    -unity-font-style: bold;
+    font-size: 17px;
+    color: var(--lt-text);
+    margin-right: 10px;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: normal;
+}
+
+.lt-pill__chevron {
+    font-size: 12px;
+    color: var(--lt-blue);
+    flex-shrink: 0;
+}
+
+.lt-pill--centered {
+    width: 250px;
+    align-self: center;
+    justify-content: center;
+}
+
+.lt-pill--centered .lt-pill__label {
+    flex-grow: 1;
+    -unity-text-align: middle-center;
+}
+
+/* ---------------------------------------------------------------- popup menu */
+
+.lt-blocker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.lt-menu {
+    position: absolute;
+    max-height: 320px;
+    background-color: var(--lt-surface-raised);
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    padding: 4px;
+}
+
+.lt-menu__item {
+    -unity-text-align: middle-left;
+    -unity-font-style: normal;
+    font-size: 15px;
+    color: var(--lt-text);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin: 1px 0;
+}
+
+.lt-menu__item:hover {
+    background-color: var(--lt-surface-hover);
+}
+
+.lt-menu__item--selected {
+    color: var(--lt-blue);
+    -unity-font-style: bold;
+}
+
+/* ---------------------------------------------------------------- main column */
+
+.lt-main {
+    flex-grow: 1;
+    padding: 28px;
+}
+
+/* Developer-mode segment navigation, revealed with Ctrl+D. */
+
+.lt-segment-bar {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    background-color: var(--lt-surface-raised);
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--lt-blue);
+}
+
+.lt-segment-bar__arrow {
+    width: 32px;
+    height: 28px;
+    margin: 0 2px;
+    padding: 0;
+    background-color: var(--lt-storm);
+    border-width: 0;
+    border-radius: 7px;
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text);
+}
+
+.lt-segment-bar__arrow:hover {
+    background-color: var(--lt-blue);
+    color: rgb(255, 255, 255);
+}
+
+.lt-segment-bar__arrow:disabled {
+    opacity: 0.35;
+}
+
+.lt-segment-bar__counter {
+    flex-grow: 1;
+    -unity-font-style: bold;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--lt-blue-light);
+    -unity-text-align: middle-center;
+}
+
+.lt-segment-bar .lt-button {
+    height: 28px;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.lt-segment-bar .lt-button:disabled {
+    opacity: 0.35;
+}
+
+.lt-text {
+    min-height: 190px;
+    margin: 0 0 26px 0;
+}
+
+.lt-text .unity-base-text-field__input {
+    background-color: var(--lt-rain);
+    border-radius: 16px;
+    border-width: 0;
+    padding: 18px 20px;
+    font-size: 26px;
+    color: var(--lt-text);
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.lt-delivery {
+    flex-grow: 1;
+    padding: 26px 24px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    border-radius: 18px;
+}
+
+.lt-section-title {
+    -unity-font-style: bold;
+    font-size: 14px;
+    color: var(--lt-text-dim);
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
+    margin-top: 18px;
+    padding-bottom: 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--lt-storm);
+}
+
+.lt-columns {
+    flex-direction: row;
+    margin-top: 12px;
+}
+
+.lt-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    padding: 0 10px;
+}
+
+.lt-column__caption {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text-dim);
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
+    margin-bottom: 6px;
+}
+
+/* ---------------------------------------------------------------- emotion chips */
+
+.lt-emotion-box {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 56px;
+    padding: 8px;
+    background-color: var(--lt-surface-raised);
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+}
+
+.lt-emotion-box:hover {
+    border-color: var(--lt-blue);
+}
+
+.lt-chip {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--lt-storm);
+    border-radius: 13px;
+    padding: 4px 12px;
+    margin: 3px;
+}
+
+.lt-chip__name {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text);
+    letter-spacing: 1px;
+}
+
+.lt-chip__weight {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-blue-light);
+    margin-left: 8px;
+}
+
+.lt-chip--empty .lt-chip__name {
+    color: var(--lt-text-faint);
+}
+
+/* ---------------------------------------------------------------- fill slider */
+
+.lt-slider {
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--lt-blue-light);
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.lt-slider__fill {
+    height: 100%;
+    background-color: var(--lt-blue);
+    border-radius: 12px;
+}
+
+.lt-slider__value {
+    position: absolute;
+    left: 9px;
+    top: 0;
+    height: 100%;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    font-size: 14px;
+    color: var(--lt-black);
+}
+
+.lt-slider-caption {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text-dim);
+    letter-spacing: 1px;
+    margin-top: 10px;
+    margin-bottom: 3px;
+}
+
+/* ---------------------------------------------------------------- synthesize */
+
+.lt-synthesize {
+    height: 46px;
+    margin: 14px 0 0 0;
+    background-color: var(--lt-blue);
+    border-radius: 9px;
+    border-width: 0;
+    -unity-font-style: bold;
+    font-size: 22px;
+    color: rgb(255, 255, 255);
+}
+
+.lt-synthesize:hover {
+    background-color: var(--lt-blue-dark);
+}
+
+.lt-synthesize:disabled {
+    opacity: 0.45;
+}
+
+.lt-status {
+    font-size: 12px;
+    color: var(--lt-text-dim);
+    white-space: normal;
+    margin-top: 8px;
+    min-height: 16px;
+    -unity-text-align: middle-center;
+}
+
+.lt-status--error {
+    color: var(--lt-lava);
+}
+
+/* ---------------------------------------------------------------- emotion modal */
+
+.lt-modal-scrim {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(29, 29, 27, 0.75);
+}
+
+.lt-modal {
+    width: 460px;
+    max-height: 90%;
+    padding: 22px;
+    background-color: var(--lt-surface);
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: var(--lt-storm);
+}
+
+.lt-modal__title {
+    -unity-font-style: bold;
+    font-size: 15px;
+    color: var(--lt-text);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.lt-modal__hint {
+    font-size: 12px;
+    color: var(--lt-text-dim);
+    white-space: normal;
+    margin-bottom: 14px;
+}
+
+.lt-modal__rows {
+    max-height: 300px;
+}
+
+.lt-modal__empty {
+    font-size: 13px;
+    color: var(--lt-text-faint);
+    -unity-text-align: middle-center;
+    padding: 18px 0;
+}
+
+.lt-modal__footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.lt-emotion-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.lt-emotion-row__name {
+    width: 130px;
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--lt-text);
+}
+
+.lt-emotion-row__slider {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.lt-emotion-row__remove {
+    width: 26px;
+    height: 24px;
+    margin-left: 8px;
+    padding: 0;
+    background-color: var(--lt-storm);
+    border-width: 0;
+    border-radius: 6px;
+    color: var(--lt-text);
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.lt-emotion-row__remove:hover {
+    background-color: var(--lt-lava);
+    color: rgb(255, 255, 255);
+}
+
+.lt-add-emotion {
+    margin-top: 10px;
+}
+
+.lt-button {
+    height: 34px;
+    min-width: 92px;
+    margin-left: 8px;
+    padding: 0 16px;
+    background-color: var(--lt-surface-raised);
+    border-width: 1px;
+    border-color: var(--lt-storm);
+    border-radius: 8px;
+    -unity-font-style: bold;
+    font-size: 14px;
+    color: var(--lt-text);
+}
+
+.lt-button:hover {
+    background-color: var(--lt-surface-hover);
+}
+
+.lt-button--primary {
+    background-color: var(--lt-blue);
+    border-color: var(--lt-blue);
+    color: rgb(255, 255, 255);
+}
+
+.lt-button--primary:hover {
+    background-color: var(--lt-blue-dark);
+    border-color: var(--lt-blue-dark);
+}

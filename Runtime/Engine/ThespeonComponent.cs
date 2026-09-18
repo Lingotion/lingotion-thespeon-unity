@@ -58,6 +58,8 @@ namespace Lingotion.Thespeon.Engine
         private bool isRunningSynth = false;
         private Queue<SynthRequest> synthQueue = new();
         private Queue<SynthRequest> warmupQueue = new();
+
+        public const string WARMUP_SESSION_ID = "WarmupSession";
         void Update()
         {
             if (!isRunningSynth && synthQueue.Count > 0)
@@ -85,6 +87,10 @@ namespace Lingotion.Thespeon.Engine
         /// <param name="configOverride">An optional InferenceConfigOverride where each provided property overrides the existing default. </param>
         public void Synthesize(ThespeonInput input, string sessionID = "", InferenceConfigOverride configOverride = null)
         {
+
+            // session ID, and a null one would be indistinguishable from a packet
+            // that cannot be attributed to any session at all.
+            sessionID ??= string.Empty;
             InferenceConfig config = configOverride == null ? new InferenceConfig() : configOverride.GenerateConfig();
             LingotionLogger.CurrentLevel = config.Verbosity;
             LingotionLogger.Debug($"Running Synthesis with config: PreferredBackendType={config.PreferredBackendType}, Verbosity={config.Verbosity}, BufferSeconds={config.BufferSeconds}, UseAdaptiveScheduling={config.UseAdaptiveScheduling}");
@@ -93,10 +99,6 @@ namespace Lingotion.Thespeon.Engine
                 LingotionLogger.Error("GPUPixel backend is not supported yet. Please use a different backend.");
                 OnSynthesisFailed?.Invoke(sessionID);
                 return;
-            }
-            if (!IsDefaultCurve(input.Speed) || !IsDefaultCurve(input.Loudness))
-            {
-                LingotionLogger.Warning("Speed and loudness curves are currently not supported and will be ignored. This feature will return in a future update.");
             }
             if (isRunningSynth)
             {
@@ -143,13 +145,13 @@ namespace Lingotion.Thespeon.Engine
                 ThespeonInput mockInput = new(mockSegments, characterName, moduleType);
                 if (isRunningSynth)
                 {
-                    warmupQueue.Enqueue(new SynthRequest(mockInput, "WarmupSession", configOverride));
+                    warmupQueue.Enqueue(new SynthRequest(mockInput, WARMUP_SESSION_ID, configOverride));
                     LingotionLogger.Debug("Synth is running. Warmup has been queued.");
                 }
                 else
                 {
                     LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
-                    StartCoroutine(RunSynthCoroutine(mockInput, config, "WarmupSession", WarmupPacketHandler));
+                    StartCoroutine(RunSynthCoroutine(mockInput, config, WARMUP_SESSION_ID, WarmupPacketHandler));
                 }
             }
             LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
@@ -197,13 +199,13 @@ namespace Lingotion.Thespeon.Engine
                 ThespeonInput mockInput = new(mockSegments, characterName, moduleType);
                 if (isRunningSynth)
                 {
-                    warmupQueue.Enqueue(new SynthRequest(mockInput, "WarmupSession", configOverride));
+                    warmupQueue.Enqueue(new SynthRequest(mockInput, WARMUP_SESSION_ID, configOverride));
                     LingotionLogger.Debug("Synth is running. Warmup has been queued.");
                 }
                 else
                 {
                     LingotionLogger.CurrentLevel = new InferenceConfig().Verbosity;
-                    var warmupSynth = RunSynthCoroutine(mockInput, config, "WarmupSession", WarmupPacketHandler);
+                    var warmupSynth = RunSynthCoroutine(mockInput, config, WARMUP_SESSION_ID, WarmupPacketHandler);
                     while (warmupSynth.MoveNext()) { yield return warmupSynth.Current; }
                 }
             }
@@ -245,8 +247,8 @@ namespace Lingotion.Thespeon.Engine
         private void PacketHandler(ThespeonDataPacket packet)
         {
             string packetSessionID = null;
-            if(!packet.Metadata.TryGetValue(CommonMetadataKeys.SessionID, out PacketMetadataValue metadataSessionID) && 
-                !metadataSessionID.TryGet(out packetSessionID) &&
+            if(!packet.Metadata.TryGetValue(CommonMetadataKeys.SessionID, out PacketMetadataValue metadataSessionID) || 
+                !metadataSessionID.TryGet(out packetSessionID) ||
                 packetSessionID == null
             )
             {
@@ -335,7 +337,7 @@ namespace Lingotion.Thespeon.Engine
             inferenceSession = new ThespeonInference(sessionID, packetHandler);
             LingotionLogger.CurrentLevel = config.Verbosity;
             LingotionLogger.Info("Starting synthesis coroutine...");
-            if (sessionID == "WarmupSession")
+            if (sessionID == WARMUP_SESSION_ID)
                 yield return null;
             yield return StartCoroutine(inferenceSession.Infer(input, config));
             LingotionLogger.Info("Synthesis coroutine completed.");
@@ -350,32 +352,6 @@ namespace Lingotion.Thespeon.Engine
             inferenceSession = null;
         }
 
-
-        private static bool IsDefaultCurve(AnimationCurve curve)
-        {
-            if (curve == null || curve.keys.Length == 0)
-                return true;
-
-            const int sampleCount = 50;
-            float t0 = curve.keys[0].time;
-            float t1 = curve.keys[curve.keys.Length - 1].time;
-
-            if (t1 - t0 < 0.0001f)
-                return Mathf.Abs(curve.Evaluate(t0) - 1f) < 0.001f;
-
-            float dt = (t1 - t0) / sampleCount;
-            float sum = 0f;
-
-            for (int i = 0; i <= sampleCount; i++)
-            {
-                float t = t0 + i * dt;
-                float diff = curve.Evaluate(t) - 1f;
-                sum += diff * diff;
-            }
-
-            float rms = Mathf.Sqrt(sum * dt / (t1 - t0));
-            return rms < 0.01f;
-        }
 
         private struct SynthRequest
         {

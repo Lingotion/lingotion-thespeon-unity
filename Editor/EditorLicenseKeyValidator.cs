@@ -3,11 +3,14 @@
 #if UNITY_EDITOR
 using System;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using Lingotion.Thespeon.Core.IO;
 using Lingotion.Thespeon.Core;
+using Lingotion.Thespeon.Inference;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
@@ -30,7 +33,12 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         public static Action<ValidationResult> OnValidationComplete;
         private static readonly HttpClient _httpClient = new();
-        // TODO: replace with production endpoint
+        /// <summary>
+        /// True when this package was installed from the Unity Asset Store (delivered via the default
+        /// Unity registry), as opposed to a git/local/embedded install. Used to gate Asset Store-only
+        /// behaviour such as Verified Solutions Attribution.
+        /// </summary>
+        public static bool IsAssetStoreInstall { get; } = IsInstalledFromAssetStore();
 
         /// <summary>
         /// Path to the ProjectSettings directory.
@@ -40,17 +48,22 @@ namespace Lingotion.Thespeon.Editor
         /// Path to the license key file for this project.
         /// </summary>
         public static readonly string LicenseKeyFilePath = Path.Combine(ProjectSettingsPath, "Lingotion.Thespeon.license");
+        private static readonly string DataCacheFilePath = Path.Combine(ProjectSettingsPath, "Lingotion.Thespeon.datacache");
+
         /// <summary>
         /// Path to the ProjectSettings.asset file for this project.
         /// </summary>
         public static readonly string ProjectSettingsAssetFilePath = Path.Combine(ProjectSettingsPath, "ProjectSettings.asset");
 
 
-        const string url = "https://portal.lingotion.com/v1/licenses/verify";
+
+        const string url = EditorLingotionUrls.LicenseVerify;
 
         static EditorLicenseKeyValidator()
         {
-            ValidateFromFileAsync().Forget();
+            InferenceEditorSignals.OnSynthesisDataSignal -= AddDataToCacheFile;
+            InferenceEditorSignals.OnSynthesisDataSignal += AddDataToCacheFile;
+            EditorApplication.delayCall += () => { ValidateFromFileAsync().Forget(); };
         }
 
         /// <summary>
@@ -71,13 +84,21 @@ namespace Lingotion.Thespeon.Editor
             {
                 return ValidationResult.Indeterminate;
             }
+            CacheData cacheData = LoadDataCacheFromFile();
+            var info = UnityEditor.PackageManager.PackageInfo.FindForAssembly(Assembly.GetExecutingAssembly());
+            string version = info?.version;
             // Full payload
             var payload = new JObject
             {
                 ["licenseKey"] = licenseKey,
                 ["projectGuid"] = projectGuid,
-                ["data"] = new JObject { ["Modules"] = JArray.FromObject(Modules) },
-                ["platform"] = "Unity"
+                ["data"] = new JObject { 
+                    ["modules"] = JArray.FromObject(Modules),
+                    ["source"] = IsAssetStoreInstall ? "AssetStore" : "Other",
+                    ["cacheData"] = JObject.FromObject(cacheData.Data),
+                    ["packageVersion"] = version
+                },
+                ["platform"] = "Unity",
             };
 
             string json = payload.ToString(Formatting.None);
@@ -91,6 +112,7 @@ namespace Lingotion.Thespeon.Editor
                 // 200 means valid (resp.IsSuccessStatusCode is true for any 2xx)
                 if (code == 200)
                 {
+                    ClearDataCacheFile();
                     return ValidationResult.Valid;
                 }
 
@@ -127,15 +149,7 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="text">The license key string to save.</param>
         public static void SaveLicenseToFile(string text)
         {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(LicenseKeyFilePath));
-                File.WriteAllText(LicenseKeyFilePath, text ?? "", Encoding.UTF8);
-            }
-            catch (Exception e)
-            {
-                LingotionLogger.Error($"License verification could not complete! Error writing to license key file: {e.Message}");
-            }
+            WriteTextToFile(LicenseKeyFilePath, text);
         }
 
         /// <summary>
@@ -144,19 +158,74 @@ namespace Lingotion.Thespeon.Editor
         /// <returns>The stored license key string, or an empty string if not found or on error.</returns>
         public static string LoadLicenseFromFile()
         {
-            if(!File.Exists(LicenseKeyFilePath))
+            return ReadTextFromFile(LicenseKeyFilePath);
+        }
+
+        /// <summary>
+        /// Adds the provided data to the data cache file, merging with existing content when keys already exist.
+        /// </summary>
+        /// <param name="data">The data to add to the cache.</param>
+        public static void AddDataToCacheFile(CacheData data)
+        {
+            CacheData cacheData = LoadDataCacheFromFile();
+            cacheData = cacheData.AddContent(data);
+            WriteTextToFile(DataCacheFilePath, cacheData.ToJson());
+        }
+
+        private static CacheData LoadDataCacheFromFile()
+        {
+            return new CacheData(ReadTextFromFile(DataCacheFilePath));
+        }
+
+        private static void ClearDataCacheFile()
+        {
+            try
+            {
+                if (File.Exists(DataCacheFilePath))
+                {
+                    File.Delete(DataCacheFilePath);
+                }
+            }
+            catch (Exception e)
+            {
+                LingotionLogger.Error($"Error clearing data cache file: {e.Message}");
+            }
+        }
+
+        private static void WriteTextToFile(string path, string text)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, text ?? "", Encoding.UTF8);
+            }
+            catch (Exception e)
+            {
+                LingotionLogger.Error($"Error writing to file {path}: {e.Message}");
+            }
+        }
+
+        private static string ReadTextFromFile(string path)
+        {
+            if(!File.Exists(path))
             {
                 return "";
             }
             try
             {
-                return RuntimeFileLoader.LoadFileAsString(LicenseKeyFilePath) ?? "";
+                return RuntimeFileLoader.LoadFileAsString(path) ?? "";
             }
             catch (Exception e)
             {
-                LingotionLogger.Error($"License verification could not complete! Error reading license key file: {e.Message}");
+                LingotionLogger.Error($"Error reading file {path}: {e.Message}");
             }
             return "";
+        }
+
+        private static bool IsInstalledFromAssetStore()
+        {
+            var info = UnityEditor.PackageManager.PackageInfo.FindForAssembly(Assembly.GetExecutingAssembly());
+            return info?.source == PackageSource.Registry && info.registry?.isDefault == true;
         }
 
         /// <summary>

@@ -23,6 +23,9 @@ The name of the character.
 #### `ModuleType moduleType`
 
 The module type associated with the character.
+#### `string moduleVersion`
+
+The version of the module this asset was generated from, formatted as "major.minor.patch". Populated automatically by the asset generator and empty on manually created assets.
 
 ## Class `ThespeonCharacterHelper`
 
@@ -145,6 +148,26 @@ Deep copy constructor for ThespeonInputSegment.
 **Exceptions:**
 
 - `System.ArgumentNullException`: Thrown if the provided ThespeonInputSegment instance is null.
+#### `ThespeonInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, string language = null, string dialect = null, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)`
+
+Constructor for ThespeonInputSegment taking emotion blends and speed/loudness boundary values. The boundary values are keypoints on a piecewise-linear curve spanning the whole input, so they stay continuous across segment boundaries.
+
+**Parameters:**
+
+- `text`: The text of the segment. Cannot be null or empty.
+- `startEmotion`: The emotion blend at the start of the segment. Weights are clamped to [0,1] and normalized to sum to 1. Pass an empty blend to contribute no keypoint.
+- `endEmotion`: The emotion blend at the end of the segment.
+- `language`: The language of the segment. Optional.
+- `dialect`: The dialect of the segment. Optional.
+- `isCustomPronounced`: Indicates whether the segment consists of only IPA text. Optional, defaults to false.
+- `startSpeed`: Speed at the start of the segment.
+- `endSpeed`: Speed at the end of the segment.
+- `startLoudness`: Loudness at the start of the segment.
+- `endLoudness`: Loudness at the end of the segment.
+
+**Exceptions:**
+
+- `System.ArgumentException`: Thrown if the text is null or empty.
 ### Methods
 
 #### `ThespeonInputSegment ParseFromJson(string jsonPath)`

@@ -11,7 +11,7 @@
 **Lingotion Thespeon** is an on-device AI engine designed to generate real-time character acting and voiceovers.
 The package runs entirely offline on the player’s device, eliminating cloud costs and network dependencies.
 
-This is version 2.0.0 of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Get in touch with the Lingotion developers and Thespeon users on our discord](https://discord.gg/9f2HFyu5gF)!
+This is version 2.1.0 of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Get in touch with the Lingotion developers and Thespeon users on our discord](https://discord.gg/9f2HFyu5gF)!
 
 [Please report any encountered issues to the Issues page](https://github.com/Lingotion/unity-package/issues) or in the Support section of the [Lingotion Discord](https://discord.gg/9f2HFyu5gF).
 
@@ -32,6 +32,8 @@ This is version 2.0.0 of Lingotion Thespeon, and we appreciate any and all feedb
 * Ethical and legally safe models, voice actors are compensated
 * Syncing in-game events with generated audio
 * Support for 33 emotions, with more on the way
+* Mixing and blending emotions over time
+* Tunable speed and loudness parameters
 * Custom pronunciation support with IPA notation
 * Number and ordinal pronunciation
 * PC, Mac and mobile platforms supported, with more coming soon
@@ -42,12 +44,15 @@ This is version 2.0.0 of Lingotion Thespeon, and we appreciate any and all feedb
 
 The process of getting started with Lingotion Thespeon consist of four main parts:
 - Sign up in the Lingotion Developer Portal
-- Download _.lingotion_ file(s) related to your chosen Character(s) 
+- Download _.lingotion_ file(s) related to your chosen character(s) 
 - Import the Thespeon package to your Unity project
 - Import _.lingotion_ file(s) into your Unity project
 
+> [!TIP]
+> If you are a new user, you can install the Thespeon package first and let the **Thespeon Info Window** guide you through account creation. It opens the signup page for you and, once you're set up, automatically fills in your license key and downloads a couple of starter models. See the [Create an account](./Documentation~/get-started-unity.md#get-acquainted-with-the-thespeon-info-window) branch in the Unity guide.
+
 ## **Developer Portal Setup**
-The _.lingotion_ file(s) are downloaded from the Lingotion developer portal. Before getting started with the package, we need to set up an account to download these files.
+The _.lingotion_ file(s) are downloaded from the Lingotion developer portal. To pick and download your own character(s) you need an account on the portal.
 The following guide will step you through the process of creating an account at the Lingotion developer portal:
 [Get Started - Webportal](https://github.com/Lingotion/.github/blob/main/profile/portal-docs/get-started-webportal.md)
 

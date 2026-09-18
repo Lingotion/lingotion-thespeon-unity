@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.InferenceEngine;
 using Lingotion.Thespeon.Core;
-using Lingotion.Thespeon.Character;
 using Metaonnx;
 using UnityEngine;
 
@@ -19,7 +18,7 @@ namespace Lingotion.Thespeon.Inference
     public class MetaGraphRunner
     {
         private readonly SessionTensorPool _tensorPool;
-        private readonly CharacterModule _characterModule;
+        private readonly Module _module;
         private readonly InferenceConfig _config;
         private readonly Action<ThespeonDataPacket> _callback;
         private readonly Func<bool> _shouldStop;
@@ -39,23 +38,26 @@ namespace Lingotion.Thespeon.Inference
         // Operators used in symbolic expressions - skip variable extraction if expression contains these
         private static readonly string[] Operators = new[] { "*", "+", "-", "/" };
 
+        // Used where a symbolic expression must resolve against host variables and the tensor pool alone.
+        private static readonly Dictionary<string, SymExprParser.VarDictEntry> EmptyVarDict = new();
+
         /// <summary>
         /// Creates a new MetaGraphRunner instance.
         /// </summary>
         /// <param name="tensorPool">The session tensor pool for tensor storage.</param>
-        /// <param name="characterModule">The character module containing model definitions.</param>
+        /// <param name="module">The module owning the graph, resolving its nodes' models.</param>
         /// <param name="config">Inference configuration settings.</param>
         /// <param name="callback">Callback for streaming audio data packets.</param>
         /// <param name="shouldStop">Function to check if inference should be aborted.</param>
         public MetaGraphRunner(
             SessionTensorPool tensorPool,
-            CharacterModule characterModule,
+            Module module,
             InferenceConfig config,
             Action<ThespeonDataPacket> callback,
             Func<bool> shouldStop)
         {
             _tensorPool = tensorPool;
-            _characterModule = characterModule;
+            _module = module;
             _config = config;
             _callback = callback;
             _shouldStop = shouldStop;
@@ -76,6 +78,12 @@ namespace Lingotion.Thespeon.Inference
         public IEnumerator Run(MetaGraph graph, bool verbose = false)
         {
             _verbose = verbose;
+
+            if (!ValidateAndFillInputs(graph))
+            {
+                LingotionLogger.Error("MetaGraphRunner: input validation failed, aborting");
+                yield break;
+            }
 
             foreach (var node in graph.Nodes)
             {
@@ -125,6 +133,148 @@ namespace Lingotion.Thespeon.Inference
         }
 
         /// <summary>
+        /// Maps a declared dtype string onto the Unity tensor DataType a matching tensor must have.
+        /// Unity has no 64-bit integer tensor, so int64 graph inputs are represented as Tensor&lt;int&gt;
+        /// throughout Thespeon and validate against DataType.Int.
+        /// </summary>
+        private static bool TryGetExpectedDataType(string dtype, out DataType expected)
+        {
+            switch (dtype?.ToLowerInvariant())
+            {
+                case "int64":
+                case "long":
+                case "int32":
+                case "int":
+                    expected = DataType.Int;
+                    return true;
+
+                case "float32":
+                case "float":
+                    expected = DataType.Float;
+                    return true;
+
+                default:
+                    expected = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks the tensor pool against the graph's declared external input contract (presence, dtype and
+        /// dimensions), then fills in default values for any missing optional inputs. Every problem found is
+        /// collected and logged together so a caller can fix them all in one pass.
+        /// </summary>
+        /// <param name="graph">The MetaGraph whose input contract should be validated.</param>
+        /// <returns>True if all declared inputs are satisfied, false otherwise.</returns>
+        private bool ValidateAndFillInputs(MetaGraph graph)
+        {
+            List<string> errors = new();
+
+            // expression -> (tensorName, dimIndex, size) for every symbolic dim seen so far. Two inputs
+            // sharing the same symbolic name (as assigned by the ONNX exporter) are declaring that those
+            // dims must be equal at runtime - this is how that co-dependency gets enforced.
+            Dictionary<string, (string tensorName, int dimIndex, int size)> symbolicDims = new();
+
+            // Pass 1: presence/dtype/shape only. Must fully complete, and fail on any problem, before
+            // filling optional defaults below - a default's dim expression can reference another declared
+            // input, which isn't safe to evaluate until we know that input is actually present, regardless
+            // of where it falls in graph.Inputs' order.
+            foreach (InputBinding declaredInput in graph.Inputs)
+            {
+                string name = declaredInput.TensorName;
+
+                if (!_tensorPool.TryGetTensor(name, out Tensor tensor) || tensor == null)
+                {
+                    if (!declaredInput.IsOptional)
+                    {
+                        errors.Add($"Missing required input '{name}'");
+                    }
+                    continue;
+                }
+
+                if (!TryGetExpectedDataType(declaredInput.Dtype, out DataType expectedType))
+                {
+                    LingotionLogger.Error($"MetaGraphRunner: input '{name}' declares unsupported dtype: {declaredInput.Dtype}");
+                    return false;
+                }
+                if (tensor.dataType != expectedType)
+                {
+                    errors.Add($"Input '{name}' has wrong dtype: expected '{declaredInput.Dtype}', got '{tensor.dataType}'");
+                }
+
+                if (tensor.shape.rank != declaredInput.Dims.Count)
+                {
+                    errors.Add($"Input '{name}' has wrong number of dimensions: expected {declaredInput.Dims.Count}, got {tensor.shape.rank}");
+                    continue;
+                }
+
+                for (int j = 0; j < declaredInput.Dims.Count; j++)
+                {
+                    DimEntry dim = declaredInput.Dims[j];
+                    int size = tensor.shape[j];
+
+                    if (dim.Type == DimEntry.Types.DimType.DimStatic)
+                    {
+                        if (size != dim.Size)
+                        {
+                            errors.Add($"Input '{name}' has wrong size at dimension {j}: expected {dim.Size}, got {size}");
+                        }
+                    }
+                    else if (dim.Type == DimEntry.Types.DimType.DimSymbolic)
+                    {
+                        string expression = dim.Expression;
+                        if (symbolicDims.TryGetValue(expression, out var prior))
+                        {
+                            if (prior.size != size)
+                            {
+                                errors.Add($"Input '{name}' dimension {j} has size {size}, but must equal input '{prior.tensorName}' " +
+                                    $"dimension {prior.dimIndex} (size {prior.size}) - both share symbolic dimension '{expression}'");
+                            }
+                        }
+                        else
+                        {
+                            symbolicDims[expression] = (name, j, size);
+                        }
+                    }
+                    // Runtime dims are unknowable ahead of time; any size is accepted.
+                }
+            }
+
+            if (errors.Count > 0)
+            {
+                foreach (string error in errors)
+                {
+                    LingotionLogger.Error($"MetaGraphRunner: invalid inputs: {error}");
+                }
+                return false;
+            }
+
+            // Pass 2: every declared input is now confirmed present-and-valid or optional-and-absent, so it
+            // is safe to fill missing optional defaults - any tensor their dim expressions reference is
+            // guaranteed resolvable.
+            Dictionary<string, HostValue> emptyHost = new();
+            foreach (InputBinding declaredInput in graph.Inputs)
+            {
+                string name = declaredInput.TensorName;
+                if (_tensorPool.ContainsTensor(name) || !declaredInput.IsOptional || declaredInput.DefaultValue == null)
+                {
+                    continue;
+                }
+
+                Tensor defaultTensor = BuildTensorCreateArray(declaredInput.DefaultValue, emptyHost);
+                if (defaultTensor == null)
+                {
+                    LingotionLogger.Error($"MetaGraphRunner: input '{name}': failed to build default value");
+                    return false;
+                }
+                LingotionLogger.Debug($"MetaGraphRunner: filled optional input '{name}' with its default value {defaultTensor.shape}");
+                _tensorPool.SetTensor(name, defaultTensor);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Builds the symbolic variable dictionary from a node's input/output bindings.
         /// </summary>
         private void BuildVarDictFromNode(Node node)
@@ -136,7 +286,7 @@ namespace Lingotion.Thespeon.Inference
         /// <summary>
         /// Processes input bindings to extract symbolic dimension variables.
         /// </summary>
-        private void ProcessInputsForSymbolicDims(IEnumerable<Node.Types.InputBinding> inputs)
+        private void ProcessInputsForSymbolicDims(IEnumerable<InputBinding> inputs)
         {
             foreach (var input in inputs)
             {
@@ -273,6 +423,17 @@ namespace Lingotion.Thespeon.Inference
 
             foreach (var input in node.Inputs)
             {
+                // Inputs are renamed into the ONNX input name below and stay under it afterwards,
+                // so a tensor bound on an earlier pass through this node - as happens every
+                // iteration of a loop - still counts as present.
+                bool isBound = _tensorPool.ContainsTensor(input.TensorName)
+                    || (!string.IsNullOrEmpty(input.InputName) && _tensorPool.ContainsTensor(input.InputName));
+
+                if (!isBound && !TryFillOptionalInput(input, nodeId))
+                {
+                    yield break;
+                }
+
                 if (input.InputName != input.TensorName && _tensorPool.ContainsTensor(input.TensorName))
                 {
                     _tensorPool.TryRenameTensor(input.TensorName, input.InputName);
@@ -285,7 +446,7 @@ namespace Lingotion.Thespeon.Inference
                 LingotionLogger.Error($"MetaGraphRunner: Could not resolve workload for node '{nodeId}'");
                 yield break;
             }
-            string modelWorkloadID = Module.GetWorkloadID(modelMD5, _config.PreferredBackendType);
+            string modelWorkloadID = Module.GetWorkloadID(modelMD5, ResolveBackendForNode(node, modelMD5));
             InferenceWorkload workload = null;
             if (!InferenceWorkloadManager.Instance.AcquireWorkload(modelWorkloadID, ref workload))
             {
@@ -319,6 +480,82 @@ namespace Lingotion.Thespeon.Inference
             }
 
             ExecuteHostActions(node.PostActions, nodeId);
+        }
+
+        /// <summary>
+        /// Fills a node input that is missing from the tensor pool from its declared default value.
+        /// A required input that is absent is a hard error, as is an optional one whose graph
+        /// declares no default to build from.
+        /// </summary>
+        /// <param name="input">The node input binding to satisfy.</param>
+        /// <param name="nodeId">The node the input belongs to, for error reporting.</param>
+        /// <returns>True if the input is now bound, false if the node should be aborted.</returns>
+        private bool TryFillOptionalInput(InputBinding input, string nodeId)
+        {
+            if (!input.IsOptional)
+            {
+                LingotionLogger.Error($"MetaGraphRunner: Node '{nodeId}' - required input tensor '{input.TensorName}' not found");
+                return false;
+            }
+
+            if (input.DefaultValue == null)
+            {
+                LingotionLogger.Error($"MetaGraphRunner: Node '{nodeId}' - optional input '{input.TensorName}' has no default_value");
+                return false;
+            }
+
+            Tensor tensor = BuildTensorCreateArray(input.DefaultValue, _hostValues);
+            if (tensor == null)
+            {
+                LingotionLogger.Error($"MetaGraphRunner: Node '{nodeId}' - could not build default value for optional input '{input.TensorName}'");
+                return false;
+            }
+
+            _tensorPool.SetTensor(input.TensorName, tensor);
+            LingotionLogger.Debug($"MetaGraphRunner: Node '{nodeId}' - filled optional input '{input.TensorName}' with its default value {tensor.shape}");
+            return true;
+        }
+
+        /// <summary>
+        /// Maps a node's preferred_device onto a Unity backend. The preference is a portable hardware
+        /// class rather than a backend name, and the graph allows a runtime that cannot provide the
+        /// requested device to fall back, so a pinned backend is only honoured when a workload for it
+        /// has actually been registered for this model.
+        /// </summary>
+        /// <param name="node">The node whose device preference to resolve.</param>
+        /// <param name="modelMD5">MD5 of the node's model, used to look up the pinned workload.</param>
+        /// <returns>The backend the node's workload should be taken from.</returns>
+        private BackendType ResolveBackendForNode(Node node, string modelMD5)
+        {
+            if (node.PreferredDevice == Metaonnx.DeviceType.DeviceUnspecified)
+            {
+                return _config.PreferredBackendType;
+            }
+
+            BackendType? requested = node.PreferredDevice switch
+            {
+                Metaonnx.DeviceType.DeviceCpu => BackendType.CPU,
+                Metaonnx.DeviceType.DeviceGpu => BackendType.GPUCompute,
+                // Unity Inference Engine exposes no NPU backend, so an NPU request has no mapping
+                // here and is left to the configured backend.
+                _ => null
+            };
+
+            if (!requested.HasValue || requested.Value == _config.PreferredBackendType)
+            {
+                return _config.PreferredBackendType;
+            }
+
+            if (!InferenceWorkloadManager.Instance.HasWorkload(Module.GetWorkloadID(modelMD5, requested.Value)))
+            {
+                LingotionLogger.Warning(
+                    $"MetaGraphRunner: Node '{node.Id}' requests {node.PreferredDevice}, but no workload is registered " +
+                    $"on {requested.Value} - falling back to {_config.PreferredBackendType}");
+                return _config.PreferredBackendType;
+            }
+
+            LingotionLogger.Debug($"MetaGraphRunner: Node '{node.Id}' pinned to {requested.Value} by preferred_device");
+            return requested.Value;
         }
 
         /// <summary>
@@ -656,13 +893,19 @@ namespace Lingotion.Thespeon.Inference
                 HostBinaryOp.Types.Op.Sub => leftVal - rightVal,
                 HostBinaryOp.Types.Op.Mul => leftVal * rightVal,
                 HostBinaryOp.Types.Op.Div => rightVal != 0 ? leftVal / rightVal : 0,
-                HostBinaryOp.Types.Op.Mod => rightVal != 0 ? leftVal % rightVal : 0,
+
+                // a fractional remainder feeds a shape computation that then disagrees with the tensor it is
+                // multiplied against by a single element.
+                HostBinaryOp.Types.Op.Mod => (int)rightVal != 0 ? (int)leftVal % (int)rightVal : 0,
                 _ => 0
             };
 
-            // Determine result type based on inputs
-            bool isInteger = IsIntegerValueRef(action.Left) && IsIntegerValueRef(action.Right);
-            _hostValues[action.DestHost] = isInteger
+
+            // both to be integers. An int left operand combined with a float right one has to truncate here,
+            // because the graph relies on that truncation when it derives lengths (for example the upsampled
+            // loudness envelope). Keeping full precision instead lets the rounding happen later and one element
+            // further along, which surfaces as a broadcast mismatch in post_process_loudness.
+            _hostValues[action.DestHost] = IsIntegerValueRef(action.Left)
                 ? HostValue.FromInt64((long)result)
                 : HostValue.FromFloat(result);
 
@@ -691,15 +934,52 @@ namespace Lingotion.Thespeon.Inference
         /// </summary>
         private void EvalTensorCreate(TensorCreate action)
         {
-            string tensorName = action.DestTensor.Name;
-            string dtype = action.Dtype.ToLowerInvariant();
-
-            int[] dims = new int[action.DimsLiteral.Count];
-            for (int i = 0; i < action.DimsLiteral.Count; i++)
+            Tensor tensor = BuildTensorCreateArray(action, _hostValues);
+            if (tensor == null)
             {
-                dims[i] = (int)action.DimsLiteral[i];
+                return;
+            }
+            _tensorPool.SetTensor(action.DestTensor.Name, tensor);
+        }
+
+        /// <summary>
+        /// Builds a tensor from a TensorCreate spec: resolves each dim (a static size, or a symbolic/runtime
+        /// expression evaluated against the host variables and tensor pool), then fills it per the spec's
+        /// fill mode. Shared by the TensorCreate host action and optional-input default filling.
+        /// </summary>
+        /// <param name="action">The TensorCreate spec to build from.</param>
+        /// <param name="host">Host variables the dim expressions may reference.</param>
+        /// <returns>The created tensor, or null on failure.</returns>
+        private Tensor BuildTensorCreateArray(TensorCreate action, Dictionary<string, HostValue> host)
+        {
+            string dtype = action.Dtype?.ToLowerInvariant();
+
+            List<int> dimList = new(action.Dims.Count);
+            foreach (DimEntry dim in action.Dims)
+            {
+                if (dim.Type == DimEntry.Types.DimType.DimStatic)
+                {
+                    dimList.Add((int)dim.Size);
+                    continue;
+                }
+
+                // Symbolic and runtime dims carry an expression resolved against the current host
+                // variables and tensor pool rather than a size known ahead of time.
+                // No symbolic var dict here: a TensorCreate dim expression is resolved purely against host
+                // variables and the tensor pool, not against another node's symbolic dim bindings.
+                if (!SymExprParser.Evaluate(dim.Expression, EmptyVarDict, host, _tensorPool, out uint resolved))
+                {
+                    LingotionLogger.Error($"MetaGraphRunner: TensorCreate - failed to evaluate dim expression '{dim.Expression}'");
+                    return null;
+                }
+                dimList.Add((int)resolved);
+            }
+            if (dimList.Count == 0)
+            {
+                dimList.Add(1);
             }
 
+            int[] dims = dimList.ToArray();
             TensorShape shape = dims.Length switch
             {
                 1 => new TensorShape(dims[0]),
@@ -709,7 +989,25 @@ namespace Lingotion.Thespeon.Inference
                 _ => new TensorShape(dims)
             };
 
-            Tensor tensor;
+            if (action.Fill != TensorCreate.Types.Fill.Zeros &&
+                action.Fill != TensorCreate.Types.Fill.Ones &&
+                action.Fill != TensorCreate.Types.Fill.Value)
+            {
+                LingotionLogger.Error($"MetaGraphRunner: TensorCreate - unknown fill '{action.Fill}'");
+                return null;
+            }
+            if (action.Fill == TensorCreate.Types.Fill.Value && action.Value == null)
+            {
+                LingotionLogger.Error("MetaGraphRunner: TensorCreate - VALUE fill requires a scalar value");
+                return null;
+            }
+            float fillValue = action.Fill switch
+            {
+                TensorCreate.Types.Fill.Ones => 1f,
+                TensorCreate.Types.Fill.Value => ScalarLiteralToHostValue(action.Value).ToFloat(),
+                _ => 0f
+            };
+
             int totalSize = shape.length;
 
             switch (dtype)
@@ -717,52 +1015,23 @@ namespace Lingotion.Thespeon.Inference
                 case "float32":
                 case "float":
                     float[] floatData = new float[totalSize];
-                    float floatFill = action.Fill switch
-                    {
-                        TensorCreate.Types.Fill.Zeros => 0f,
-                        TensorCreate.Types.Fill.Ones => 1f,
-                        TensorCreate.Types.Fill.Value => action.Value?.F32 ?? 0f,
-                        _ => 0f
-                    };
-                    Array.Fill(floatData, floatFill);
-                    tensor = new Tensor<float>(shape, floatData);
-                    break;
+                    Array.Fill(floatData, fillValue);
+                    return new Tensor<float>(shape, floatData);
 
+                // Unity has no 64-bit integer tensor, so int64 is represented as Tensor<int> here just as
+                // it is for every integer tensor Thespeon feeds the graph.
                 case "int64":
                 case "long":
-                    long[] longData = new long[totalSize];
-                    long longFill = action.Fill switch
-                    {
-                        TensorCreate.Types.Fill.Zeros => 0L,
-                        TensorCreate.Types.Fill.Ones => 1L,
-                        TensorCreate.Types.Fill.Value => action.Value?.I64 ?? 0L,
-                        _ => 0L
-                    };
-                    Array.Fill(longData, longFill);
-                    tensor = new Tensor<long>(shape, longData);
-                    break;
-
                 case "int32":
                 case "int":
                     int[] intData = new int[totalSize];
-                    int intFill = action.Fill switch
-                    {
-                        TensorCreate.Types.Fill.Zeros => 0,
-                        TensorCreate.Types.Fill.Ones => 1,
-                        TensorCreate.Types.Fill.Value => (int)(action.Value?.I64 ?? 0),
-                        _ => 0
-                    };
-                    Array.Fill(intData, intFill);
-                    tensor = new Tensor<int>(shape, intData);
-                    break;
+                    Array.Fill(intData, (int)fillValue);
+                    return new Tensor<int>(shape, intData);
 
                 default:
-                    LingotionLogger.Error($"MetaGraphRunner: TensorCreate - unsupported dtype '{dtype}'");
-                    return;
+                    LingotionLogger.Error($"MetaGraphRunner: TensorCreate - unsupported dtype '{action.Dtype}'");
+                    return null;
             }
-
-            _tensorPool.SetTensor(tensorName, tensor);
-
         }
 
         /// <summary>
@@ -1044,7 +1313,7 @@ namespace Lingotion.Thespeon.Inference
 
             foreach (var candidate in candidates)
             {
-                if (_characterModule.HasModelMD5(candidate))
+                if (_module.HasModelMD5(candidate))
                 {
                     return candidate;
                 }
@@ -1061,7 +1330,7 @@ namespace Lingotion.Thespeon.Inference
         {
             try
             {
-                modelId = _characterModule.GetInternalModelID(path);
+                modelId = _module.GetInternalModelID(path);
                 return true;
             }
             catch (KeyNotFoundException)

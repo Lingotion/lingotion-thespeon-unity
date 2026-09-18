@@ -33,6 +33,19 @@ namespace Lingotion.Thespeon.Core
         protected Dictionary<string, string> InternalModelMappings;
 
         protected HashSet<BackendType> LoadedBackends = new();
+
+        private Metaonnx.MetaGraph _metaGraph;
+
+        /// <summary>
+        /// Gets whether this module has a MetaGraph describing how its models are executed.
+        /// </summary>
+        public bool HasMetaGraph => _metaGraph != null;
+
+        /// <summary>
+        /// Gets the MetaGraph for this module, or null if the module ships without one.
+        /// </summary>
+        public Metaonnx.MetaGraph MetaGraph => _metaGraph;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Module"/> class with the specified module
         /// entry information.
@@ -45,6 +58,7 @@ namespace Lingotion.Thespeon.Core
                 throw new ArgumentNullException("Module entry parameter is null.");
             ModuleID = moduleInfo.ModuleID;
             JsonPath = moduleInfo.JsonPath;
+            Version = moduleInfo.Version;
         }
 
         /// <summary>
@@ -82,6 +96,36 @@ namespace Lingotion.Thespeon.Core
 
             InternalFileMappings = internalModuleFiles;
             InternalModelMappings = internalModelMappings;
+        }
+
+        /// <summary>
+        /// Attempts to load the module's MetaGraph from its file mappings. Call after
+        /// <see cref="ParseModuleFiles"/>, which is what populates the mappings this reads.
+        /// </summary>
+        protected void TryLoadMetaGraph()
+        {
+            try
+            {
+                // Look for metagraph in file mappings
+                if (!InternalFileMappings.TryGetValue("metagraph", out ModuleFile metagraphFile))
+                {
+                    // MetaGraph is optional
+                    _metaGraph = null;
+                    return;
+                }
+
+                using System.IO.Stream stream = RuntimeFileLoader.LoadFileAsStream(metagraphFile.filePath);
+                if (stream != null)
+                {
+                    _metaGraph = Metaonnx.MetaGraph.Parser.ParseFrom(stream);
+                    LingotionLogger.Info($"Loaded MetaGraph from {metagraphFile.GetFilename()} (version {_metaGraph.MajorVersion}.{_metaGraph.MinorVersion}.{_metaGraph.PatchVersion})");
+                }
+            }
+            catch (Exception e)
+            {
+                LingotionLogger.Error($"Failed to load MetaGraph: {e.Message}");
+                _metaGraph = null;
+            }
         }
 
         /// <summary>

@@ -70,15 +70,37 @@ Thespeon has its own information window that displays an overview of installed c
 
 1. To find the _Thespeon Info Window_, go to **Window > Lingotion > Thespeon Info** from the top menu. 
 
+2. The window offers two ways to get set up. Choose the branch that applies to you:
 
-2. Add your project's [license key](https://github.com/Lingotion/.github/blob/main/profile/portal-docs/get-started-webportal.md#creating-a-project) to the text box and press enter.
+![Thespeon info account branch](./data/create-account.png?raw=true "Thespeon info account branch")
 
-![Thespeon info license key](./data/license-key.png?raw=true "Thespeon info license key")
 > [!IMPORTANT] 
-> To do this step you need an internet connection.
+> Either branch requires an internet connection.
 > 
 
-3. Press the **Import Pack** button and select your downloaded character pack from the webportal. The imported character(s) will show up under the **Imported Character Packs** list.
+   **Branch A — I already have an account**
+
+   2A. Add your project's [license key](https://github.com/Lingotion/.github/blob/main/profile/portal-docs/get-started-webportal.md#creating-a-project) to the text box and press enter.
+
+   ![Thespeon info license key](./data/license-key.png?raw=true "Thespeon info license key")
+
+   Then continue with steps **3** and **4** below to import your downloaded packs.
+
+   **Branch B — Create an account**
+
+   If you don't have an account yet, Thespeon can set you up with starter models automatically.
+
+   2B-1. Press the **Create account** button. Thespeon opens your web browser at the account signup page on the Lingotion Developer Portal.
+
+   2B-2. Complete the signup and **accept the Terms of Service**.
+
+   2B-3. **Copy the download token** shown on the portal once signup is complete.
+
+   2B-4. Return to Unity and **paste the download token** into the Thespeon Info Window.
+
+   Thespeon then automatically fills in your license key and downloads **two starter models**. When this finishes, your installation is ready to use -- you can skip the manual import steps below and go straight to [Run the Minimal Character sample](#run-the-minimal-character-sample).
+
+3. _(Branch A)_ Press the **Import Pack** button and select your downloaded character pack from the webportal. The imported character(s) will show up under the **Imported Character Packs** list.
 
 ![Thespeon info empty screenshot](./data/thespeon-info-empty.png?raw=true "Thespeon info empty screenshot")
 
@@ -86,7 +108,7 @@ Thespeon has its own information window that displays an overview of installed c
 
    Note the warning - this means that we need to import a corresponding language pack as well.
 
-4.  Now, press the "**Import Pack**" button again and select your downloaded language pack(s). The imported languages can be seen in the **Imported Language Packs** list.
+4.  _(Branch A)_ Now, press the "**Import Pack**" button again and select your downloaded language pack(s). The imported languages can be seen in the **Imported Language Packs** list.
 
 ![import-language screenshot](./data/import-language.png?raw=true "import-language screenshot")
 

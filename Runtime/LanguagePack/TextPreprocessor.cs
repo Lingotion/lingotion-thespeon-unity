@@ -103,11 +103,10 @@ namespace Lingotion.Thespeon.Language
                     "swe" => new NumberToWordsSwedish(),
                     _ => throw new NotSupportedException($"Language '{iso639_2}' is not supported."),
                 };
-                ThespeonInputSegment currentSegment = new(segment)
-                {
-                    Text = string.Empty,
-                    IsCustomPronounced = false
-                };
+
+                // empty emotion blends. The original outer endpoints are restored by ApplySplitKeypoints below.
+                List<ThespeonInputSegment> splitSegments = new();
+                ThespeonInputSegment currentSegment = MakeSplitSegment(segment, string.Empty, false);
 
 
                 foreach (var (part, isMatch, fractions) in mergedParts)
@@ -139,19 +138,165 @@ namespace Lingotion.Thespeon.Language
                     {
                         if (!string.IsNullOrEmpty(currentSegment.Text))
                         {
-                            result.Segments.Add(currentSegment);
+                            splitSegments.Add(currentSegment);
                         }
-                        currentSegment = new(segment)
-                        {
-                            Text = partText,
-                            IsCustomPronounced = isMatch
-                        };
+                        currentSegment = MakeSplitSegment(segment, partText, isMatch);
                     }
                 }
-                result.Segments.Add(currentSegment);
+                if (!string.IsNullOrEmpty(currentSegment.Text))
+                {
+                    splitSegments.Add(currentSegment);
+                }
+                if (splitSegments.Count == 0)
+                {
+                    throw new ArgumentException("Segment preprocessing unexpectedly produced no segments.");
+                }
+                ApplySplitKeypoints(segment, splitSegments);
+                result.Segments.AddRange(splitSegments);
+            }
+            if (result.Segments.Count == 0)
+            {
+                throw new ArgumentException("Segment preprocessing unexpectedly produced no segments.");
+            }
+            ApplyGlobalScalarCurves(result);
+            if (!KeypointUtils.PopulateEmotionKeypoints(result.Segments, result.DefaultEmotion))
+            {
+                throw new ArgumentException("Failed to populate emotion keypoints.");
+            }
+            if (!KeypointUtils.PopulateSpeedKeypoints(result.Segments))
+            {
+                throw new ArgumentException("Failed to populate speed keypoints.");
+            }
+            if (!KeypointUtils.PopulateLoudnessKeypoints(result.Segments))
+            {
+                throw new ArgumentException("Failed to populate loudness keypoints.");
             }
             LingotionLogger.Debug("Done processing: " + result.ToJson());
             return result;
+        }
+
+        /// <summary>
+        /// Creates a sub-segment of an original segment with empty emotion blends, so splitting contributes no interior emotion keypoints.
+        /// </summary>
+        private static ThespeonInputSegment MakeSplitSegment(ThespeonInputSegment original, string text, bool isCustomPronounced)
+        {
+            ThespeonInputSegment segment = new(original)
+            {
+                Text = text,
+                IsCustomPronounced = isCustomPronounced
+            };
+            segment.StartEmotion.Clear();
+            segment.EndEmotion.Clear();
+            return segment;
+        }
+
+        /// <summary>
+        /// Restores the original segment's keypoints onto the sub-segments produced by number splitting.
+        /// Emotion keeps only the outer endpoints (interior blends stay empty so the curve passes straight through), while
+        /// speed and loudness - which have no unset representation - are resampled from the original linear ramp at each new boundary.
+        /// </summary>
+        private static void ApplySplitKeypoints(ThespeonInputSegment original, List<ThespeonInputSegment> splitSegments)
+        {
+            if (splitSegments.Count == 0)
+            {
+                return;
+            }
+            splitSegments[0].StartEmotion = ModelInputSegment.CopyBlend(original.StartEmotion);
+            splitSegments[^1].EndEmotion = ModelInputSegment.CopyBlend(original.EndEmotion);
+
+            int totalLength = splitSegments.Sum(s => s.Text.Length);
+            if (splitSegments.Count == 1 || totalLength <= 1)
+            {
+                splitSegments[0].StartSpeed = original.StartSpeed;
+                splitSegments[0].EndSpeed = original.EndSpeed;
+                splitSegments[0].StartLoudness = original.StartLoudness;
+                splitSegments[0].EndLoudness = original.EndLoudness;
+                return;
+            }
+            int cursor = 0;
+            foreach (ThespeonInputSegment segment in splitSegments)
+            {
+                int endPosition = cursor + segment.Text.Length - 1;
+                float startAlpha = cursor / (float)(totalLength - 1);
+                float endAlpha = endPosition / (float)(totalLength - 1);
+                segment.StartSpeed = Lerp(original.StartSpeed, original.EndSpeed, startAlpha);
+                segment.EndSpeed = Lerp(original.StartSpeed, original.EndSpeed, endAlpha);
+                segment.StartLoudness = Lerp(original.StartLoudness, original.EndLoudness, startAlpha);
+                segment.EndLoudness = Lerp(original.StartLoudness, original.EndLoudness, endAlpha);
+                cursor = endPosition + 1;
+            }
+        }
+
+        /// <summary>
+        /// Overwrites every segment's speed and loudness boundary values by sampling the input level AnimationCurves
+        /// at the segment's global character position. Curves that are flat at 1 are treated as "not supplied" and leave
+        /// the per-segment values untouched.
+        /// </summary>
+        private static void ApplyGlobalScalarCurves(ThespeonInput input)
+        {
+            bool useSpeed = !IsDefaultCurve(input.Speed);
+            bool useLoudness = !IsDefaultCurve(input.Loudness);
+            if (!useSpeed && !useLoudness)
+            {
+                return;
+            }
+            int totalLength = input.Segments.Sum(segment => segment.Text.Length);
+            if (totalLength <= 0)
+            {
+                return;
+            }
+            int globalPosition = 0;
+            foreach (ThespeonInputSegment segment in input.Segments)
+            {
+                int endPosition = globalPosition + segment.Text.Length - 1;
+                float startAlpha = totalLength > 1 ? globalPosition / (float)(totalLength - 1) : 0f;
+                float endAlpha = totalLength > 1 ? endPosition / (float)(totalLength - 1) : 0f;
+                if (useSpeed)
+                {
+                    segment.StartSpeed = input.Speed.Evaluate(startAlpha);
+                    segment.EndSpeed = input.Speed.Evaluate(endAlpha);
+                }
+                if (useLoudness)
+                {
+                    segment.StartLoudness = input.Loudness.Evaluate(startAlpha);
+                    segment.EndLoudness = input.Loudness.Evaluate(endAlpha);
+                }
+                globalPosition += segment.Text.Length;
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the curve is missing or effectively constant at 1, meaning the caller did not supply a curve.
+        /// </summary>
+        public static bool IsDefaultCurve(UnityEngine.AnimationCurve curve)
+        {
+            if (curve == null || curve.keys.Length == 0)
+            {
+                return true;
+            }
+
+            const int sampleCount = 50;
+            float t0 = curve.keys[0].time;
+            float t1 = curve.keys[^1].time;
+
+            if (t1 - t0 < 0.0001f)
+            {
+                return Math.Abs(curve.Evaluate(t0) - 1f) < 0.001f;
+            }
+
+            float dt = (t1 - t0) / sampleCount;
+            float sum = 0f;
+            for (int i = 0; i <= sampleCount; i++)
+            {
+                float diff = curve.Evaluate(t0 + i * dt) - 1f;
+                sum += diff * diff;
+            }
+            return UnityEngine.Mathf.Sqrt(sum * dt / (t1 - t0)) < 0.01f;
+        }
+
+        private static float Lerp(float start, float end, float alpha)
+        {
+            return start + (end - start) * Math.Clamp(alpha, 0f, 1f);
         }
 
         private static string CleanText(string input)

@@ -1,0 +1,5 @@
+/* Runtime theme for the Advanced GUI sample.
+   Pulls in Unity's default runtime theme so built-in controls (the text field, scroll views) render
+   correctly. The sample's own AdvancedThespeonGUI.uss is added on top of this from code.
+   Kept inside a Resources folder so the sample can load it without any scene wiring. */
+@import url("unity-theme://default");
