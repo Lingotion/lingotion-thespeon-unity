@@ -24,7 +24,6 @@ namespace Lingotion.Thespeon.Editor
 
         /// <summary>
         /// Terms of Service and Use, which cover what the package collects. Not on the portal host.
-        /
         /// </summary>
         public const string Terms = "https://lingotion.com/terms-of-service/";
 
@@ -33,8 +32,6 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         /// <remarks>
         /// Unauthenticated, same family as <see cref="LicenseVerify"/>.
-        /
-        /
         /// </remarks>
         public const string InstallEvents = PortalRoot + "/v1/install-events";
 
@@ -45,7 +42,6 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="client">URL-escaped client capability string.</param>
         /// <param name="installId">
         /// Anonymous install id, so the portal can tell which signups came from which installs.
-        /
         /// </param>
         public static string Activate(string origin, string client, string installId)
             => $"{PortalRoot}/activate?platform=unity&origin={origin}&client={client}&installid={installId}";
