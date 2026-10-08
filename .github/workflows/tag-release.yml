@@ -1,0 +1,71 @@
+name: Tag release
+
+# Committed to the public repository by hand; see RUNBOOK.md in the devel repository.
+#
+# When a "RELEASE x.y.z" PR from release/x.y.z is merged into main, tag the
+# merge commit x.y.z and create the GitHub Release with the notes from
+# CHANGELOG.md. Tags are bare x.y.z, matching every existing tag.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Tag and create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          version="${HEAD_REF#release/}"
+
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Branch $HEAD_REF does not name a plain x.y.z version"
+            exit 1
+          fi
+
+          pkg_version="$(jq -r .version package.json)"
+          if [ "$pkg_version" != "$version" ]; then
+            echo "::error::package.json at $MERGE_SHA is $pkg_version, but the branch is $HEAD_REF"
+            exit 1
+          fi
+
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$version" >/dev/null 2>&1; then
+            echo "::error::Tag $version already exists; published tags never move"
+            exit 1
+          fi
+
+          awk -v v="$version" '
+            /^#+[[:space:]]*\[/ {
+              if (found) exit
+              if (index($0, "[" v "]")) { found = 1; next }
+            }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+
+          gh release create "$version" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$MERGE_SHA" \
+            --title "$version" \
+            --notes-file "$RUNNER_TEMP/notes.md"
