@@ -344,15 +344,16 @@ Checks whether a language module with the exact given ID has been imported.
 - `moduleID`: Target language module ID.
 
 **Returns:** True if the module is present in the manifest.
-#### `string FindLanguageModuleIDForISO(string iso639_2)`
+#### `string FindLanguageModuleIDForISO(string iso639_2, ModuleVersion? requestedVersion = null)`
 
-Finds the ID of any imported language module serving the given language. Used to substitute a language module a character pins but which is not imported, since a module ID also encodes the content it was built from and so differs between builds of the same language.
+Finds the ID of an imported language module serving the given language at a compatible version. Used to substitute a language module a character pins but which is not imported, since a module ID also encodes the content it was built from and so differs between builds of the same language. Several versions of the same language may be imported side by side, so the requested version is taken where it is present and the highest minor.patch sharing its major otherwise. A differing major is never substituted, as it may carry an incompatible phonemizer.
 
 **Parameters:**
 
 - `iso639_2`: ISO 639-2 code of the language to find a module for.
+- `requestedVersion`: Version the character was built against, or null to accept the highest imported version of any major.
 
-**Returns:** The ID of an imported module serving that language, or null if none does.
+**Returns:** The ID of an imported module serving that language at a compatible version, or null if none does.
 #### `string GetCharacterModuleVersion(string characterName, ModuleType type)`
 
 Fetches the version of a specific character module.
@@ -391,15 +392,6 @@ Returns the config filename for a file by its display name.
 Fetches all available language names.
 
 **Returns:** List of all language names.
-#### `List<(string info, string version)> GetAllModuleInfoInCharacter(string name)`
-
-Summarizes all module info inside a character.
-
-**Parameters:**
-
-- `name`: The specific name to find.
-
-**Returns:** A list of summary and version pairs, one per module inside the character.
 #### `List<(string info, string version)> GetAllModuleInfoInLanguage(string name)`
 
 Summarizes all module info inside an language module.
@@ -417,6 +409,20 @@ Fetches all missing languages that are required by the character. This is useful
 Fetches all module IDs from both characters and languages.
 
 **Returns:** A combined list of all module IDs.
+#### `IReadOnlyList<string> GetFileUsers(string md5)`
+
+Fetches the config filenames of every module that uses a file, including unsupported modules.
+
+**Parameters:**
+
+- `md5`: The MD5 of the file.
+
+**Returns:** The config filenames using the file, or an empty list if the manifest does not track it.
+#### `List<(string Name, string ConfigFilename, string Version)> GetUnsupportedModules()`
+
+Fetches the character modules on disk that this package cannot run, because they were built for another module major. They are left out of every other lookup and are only listed so they can be deleted.
+
+**Returns:** The display name, config filename and version of each unsupported module.
 #### `bool IsFileShared(string md5)`
 
 Checks if a file (by MD5) is shared across multiple modules.
@@ -765,9 +771,42 @@ Enum denoting the different character module types.
 #### `L`
 #### `XL`
 
-## Class `NumberConverter`
+## Struct `ModuleVersion`
 
-Abstract class for converting numbers to a specific format. This class is intended to be extended for specific number conversion implementations.
+A module's semantic version as it is written to the manifest.
+### Properties
+
+#### `int SupportedCharacterModuleMajor`
+
+The only character module major this package can run. Character modules of any other major are rejected on import, and the portal is told to serve only this major.
+### Constructors
+
+#### `ModuleVersion(int major, int minor, int patch)`
+
+Initializes a new instance of the ModuleVersion struct.
+
+**Parameters:**
+
+- `major`: Major version, bumped when a module stops being interchangeable with earlier builds.
+- `minor`: Minor version.
+- `patch`: Patch version.
+### Methods
+
+#### `bool TryParse(JToken versionToken, out ModuleVersion version)`
+
+Reads a version from its manifest or config representation.
+
+**Parameters:**
+
+- `versionToken`: Token to read, expected to be an object with integer "major", "minor" and "patch".
+- `version`: The parsed version, or default if the token holds no version.
+
+**Returns:** True if the token held a complete version.
+#### `JObject ToJson()`
+
+Writes the version back in its manifest representation.
+
+**Returns:** An object with integer "major", "minor" and "patch".
 
 ## Struct `PacketMetadataValue`
 

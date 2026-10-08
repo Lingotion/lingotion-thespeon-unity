@@ -20,7 +20,7 @@ namespace Lingotion.Thespeon.Editor
 {
     public partial class EditorInfoWindow
     {
-        private readonly Dictionary<string, EditorInputContainer> _editorInputs = new();
+        private EditorInputContainer _editorInput;
         private readonly List<float> _audioData = new();
         private bool _isSynthesizing = false;
         private const string DefaultWavOutputPath = "Assets/Audio Test Lab Output.wav";
@@ -31,8 +31,6 @@ namespace Lingotion.Thespeon.Editor
         private const string SynthLabStateFolder = "UserSettings";
         private const string SynthLabStateFileName = "LingotionThespeonSynthLab.json";
         private static string SynthLabStatePath => Path.Combine(SynthLabStateFolder, SynthLabStateFileName);
-
-
 
         [Serializable]
         private struct SerializedSegment
@@ -53,6 +51,8 @@ namespace Lingotion.Thespeon.Editor
         [Serializable]
         private struct SerializedSynthLabState
         {
+            public bool hasInput;
+            public List<SerializedSegment> segments;
             public List<SerializedContainer> containers;
             public string outputWavPath;
         }
@@ -63,31 +63,11 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         private void SaveSynthesisLabState()
         {
-            var state = new SerializedSynthLabState { containers = new(), outputWavPath = _outputWavPath };
-            foreach (var kvp in _editorInputs)
+            var state = new SerializedSynthLabState { outputWavPath = _outputWavPath };
+            if (_editorInput != null)
             {
-                var container = kvp.Value;
-                if (container == null) continue;
-
-                var serialized = new SerializedContainer
-                {
-                    key = kvp.Key,
-                    segments = new()
-                };
-
-                foreach (var segment in container.segments)
-                {
-                    if (segment == null) continue;
-                    serialized.segments.Add(new SerializedSegment
-                    {
-                        text = segment.Text,
-                        emotion = segment.Emotion.ToString(),
-                        isCustomPronounced = segment.IsCustomPronounced,
-                        languageJson = segment.Language?.ToJson()
-                    });
-                }
-
-                state.containers.Add(serialized);
+                state.hasInput = true;
+                state.segments = SerializeSegments(_editorInput.segments);
             }
 
             try
@@ -106,46 +86,39 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         private void LoadSynthesisLabState()
         {
-            if (!File.Exists(SynthLabStatePath)) return;
+            if (!File.Exists(SynthLabStatePath))
+            {
+                return;
+            }
 
             try
             {
                 var state = JsonUtility.FromJson<SerializedSynthLabState>(File.ReadAllText(SynthLabStatePath));
 
                 if (!string.IsNullOrWhiteSpace(state.outputWavPath))
-                    _outputWavPath = state.outputWavPath;
-
-                if (state.containers == null) return;
-
-                // Loading replaces in-memory state; destroy any existing containers first so the
-                // HideAndDontSave instances they hold are not leaked when their key is overwritten.
-                ClearEditorInputs();
-
-                foreach (var serialized in state.containers)
                 {
-                    if (string.IsNullOrEmpty(serialized.key)) continue;
-
-                    var container = CreateInstance<EditorInputContainer>();
-                    container.hideFlags = HideFlags.HideAndDontSave;
-                    container.segments = new();
-
-                    if (serialized.segments != null)
-                    {
-                        foreach (var seg in serialized.segments)
-                        {
-                            Enum.TryParse(seg.emotion, out Emotion emotion);
-                            ModuleLanguage language = ParseModuleLanguage(seg.languageJson);
-
-                            var restored = new ThespeonInputSegment(" ", language, emotion, seg.isCustomPronounced)
-                            {
-                                Text = seg.text ?? string.Empty
-                            };
-                            container.segments.Add(restored);
-                        }
-                    }
-
-                    _editorInputs[serialized.key] = container;
+                    _outputWavPath = state.outputWavPath;
                 }
+
+                List<SerializedSegment> segments;
+                if (state.hasInput)
+                {
+                    segments = state.segments;
+                }
+                else if (state.containers != null && state.containers.Count > 0)
+                {
+                    segments = state.containers[0].segments;
+                }
+                else
+                {
+                    return;
+                }
+
+                // Loading replaces in-memory state; destroy the existing container first so the
+                // HideAndDontSave instance it holds is not leaked.
+                DestroyEditorInput();
+                _editorInput = CreateEditorInput();
+                _editorInput.segments = DeserializeSegments(segments);
             }
             catch (Exception e)
             {
@@ -153,40 +126,99 @@ namespace Lingotion.Thespeon.Editor
             }
         }
 
-        /// <summary>
-        /// Removes persisted input entries whose character or module type no longer exists
-        /// (e.g. the model was deleted), so outdated data is neither kept nor restored.
-        /// </summary>
-        private void PruneRemovedInputs(List<string> allCharacters)
+        private static List<SerializedSegment> SerializeSegments(List<ThespeonInputSegment> segments)
         {
-            if (allCharacters == null || allCharacters.Count == 0) return;
-
-            var validKeys = new HashSet<string>();
-            foreach (var character in allCharacters)
-                foreach (var moduleType in ManifestHandler.Instance.GetAllModuleTypesForCharacter(character))
-                    validKeys.Add(character + moduleType);
-
-            var staleKeys = _editorInputs.Keys.Where(key => !validKeys.Contains(key)).ToList();
-            foreach (var key in staleKeys)
+            var serialized = new List<SerializedSegment>();
+            if (segments == null)
             {
-                if (_editorInputs.TryGetValue(key, out var container) && container != null)
-                    DestroyImmediate(container);
-                _editorInputs.Remove(key);
+                return serialized;
             }
+
+            foreach (var segment in segments)
+            {
+                if (segment == null)
+                {
+                    continue;
+                }
+
+                serialized.Add(new SerializedSegment
+                {
+                    text = segment.Text,
+                    emotion = segment.Emotion.ToString(),
+                    isCustomPronounced = segment.IsCustomPronounced,
+                    languageJson = segment.Language?.ToJson()
+                });
+            }
+            return serialized;
+        }
+
+        private static List<ThespeonInputSegment> DeserializeSegments(List<SerializedSegment> serialized)
+        {
+            var segments = new List<ThespeonInputSegment>();
+            if (serialized == null)
+            {
+                return segments;
+            }
+
+            foreach (var seg in serialized)
+            {
+                Enum.TryParse(seg.emotion, out Emotion emotion);
+                ModuleLanguage language = ParseModuleLanguage(seg.languageJson);
+                var restored = new ThespeonInputSegment(" ", language, emotion, seg.isCustomPronounced)
+                {
+                    Text = seg.text ?? string.Empty
+                };
+                segments.Add(restored);
+            }
+            return segments;
+        }
+
+        private static EditorInputContainer CreateEditorInput()
+        {
+            var container = CreateInstance<EditorInputContainer>();
+            container.hideFlags = HideFlags.HideAndDontSave;
+            return container;
         }
 
         /// <summary>
-        /// Destroys all in-memory input containers and empties the dictionary. Required because the
-        /// containers are HideAndDontSave instances that are not reclaimed by the GC.
+        /// Destroys the in-memory input container. Required because it is a HideAndDontSave
+        /// instance that is not reclaimed by the GC.
         /// </summary>
-        private void ClearEditorInputs()
+        private void DestroyEditorInput()
         {
-            foreach (var container in _editorInputs.Values)
+            if (_editorInput != null)
             {
-                if (container != null)
-                    DestroyImmediate(container);
+                DestroyImmediate(_editorInput);
             }
-            _editorInputs.Clear();
+            _editorInput = null;
+        }
+
+        /// <summary>
+        /// Returns the name of the language a segment is shown and generated in for the current selection:
+        /// the segment's own language when the selection supports it, otherwise the closest one it does.
+        /// </summary>
+        /// <param name="language">The language stored on the segment.</param>
+        /// <returns>A key of <see cref="languageMappings"/>, or null if the selection has no languages.</returns>
+        private string ResolveLanguageKey(ModuleLanguage language)
+        {
+            if (languageMappings.Count == 0)
+            {
+                return null;
+            }
+
+            string exactKey = languageMappings.FirstOrDefault(x => x.Value.Equals(language)).Key;
+            if (exactKey != null)
+            {
+                return exactKey;
+            }
+
+            if (language == null)
+            {
+                return languageMappings.Keys.First();
+            }
+
+            ModuleLanguage best = ModuleLanguage.BestMatch(languageMappings.Values.ToList(), language.Iso639_2, language.Iso3166_1);
+            return languageMappings.First(x => x.Value == best).Key;
         }
 
         private static ModuleLanguage ParseModuleLanguage(string languageJson)
@@ -216,7 +248,6 @@ namespace Lingotion.Thespeon.Editor
             if (_characterListView == null) return;
 
             var allCharacters = ManifestHandler.Instance.GetAllCharacters();
-            PruneRemovedInputs(allCharacters);
             _characterListView.itemsSource = allCharacters;
             if (allCharacters.Count > 0 && _characterListView.selectedIndex < 0)
                 _characterListView.selectedIndex = 0;
@@ -243,7 +274,6 @@ namespace Lingotion.Thespeon.Editor
 
             characterMaskField.RegisterValueChangedCallback(evt =>
             {
-
                 var filtered = ManifestHandler.Instance.GetAllCharacters()
                     .Where(character =>
                     {
@@ -409,13 +439,11 @@ namespace Lingotion.Thespeon.Editor
         {
             editingPane.Clear();
 
-            string inputIndexer = characterName + moduleType;
-            if (!_editorInputs.TryGetValue(inputIndexer, out var currentInputContainer) || currentInputContainer == null)
+            if (_editorInput == null)
             {
-                currentInputContainer = CreateInstance<EditorInputContainer>();
-                currentInputContainer.hideFlags = HideFlags.HideAndDontSave;
-                _editorInputs[inputIndexer] = currentInputContainer;
+                _editorInput = CreateEditorInput();
             }
+            var currentInputContainer = _editorInput;
 
             var outputPathRow = new VisualElement
             {
@@ -457,7 +485,20 @@ namespace Lingotion.Thespeon.Editor
                 _isSynthesizing = true;
                 try
                 {
-                    ThespeonInput input = new(currentInputContainer.segments, characterName, Enum.Parse<ModuleType>(moduleType));
+                    List<ThespeonInputSegment> segments = currentInputContainer.segments
+                        .Where(segment => segment != null)
+                        .Select(segment =>
+                        {
+                            var copy = new ThespeonInputSegment(segment);
+                            string langKey = ResolveLanguageKey(segment.Language);
+                            if (langKey != null)
+                            {
+                                copy.Language = languageMappings[langKey];
+                            }
+                            return copy;
+                        })
+                        .ToList();
+                    ThespeonInput input = new(segments, characterName, Enum.Parse<ModuleType>(moduleType));
                     ThespeonInference inferenceSession = new("", OutputPacketHandler);
                     InferenceConfig config = new()
                     {
@@ -656,13 +697,7 @@ namespace Lingotion.Thespeon.Editor
                 textField.SetValueWithoutNotify(segment.Text);
                 emotionsDropdown.SetValueWithoutNotify(segment.Emotion.ToString());
 
-                string langKey = languageMappings.FirstOrDefault(x => x.Value.Equals(segment.Language)).Key;
-                if (string.IsNullOrEmpty(langKey))
-                {
-                    langKey = languageMappings.Keys.FirstOrDefault();
-                    if (langKey != null) segment.Language = languageMappings[langKey];
-                }
-                languageDropdown.SetValueWithoutNotify(langKey);
+                languageDropdown.SetValueWithoutNotify(ResolveLanguageKey(segment.Language));
                 IPAtoggle.SetValueWithoutNotify(segment.IsCustomPronounced);
 
                 item.userData = segment;

@@ -69,9 +69,13 @@ namespace Lingotion.Thespeon.Character
 
                     if (!string.IsNullOrEmpty(iso639_2) && !string.IsNullOrEmpty(baseModuleId))
                     {
+                        ModuleVersion? requiredVersion = ModuleVersion.TryParse(phonemizerEntry["version"], out ModuleVersion parsedVersion)
+                            ? (ModuleVersion?)parsedVersion
+                            : null;
+
                         // Create a ModuleLanguage with just the iso639_2 code
                         ModuleLanguage moduleLang = new(iso639_2, null, null, null, null, null);
-                        languageModuleIDs[moduleLang.ToJson()] = ResolveImportedLanguageModuleID(iso639_2, baseModuleId);
+                        languageModuleIDs[moduleLang.ToJson()] = ResolveImportedLanguageModuleID(iso639_2, baseModuleId, requiredVersion);
                     }
                 }
             }
@@ -111,27 +115,31 @@ namespace Lingotion.Thespeon.Character
         /// <summary>
         /// Resolves the language module a character pins to one that is actually imported. A module ID
         /// encodes the content it was built from, so the same language rebuilt gets a different ID and the
-        /// pinned one stops resolving. Rather than lose the language entirely, any imported module serving
-        /// it is substituted.
+        /// pinned one stops resolving. Rather than lose the language entirely, an imported module serving it
+        /// at a compatible version is substituted. Only the requested major version is accepted, since a
+        /// differing major may carry a phonemizer this character was never built against.
         /// </summary>
         /// <param name="iso639_2">ISO 639-2 code the pinned module serves.</param>
         /// <param name="requestedID">Language module ID the character was built against.</param>
+        /// <param name="requestedVersion">Version of that module, or null if the character pins no version.</param>
         /// <returns>An imported module ID serving the language, or <paramref name="requestedID"/> if none does.</returns>
-        private static string ResolveImportedLanguageModuleID(string iso639_2, string requestedID)
+        private static string ResolveImportedLanguageModuleID(string iso639_2, string requestedID, ModuleVersion? requestedVersion)
         {
             if (ManifestHandler.Instance.HasLanguageModule(requestedID))
             {
                 return requestedID;
             }
 
-            string fallbackID = ManifestHandler.Instance.FindLanguageModuleIDForISO(iso639_2);
+            string fallbackID = ManifestHandler.Instance.FindLanguageModuleIDForISO(iso639_2, requestedVersion);
             if (string.IsNullOrEmpty(fallbackID))
             {
-                LingotionLogger.Warning($"No imported language module serves '{iso639_2}'. Import a '{iso639_2}' language module to use this language.");
+                string versionRequirement = requestedVersion.HasValue ? $" at version {requestedVersion.Value.Major}.x" : string.Empty;
+                LingotionLogger.Warning($"No imported language module serves '{iso639_2}'{versionRequirement}. Import a '{iso639_2}' language module{versionRequirement} to use this language.");
                 return requestedID;
             }
 
-            LingotionLogger.Warning($"Language module '{requestedID}' requested for '{iso639_2}' is not imported. Falling back to imported module '{fallbackID}'. Pronunciation may differ from what this character was built against.");
+            string fallbackVersion = ManifestHandler.Instance.GetLanguageModuleVersion(fallbackID);
+            LingotionLogger.Warning($"Language module '{requestedID}' requested for '{iso639_2}' is not imported. Falling back to imported module '{fallbackID}' (version {fallbackVersion}). Pronunciation may differ from what this character was built against.");
             return fallbackID;
         }
 
@@ -186,29 +194,31 @@ namespace Lingotion.Thespeon.Character
         /// Encodes phonemes into their corresponding IDs based on the encoder id vocabulary.
         /// </summary>
         /// <param name="phonemes">String of phonemes to encode.</param>
-        /// <returns>A tuple containing a list of encoded phoneme IDs and a list of indices for not found phonemes.</returns>
+        /// <returns>A tuple containing a list of encoded phoneme IDs and a list of char indices for not found phonemes.</returns>
         public (List<int>, List<int>) EncodePhonemes(string phonemes)
         {
-            if (_phonemeToEncoderID.TryGetValue(phonemes, out int id))
-                return (new List<int> { id }, new());
-            List<int> encodedPhonemes = phonemes
-                .Select(c =>
+            if (_phonemeToEncoderID.TryGetValue(phonemes, out int wholeID))
+            {
+                return (new List<int> { wholeID }, new());
+            }
+            List<int> encodedPhonemes = new(phonemes.Length);
+            List<int> notFoundIndices = new();
+            int index = 0;
+            while (index < phonemes.Length)
+            {
+                int length = char.IsSurrogatePair(phonemes, index) ? 2 : 1;
+                string symbol = phonemes.Substring(index, length);
+                if (_phonemeToEncoderID.TryGetValue(symbol, out int id))
                 {
-                    if (_phonemeToEncoderID.TryGetValue(c.ToString(), out int id))
-                    {
-                        return id;
-                    }
-                    else
-                    {
-                        LingotionLogger.Warning($"Unknown phonetic symbol '{c}' present in input! Phoneme will be ignored. Please ensure your input contains valid symbols.");
-                        return -1;
-                    }
-                }).Where(id => id != -1)
-                .ToList();
-            List<int> notFoundIndices = phonemes
-                .Select((c, idx) => _phonemeToEncoderID.ContainsKey(c.ToString()) ? -1 : idx)
-                .Where(idx => idx != -1)
-                .ToList();
+                    encodedPhonemes.Add(id);
+                }
+                else
+                {
+                    LingotionLogger.Warning($"Unknown phonetic symbol '{symbol}' present in input! Phoneme will be ignored. Please ensure your input contains valid symbols.");
+                    notFoundIndices.Add(index);
+                }
+                index += length;
+            }
 
             return (encodedPhonemes, notFoundIndices);
         }

@@ -893,18 +893,10 @@ namespace Lingotion.Thespeon.Inference
                 HostBinaryOp.Types.Op.Sub => leftVal - rightVal,
                 HostBinaryOp.Types.Op.Mul => leftVal * rightVal,
                 HostBinaryOp.Types.Op.Div => rightVal != 0 ? leftVal / rightVal : 0,
-
-                // a fractional remainder feeds a shape computation that then disagrees with the tensor it is
-                // multiplied against by a single element.
                 HostBinaryOp.Types.Op.Mod => (int)rightVal != 0 ? (int)leftVal % (int)rightVal : 0,
                 _ => 0
             };
 
-
-            // both to be integers. An int left operand combined with a float right one has to truncate here,
-            // because the graph relies on that truncation when it derives lengths (for example the upsampled
-            // loudness envelope). Keeping full precision instead lets the rounding happen later and one element
-            // further along, which surfaces as a broadcast mismatch in post_process_loudness.
             _hostValues[action.DestHost] = IsIntegerValueRef(action.Left)
                 ? HostValue.FromInt64((long)result)
                 : HostValue.FromFloat(result);

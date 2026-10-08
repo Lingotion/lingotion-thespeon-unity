@@ -39,7 +39,6 @@ namespace Lingotion.Thespeon.Inputs
 
         }
 
-
         public ThespeonInputSegment(string text, ModuleLanguage language, Emotion emotion = Emotion.None, bool isCustomPronounced = false) : base(text, language, emotion, isCustomPronounced)
         {
 
@@ -65,7 +64,6 @@ namespace Lingotion.Thespeon.Inputs
         {
 
         }
-
 
         public ThespeonInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, ModuleLanguage language, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)
             : base(text, startEmotion, endEmotion, language, isCustomPronounced, startSpeed, endSpeed, startLoudness, endLoudness)
@@ -100,7 +98,9 @@ namespace Lingotion.Thespeon.Inputs
 
             string text = json["text"]?.ToString() ?? string.Empty;
             Emotion emotion = json["emotion"]?.ToObject<Emotion>() ?? Emotion.None;
-            string language = json["language"]?.ToString();
+            JToken languageToken = json["language"];
+            ModuleLanguage languageObject = languageToken?.Type == JTokenType.Object ? languageToken.ToObject<ModuleLanguage>() : null;
+            string language = languageObject == null ? languageToken?.ToString() : null;
             string dialect = json["dialect"]?.ToString();
             bool isCustomPronounced = json["isCustomPronounced"]?.ToObject<bool>() ?? false;
             Dictionary<Emotion, float> startEmotion = BlendFromJson(json["startEmotion"]);
@@ -112,17 +112,18 @@ namespace Lingotion.Thespeon.Inputs
 
             if (startEmotion == null && endEmotion == null)
             {
-
-                return new ThespeonInputSegment(text, language, dialect, emotion, isCustomPronounced)
-                {
-                    StartSpeed = startSpeed,
-                    EndSpeed = endSpeed,
-                    StartLoudness = startLoudness,
-                    EndLoudness = endLoudness
-                };
+                ThespeonInputSegment legacySegment = languageObject != null
+                    ? new ThespeonInputSegment(text, languageObject, emotion, isCustomPronounced)
+                    : new ThespeonInputSegment(text, language, dialect, emotion, isCustomPronounced);
+                legacySegment.StartSpeed = startSpeed;
+                legacySegment.EndSpeed = endSpeed;
+                legacySegment.StartLoudness = startLoudness;
+                legacySegment.EndLoudness = endLoudness;
+                return legacySegment;
             }
-
-            return new ThespeonInputSegment(text, startEmotion, endEmotion, language, dialect, isCustomPronounced, startSpeed, endSpeed, startLoudness, endLoudness);
+            return languageObject != null
+                ? new ThespeonInputSegment(text, startEmotion, endEmotion, languageObject, isCustomPronounced, startSpeed, endSpeed, startLoudness, endLoudness)
+                : new ThespeonInputSegment(text, startEmotion, endEmotion, language, dialect, isCustomPronounced, startSpeed, endSpeed, startLoudness, endLoudness);
         }
 
         /// <summary>
@@ -142,7 +143,6 @@ namespace Lingotion.Thespeon.Inputs
         /// <returns>A new ThespeonInputSegment instance that is a deep copy of the current instance, including all relevant fields.</returns>
         public override ModelInputSegment DeepCopy()
         {
-
             return new ThespeonInputSegment(this);
         }
     }

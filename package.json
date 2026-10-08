@@ -1,6 +1,6 @@
 {
     "name": "com.lingotion.thespeon",
-    "version": "2.1.0",
+    "version": "3.0.0",
     "displayName": "Lingotion Thespeon",
     "description": "Lingotion Thespeon is an on-device AI engine designed to generate real-time character acting and voiceovers.\nThe package runs entirely offline on the player's device, eliminating cloud costs and network dependencies.\n\nSee https://github.com/Lingotion/lingotion-thespeon-unity/blob/main/README.md to get started.",
     "unity": "6000.0",
@@ -14,7 +14,7 @@
       "com.unity.editorcoroutines": "1.0.0"
    },
    "_upm": {
-    "changelog": " [2.1.0] - 2026-09-10\nThis version requires updated character and language modules, please re-download your characters to enable the new functionality.\n\n### Added\n* Segments can now carry an emotion *blend* at their start and end, letting a line move gradually between several emotions.\n* Segments can now carry start/end speed and loudness values.\n* The Advanced GUI sample now has a karaoke overlay showing the speaker's portrait and revealing the line in time with the audio, matching the Unreal demo.\n* The Thespeon Info Window now shows the module version for every imported character and language module, in both the Overview and the Synthesis Lab.\n### Changed\n* Speed and loudness are supported again. Input-wide `AnimationCurve`s are sampled at each segment boundary, and per-segment values are used where no curve is supplied.\n* Emotion, speed and loudness boundary values are treated as keypoints on a single curve over the whole line, so values stay continuous across segment boundaries and across segments split by number conversion.\n### Fixed\n* Inference should no longer crash when the input contains a word longer than 150 characters\n* A character whose pinned language module is not imported now falls back to any imported module serving the same language, warning that pronunciation may differ, instead of failing synthesis with \"Language was never imported\".\n* Fixed a missing dependency in the Protobuf library on Unity versions earlier than 6000.3.\n"},
+    "changelog": " [3.0.0] - 2026-10-08\nThis version requires updated character and language modules, please re-download your characters. Modules made for earlier package versions can no longer be imported.\n\n### Added\n* The Thespeon Info Window now lists imported modules that this package version does not support, so outdated characters and languages are easy to find and replace.\n* A new Samples guide describing every sample that ships with the package.\n* While the package is not yet activated, opening the Thespeon Info Window sends a small anonymous message to help us see where setup gets stuck. The Get Started guide lists exactly what is sent.\n### Changed\n* How text is read - normalization, how numbers are spoken and what counts as a word - now comes from the language module, so it can be improved with a module update instead of a new package version, and text is handled the same way on every Unity version and platform.\n* Importing character and language modules is faster.\n* Characters now use the language module version they were made for when several versions are imported.\n* Text entered in the Synthesis Lab is kept when switching character.\n* The Demo GUI sample is now called Advanced GUI, and all samples have been updated to run without errors.\n### Fixed\n* Numbers are now spoken correctly in more cases, including ordinals, very large numbers and decimals on systems set to a region that uses a decimal comma.\n* Custom pronunciation segments are now kept exactly as written.\n* Accented letters and text outside the Latin alphabet are now handled correctly.\n* Inputs saved as JSON now load back correctly, including when no character name is given.\n* Buffer length and log verbosity set for one synthesis call no longer carry over to other calls.\n* Fixed broken links in the documentation.\n### Removed\n* The `NumberConverter` class, which had no remaining use.\n"},
    "keywords": [ 
       "AI",
       "Lingotion",
@@ -27,7 +27,7 @@
       "email": "sales@lingotion.com",
       "url": "https://lingotion.com/"
     },
-    "samples": [ { "displayName": "Demo GUI", "description": "A demo GUI that showcases the flexibility of Thespeon.", "path": "Samples~/Advanced GUI" },
+    "samples": [ { "displayName": "Advanced GUI", "description": "An interactive runtime panel for trying out characters, emotion blends, speed and loudness without writing code.", "path": "Samples~/Advanced GUI" },
     { "displayName": "Minimal Character", "description": "A script showing the bare minimum required to get started with Thespeon.", "path": "Samples~/Minimal Character" },
     { "displayName": "Simple Character", "description": "A script showcasing the basics of using Thespeon.", "path": "Samples~/Simple Character" },
     { "displayName": "Configuration Example", "description": "A script showing how to finely control Thespeon performance and resource consumption.", "path": "Samples~/Configuration Example" },

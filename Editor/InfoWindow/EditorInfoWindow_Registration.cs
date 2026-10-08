@@ -18,7 +18,6 @@ namespace Lingotion.Thespeon.Editor
 {
     public partial class EditorInfoWindow
     {
-        private const int SupportedModuleVersionMajor = 3;
         private VisualElement _registerRoot;
         private VisualElement _licenseRoot;
         private VisualElement _downloadTokenRoot;
@@ -44,6 +43,8 @@ namespace Lingotion.Thespeon.Editor
             string savedLicense = EditorLicenseKeyValidator.LoadLicenseFromFile();
             _licenseField.SetValueWithoutNotify(savedLicense);
 
+            SetupInstallReportingDisclosure(string.IsNullOrEmpty(savedLicense));
+
             rootVisualElement.Q<Button>("LicenseHelpBoxButton").clicked += () => Application.OpenURL(EditorLingotionUrls.PortalHome);
 
             rootVisualElement.Q<Button>("AlreadyHaveAccountButton").clicked += () => NavigateTo(_licenseRoot);
@@ -51,7 +52,7 @@ namespace Lingotion.Thespeon.Editor
                 // find out where the user got the package from
                 string originString = EditorLicenseKeyValidator.IsAssetStoreInstall ? "assetstore" : "other";
                 string client = UnityWebRequest.EscapeURL(BuildClientCapabilities());
-                Application.OpenURL(EditorLingotionUrls.Activate(originString, client));
+                Application.OpenURL(EditorLingotionUrls.Activate(originString, client, EditorInstallId.Value));
                 NavigateTo(_downloadTokenRoot);
             };
             rootVisualElement.Q<Button>("LicenseBackButton").clicked += () => NavigateTo(_registerRoot);
@@ -60,6 +61,29 @@ namespace Lingotion.Thespeon.Editor
             rootVisualElement.Q<Button>("DownloadTokenSubmitButton").clicked += RedeemDownloadToken;
 
             NavigateTo(string.IsNullOrEmpty(savedLicense) ? _registerRoot : _licenseRoot);
+        }
+
+        /// <summary>
+        /// Shows what the unactivated install reports, and sends the report itself.
+        /// </summary>
+        /// <remarks>
+        /// The disclosure lives on the registration screen because that is the only screen from which
+        /// the report is ever sent -- an activated install reports nothing.
+        /// </remarks>
+        /// <param name="isUnactivated">True when no license key is stored yet.</param>
+        private void SetupInstallReportingDisclosure(bool isUnactivated)
+        {
+            var disclosure = rootVisualElement.Q<VisualElement>("InstallReportingDisclosure");
+
+            disclosure.style.display = isUnactivated ? DisplayStyle.Flex : DisplayStyle.None;
+
+            rootVisualElement.Q<Button>("InstallReportingTermsButton").clicked
+                += () => Application.OpenURL(EditorLingotionUrls.Terms);
+
+            if (isUnactivated)
+            {
+                EditorInstallReporter.ReportUnactivatedWindowOpen();
+            }
         }
 
         /// <summary>
@@ -74,7 +98,7 @@ namespace Lingotion.Thespeon.Editor
                 ["sdkVersion"] = info?.version,
                 ["capabilities"] = new JObject
                 {
-                    ["moduleVersion"] = new JObject { ["major"] = SupportedModuleVersionMajor }
+                    ["moduleVersion"] = new JObject { ["major"] = ModuleVersion.SupportedCharacterModuleMajor }
                 }
             };
             return client.ToString(Formatting.None);
@@ -99,7 +123,6 @@ namespace Lingotion.Thespeon.Editor
             }
             else if (_functionalRoot.style.display == DisplayStyle.Flex)
             {
-
                 NavigateTo(_licenseRoot);
             }
             // Otherwise: stay on current gate screen

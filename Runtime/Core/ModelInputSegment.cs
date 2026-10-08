@@ -119,7 +119,6 @@ namespace Lingotion.Thespeon.Core
             Language = new ModuleLanguage(language, null, null, null, dialect, null);
         }
 
-
         public ModelInputSegment(string text, ModuleLanguage language, Emotion emotion = Emotion.None, bool isCustomPronounced = false)
         {
             if (string.IsNullOrEmpty(text))
@@ -176,7 +175,6 @@ namespace Lingotion.Thespeon.Core
             }
             Language = new ModuleLanguage(language, null, null, null, dialect, null);
         }
-
 
         public ModelInputSegment(string text, Dictionary<Emotion, float> startEmotion, Dictionary<Emotion, float> endEmotion, ModuleLanguage language, bool isCustomPronounced = false, float startSpeed = 1f, float endSpeed = 1f, float startLoudness = 1f, float endLoudness = 1f)
         {
@@ -305,7 +303,6 @@ namespace Lingotion.Thespeon.Core
     /// <summary>
     /// Enumeration representing various emotions that can be associated with a segment. Also contains a None as a special null-like value.
     /// </summary>
-
     public enum Emotion
     {
         /// <summary>

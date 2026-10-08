@@ -23,12 +23,28 @@ namespace Lingotion.Thespeon.Editor
         public const string LicenseVerify = PortalRoot + "/v1/licenses/verify";
 
         /// <summary>
+        /// Terms of Service and Use, which cover what the package collects. Not on the portal host.
+        /// </summary>
+        public const string Terms = "https://lingotion.com/terms-of-service/";
+
+        /// <summary>
+        /// Endpoint that receives anonymous install funnel events.
+        /// </summary>
+        /// <remarks>
+        /// Unauthenticated, same family as <see cref="LicenseVerify"/>.
+        /// </remarks>
+        public const string InstallEvents = PortalRoot + "/v1/install-events";
+
+        /// <summary>
         /// Builds the portal account activation URL for this package install.
         /// </summary>
         /// <param name="origin">Where the user got the package from, e.g. "assetstore".</param>
         /// <param name="client">URL-escaped client capability string.</param>
-        public static string Activate(string origin, string client)
-            => $"{PortalRoot}/activate?platform=unity&origin={origin}&client={client}";
+        /// <param name="installId">
+        /// Anonymous install id, so the portal can tell which signups came from which installs.
+        /// </param>
+        public static string Activate(string origin, string client, string installId)
+            => $"{PortalRoot}/activate?platform=unity&origin={origin}&client={client}&installid={installId}";
 
         /// <summary>
         /// Builds the endpoint used to redeem a license download token.

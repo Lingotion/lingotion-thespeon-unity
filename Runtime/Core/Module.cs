@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Google.Protobuf;
 using Lingotion.Thespeon.Core.IO;
 using Newtonsoft.Json.Linq;
 using Unity.InferenceEngine;
@@ -104,27 +105,40 @@ namespace Lingotion.Thespeon.Core
         /// </summary>
         protected void TryLoadMetaGraph()
         {
+            _metaGraph = TryLoadProtobufFile("metagraph", Metaonnx.MetaGraph.Parser);
+            if (_metaGraph != null)
+            {
+                LingotionLogger.Info($"Loaded MetaGraph for {ModuleID} (version {_metaGraph.MajorVersion}.{_metaGraph.MinorVersion}.{_metaGraph.PatchVersion})");
+            }
+        }
+
+        /// <summary>
+        /// Attempts to load one of the module's protobuf files from its file mappings. Call after
+        /// <see cref="ParseModuleFiles"/>, which is what populates the mappings this reads.
+        /// </summary>
+        /// <typeparam name="T">The protobuf message type stored in the file.</typeparam>
+        /// <param name="fileKey">The file's name in the module config, e.g. "metagraph".</param>
+        /// <param name="parser">The parser for <typeparamref name="T"/>.</param>
+        /// <returns>The parsed message, or null if the module has no such file or it could not be read.</returns>
+        protected T TryLoadProtobufFile<T>(string fileKey, MessageParser<T> parser) where T : class, IMessage<T>
+        {
+            if (!InternalFileMappings.TryGetValue(fileKey, out ModuleFile file))
+            {
+                return null;
+            }
             try
             {
-                // Look for metagraph in file mappings
-                if (!InternalFileMappings.TryGetValue("metagraph", out ModuleFile metagraphFile))
+                using System.IO.Stream stream = RuntimeFileLoader.LoadFileAsStream(file.filePath);
+                if (stream == null)
                 {
-                    // MetaGraph is optional
-                    _metaGraph = null;
-                    return;
+                    return null;
                 }
-
-                using System.IO.Stream stream = RuntimeFileLoader.LoadFileAsStream(metagraphFile.filePath);
-                if (stream != null)
-                {
-                    _metaGraph = Metaonnx.MetaGraph.Parser.ParseFrom(stream);
-                    LingotionLogger.Info($"Loaded MetaGraph from {metagraphFile.GetFilename()} (version {_metaGraph.MajorVersion}.{_metaGraph.MinorVersion}.{_metaGraph.PatchVersion})");
-                }
+                return parser.ParseFrom(stream);
             }
             catch (Exception e)
             {
-                LingotionLogger.Error($"Failed to load MetaGraph: {e.Message}");
-                _metaGraph = null;
+                LingotionLogger.Error($"Failed to load {fileKey} from {file.GetFilename()}: {e.Message}");
+                return null;
             }
         }
 

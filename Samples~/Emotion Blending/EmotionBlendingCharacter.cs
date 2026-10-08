@@ -62,27 +62,26 @@ public class EmotionBlendingCharacter : MonoBehaviour
 
     /// <summary>
     /// The demo line: speed and loudness sweep across it while the emotion blends from joy through
-    /// anticipation into fear. Note that the first segment's end blend and the second's start blend agree,
-    /// so the curve is continuous across the segment boundary.
+    /// anticipation into fear. Note that the first segment's end values and the second's start values agree,
+    /// so the curves are continuous across the segment boundary - where they differ, the curve jumps.
     /// </summary>
     private static List<ThespeonInputSegment> BuildKeypointSegments()
     {
         return new()
         {
-            new(FirstLine + SecondLine,
-                startEmotion: new() { { Emotion.Pensiveness, 0.5f }, { Emotion.Ecstasy, 0.5f } },
-                endEmotion: new() { { Emotion.Pensiveness, 0.5f }, { Emotion.Ecstasy, 0.5f } }
-             //   startSpeed: 1.0f, endSpeed: 1.0f,
-             //   startLoudness: 1.0f, endLoudness: 1.0f
-                ),
-/*
+            // Excited about the find: pick up pace and volume towards the comma.
+            new(FirstLine,
+                startEmotion: new() { { Emotion.Joy, 1f } },
+                endEmotion: new() { { Emotion.Joy, 0.5f }, { Emotion.Anticipation, 0.5f } },
+                startSpeed: 1.0f, endSpeed: 1.2f,
+                startLoudness: 1.0f, endLoudness: 1.2f),
+
+            // Then the doubt sets in: slow down and drop to almost a whisper.
             new(SecondLine,
-                startEmotion: new() { { Emotion.Ecstasy, 1f } },
-                endEmotion: new() { { Emotion.Grief, 1f } },
-                startSpeed: 1.0f, endSpeed: 0.5f,
-                startLoudness: 1.8f, endLoudness: 0.5f
-                )
-                */
+                startEmotion: new() { { Emotion.Joy, 0.5f }, { Emotion.Anticipation, 0.5f } },
+                endEmotion: new() { { Emotion.Fear, 1f } },
+                startSpeed: 1.2f, endSpeed: 0.7f,
+                startLoudness: 1.2f, endLoudness: 0.6f)
         };
     }
 

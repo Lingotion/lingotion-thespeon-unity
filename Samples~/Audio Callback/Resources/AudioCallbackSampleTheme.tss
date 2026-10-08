@@ -1,0 +1,4 @@
+/* Runtime theme for the Audio Callback sample.
+   Pulls in Unity's default runtime theme, which is also where the label's font comes from, so the sample
+   ships no fonts of its own. Kept inside a Resources folder so the sample can load it without any scene wiring. */
+@import url("unity-theme://default");

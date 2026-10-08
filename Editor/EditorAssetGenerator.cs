@@ -66,8 +66,6 @@ namespace Lingotion.Thespeon.Editor
                 ThespeonCharacterAsset existing = AssetDatabase.LoadAssetAtPath<ThespeonCharacterAsset>(assetPath);
                 if (existing != null)
                 {
-
-                    // compared too or an in-place module upgrade would leave a stale version on disk forever.
                     if(existing.characterName == characterName && existing.moduleType == moduleType && existing.moduleVersion == version)
                     {
                         continue;

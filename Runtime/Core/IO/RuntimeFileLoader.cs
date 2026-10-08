@@ -87,7 +87,6 @@ namespace Lingotion.Thespeon.Core.IO
         /// <returns>A Stream (FileStream or MemoryStream) if the file is successfully loaded; otherwise, null.</returns>
         public static Stream LoadFileAsStream(string filePath)
         {
-
             string path = Path.GetFullPath(filePath);
 
             if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer)
@@ -102,7 +101,6 @@ namespace Lingotion.Thespeon.Core.IO
 
                 while (!request.isDone)
                 {
-
                 }
 
                 if (request.result == UnityWebRequest.Result.Success)

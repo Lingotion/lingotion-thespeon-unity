@@ -1,5 +1,6 @@
 // This code and software are protected by intellectual property law and is the property of Lingotion AB, reg. no. 559341-4138, Sweden. The code and software may only be used and distributed according to the Terms of Service and Use found at www.lingotion.com.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -39,6 +40,7 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="configFilename">The config's filename (used as reference in manifest).</param>
         /// <returns>A parsed module config, or null if not a valid module config.</returns>
         /// <exception cref="InvalidDataException">Thrown when a recognized module config carries no usable version.</exception>
+        /// <exception cref="UnsupportedModuleVersionException">Thrown when a character module config is of a major this package cannot run.</exception>
         public static ParsedModuleConfig? TryParseConfigFile(JObject config, string configFilename)
         {
             string configType = config["type"]?.ToString();
@@ -78,26 +80,56 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         /// <param name="versionToken">The config's "version" token.</param>
         /// <param name="configFilename">The config's filename, used in the error message.</param>
-        /// <returns>A JSON object holding the major, minor and patch version numbers.</returns>
+        /// <returns>The parsed version.</returns>
         /// <exception cref="InvalidDataException">Thrown when the config carries no usable version.</exception>
-        private static JObject ParseVersion(JToken versionToken, string configFilename)
+        private static ModuleVersion ParseVersion(JToken versionToken, string configFilename)
         {
-            if (versionToken is not JObject version
-                || version["major"]?.Type != JTokenType.Integer
-                || version["minor"]?.Type != JTokenType.Integer
-                || version["patch"]?.Type != JTokenType.Integer)
+            if (!ModuleVersion.TryParse(versionToken, out ModuleVersion version))
             {
                 throw new InvalidDataException(
                     $"Module config \"{configFilename}\" has no valid \"version\" field. Expected an object with integer " +
                     $"\"major\", \"minor\" and \"patch\". Re-download the module from the Lingotion portal.");
             }
 
-            return new JObject
+            return version;
+        }
+
+        /// <summary>
+        /// Checks that a character module config was built for the module major this package runs.
+        /// </summary>
+        /// <param name="config">The parsed character module config.</param>
+        /// <param name="configFilename">The config's filename, used in the error message.</param>
+        /// <returns>The config's version.</returns>
+        /// <exception cref="InvalidDataException">Thrown when the config carries no usable version.</exception>
+        /// <exception cref="UnsupportedModuleVersionException">Thrown when the config is of a major this package cannot run.</exception>
+        public static ModuleVersion EnsureSupportedCharacterVersion(JObject config, string configFilename)
+        {
+            ModuleVersion version = ParseVersion(config["version"], configFilename);
+            if (version.Major != ModuleVersion.SupportedCharacterModuleMajor)
             {
-                ["major"] = version["major"].Value<int>(),
-                ["minor"] = version["minor"].Value<int>(),
-                ["patch"] = version["patch"].Value<int>()
-            };
+                string frontFacingName = GetCharacterFrontFacingName(config);
+                throw new UnsupportedModuleVersionException(
+                    $"Character module \"{frontFacingName}\" ({configFilename}) is version {version}, but this version of " +
+                    $"Thespeon only runs {ModuleVersion.SupportedCharacterModuleMajor}.x character modules. Download it " +
+                    $"again from the Lingotion portal.",
+                    frontFacingName,
+                    version);
+            }
+
+            return version;
+        }
+
+        /// <summary>
+        /// Builds the user-facing display name of a character module, e.g. "Elias-M".
+        /// </summary>
+        /// <param name="config">The parsed character module config.</param>
+        /// <returns>The character name followed by the module quality.</returns>
+        public static string GetCharacterFrontFacingName(JObject config)
+        {
+            string characterName = config["character"]?["charactername"]?.ToString() ?? "Unknown";
+            string qualityTag = config["tags"]?["module_type"]?.ToString() ?? "mid";
+            ModuleType quality = ManifestHandler.StringToModuleType.TryGetValue(qualityTag, out ModuleType qualityType) ? qualityType : ModuleType.M;
+            return $"{characterName}-{quality}";
         }
 
         private static ParsedModuleConfig ParseCharacterConfig(JObject config, string configFilename)
@@ -108,15 +140,11 @@ namespace Lingotion.Thespeon.Editor
             JObject character = (JObject)config["character"];
             string characterName = character?["charactername"]?.ToString() ?? "Unknown";
 
-            // Extract quality tag
             string qualityTag = config["tags"]?["module_type"]?.ToString() ?? "mid";
-            ModuleType quality = ManifestHandler.StringToModuleType.TryGetValue(qualityTag, out ModuleType qualityType) ? qualityType : ModuleType.M;
-
-            // Build front-facing name
-            string frontFacingName = $"{characterName}-{quality}";
+            string frontFacingName = GetCharacterFrontFacingName(config);
 
             // Extract required language modules from phonemizer_setup
-            Dictionary<string, string> requiredLanguageModules = new();
+            JObject requiredLanguageModules = new();
             JArray phonemizerModules = (JArray)config["phonemizer_setup"]?["modules"];
             if (phonemizerModules != null)
             {
@@ -124,10 +152,17 @@ namespace Lingotion.Thespeon.Editor
                 {
                     string iso639_2 = pm["iso639_2"]?.ToString();
                     string baseModuleId = pm["base_module_id"]?.ToString();
-                    if (!string.IsNullOrEmpty(iso639_2) && !string.IsNullOrEmpty(baseModuleId))
+                    if (string.IsNullOrEmpty(iso639_2) || string.IsNullOrEmpty(baseModuleId))
                     {
-                        requiredLanguageModules[iso639_2] = baseModuleId;
+                        continue;
                     }
+                    JObject requirement = new JObject { ["id"] = baseModuleId };
+
+                    if (ModuleVersion.TryParse(pm["version"], out ModuleVersion requiredVersion))
+                    {
+                        requirement["version"] = requiredVersion.ToJson();
+                    }
+                    requiredLanguageModules[iso639_2] = requirement;
                 }
             }
 
@@ -191,11 +226,12 @@ namespace Lingotion.Thespeon.Editor
             {
                 ["name"] = frontFacingName,
                 ["jsonpath"] = configFilename,
-                ["required_language_modules"] = JObject.FromObject(requiredLanguageModules),
+                ["required_language_modules"] = requiredLanguageModules,
                 ["characters"] = new JArray(characterName),
                 ["quality"] = qualityTag,
                 ["languages"] = languages,
-                ["version"] = ParseVersion(config["version"], configFilename)
+                ["version"] = EnsureSupportedCharacterVersion(config, configFilename).ToJson(),
+                ["tags"] = config["tags"]?.DeepClone()
             };
 
             return new ParsedModuleConfig
@@ -254,7 +290,7 @@ namespace Lingotion.Thespeon.Editor
                 ["name"] = name,
                 ["languages"] = languages,
                 ["jsonpath"] = configFilename,
-                ["version"] = ParseVersion(config["version"], configFilename)
+                ["version"] = ParseVersion(config["version"], configFilename).ToJson()
             };
 
             return new ParsedModuleConfig
@@ -265,6 +301,31 @@ namespace Lingotion.Thespeon.Editor
                 ModuleMapping = moduleMapping,
                 FileMd5s = ExtractFileMd5s(config)
             };
+        }
+    }
+
+    /// <summary>
+    /// Thrown when a character module was built for a module major this package cannot run.
+    /// </summary>
+    public class UnsupportedModuleVersionException : Exception
+    {
+        /// <summary>The user-facing display name of the module, e.g. "Elias-M".</summary>
+        public string FrontFacingName { get; }
+
+        /// <summary>The version the module was built as.</summary>
+        public ModuleVersion Version { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the UnsupportedModuleVersionException class.
+        /// </summary>
+        /// <param name="message">The message describing the rejection.</param>
+        /// <param name="frontFacingName">The user-facing display name of the module.</param>
+        /// <param name="version">The version the module was built as.</param>
+        public UnsupportedModuleVersionException(string message, string frontFacingName, ModuleVersion version)
+            : base(message)
+        {
+            FrontFacingName = frontFacingName;
+            Version = version;
         }
     }
 }

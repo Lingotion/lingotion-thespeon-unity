@@ -100,6 +100,10 @@ public class SimpleCharacter : MonoBehaviour
     private void OnFinalPacketReceived(string sessionID)
     {
         LingotionLogger.Info($"Synthesis complete for session: {sessionID}");
+        if (string.IsNullOrEmpty(characterAsset.characterName))
+        {
+            return;
+        }
         engine.TryUnloadCharacter(characterAsset.characterName, characterAsset.moduleType);
     }
     void OnDestroy()

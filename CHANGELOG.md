@@ -4,6 +4,29 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [3.0.0] - 2026-10-08
+This version requires updated character and language modules, please re-download your characters. Modules made for earlier package versions can no longer be imported.
+
+### Added
+* The Thespeon Info Window now lists imported modules that this package version does not support, so outdated characters and languages are easy to find and replace.
+* A new Samples guide describing every sample that ships with the package.
+* While the package is not yet activated, opening the Thespeon Info Window sends a small anonymous message to help us see where setup gets stuck. The Get Started guide lists exactly what is sent.
+### Changed
+* How text is read - normalization, how numbers are spoken and what counts as a word - now comes from the language module, so it can be improved with a module update instead of a new package version, and text is handled the same way on every Unity version and platform.
+* Importing character and language modules is faster.
+* Characters now use the language module version they were made for when several versions are imported.
+* Text entered in the Synthesis Lab is kept when switching character.
+* The Demo GUI sample is now called Advanced GUI, and all samples have been updated to run without errors.
+### Fixed
+* Numbers are now spoken correctly in more cases, including ordinals, very large numbers and decimals on systems set to a region that uses a decimal comma.
+* Custom pronunciation segments are now kept exactly as written.
+* Accented letters and text outside the Latin alphabet are now handled correctly.
+* Inputs saved as JSON now load back correctly, including when no character name is given.
+* Buffer length and log verbosity set for one synthesis call no longer carry over to other calls.
+* Fixed broken links in the documentation.
+### Removed
+* The `NumberConverter` class, which had no remaining use.
+
 # [2.1.0] - 2026-09-10
 This version requires updated character and language modules, please re-download your characters to enable the new functionality.
 
@@ -58,7 +81,7 @@ This version requires updated character and language modules, please re-download
 ## Added
 * License verification step to activate package use.
 ## Fixed
-* Users are now reminded to turn of Burst Native Debug Mode Compilation when running Thespeon as it heavily affects model performance when run on CPU.
+* Users are now reminded to turn off Burst Native Debug Mode Compilation when running Thespeon as it heavily affects model performance when run on CPU.
 # [1.2.0] - 2025-09-22
 ## Added
 * New `OnSynthesisFailed` callback for ThespeonEngine.

@@ -52,12 +52,11 @@ namespace Lingotion.Thespeon.Engine
         public Action<string> OnSynthesisFailed;
 
 
-        private Queue<float[]> dataQueue = new();
-        private int currentDataLength = 0;
-        private float bufferSeconds = 0;
         private bool isRunningSynth = false;
         private Queue<SynthRequest> synthQueue = new();
         private Queue<SynthRequest> warmupQueue = new();
+
+        private const int OutputSampleRate = 44100;
 
         public const string WARMUP_SESSION_ID = "WarmupSession";
         void Update()
@@ -87,16 +86,15 @@ namespace Lingotion.Thespeon.Engine
         /// <param name="configOverride">An optional InferenceConfigOverride where each provided property overrides the existing default. </param>
         public void Synthesize(ThespeonInput input, string sessionID = "", InferenceConfigOverride configOverride = null)
         {
-
-            // session ID, and a null one would be indistinguishable from a packet
-            // that cannot be attributed to any session at all.
             sessionID ??= string.Empty;
             InferenceConfig config = configOverride == null ? new InferenceConfig() : configOverride.GenerateConfig();
+            VerbosityLevel previousVerbosity = LingotionLogger.CurrentLevel;
             LingotionLogger.CurrentLevel = config.Verbosity;
             LingotionLogger.Debug($"Running Synthesis with config: PreferredBackendType={config.PreferredBackendType}, Verbosity={config.Verbosity}, BufferSeconds={config.BufferSeconds}, UseAdaptiveScheduling={config.UseAdaptiveScheduling}");
             if (config.PreferredBackendType == Unity.InferenceEngine.BackendType.GPUPixel)
             {
                 LingotionLogger.Error("GPUPixel backend is not supported yet. Please use a different backend.");
+                LingotionLogger.CurrentLevel = previousVerbosity;
                 OnSynthesisFailed?.Invoke(sessionID);
                 return;
             }
@@ -104,10 +102,10 @@ namespace Lingotion.Thespeon.Engine
             {
                 synthQueue.Enqueue(new SynthRequest(input, sessionID, configOverride));
                 LingotionLogger.Info("Synthesis is already running. Request has been queued.");
+                LingotionLogger.CurrentLevel = previousVerbosity;
                 return;
             }
-            bufferSeconds = config.BufferSeconds;
-            StartCoroutine(RunSynthCoroutine(input, config, sessionID, PacketHandler));
+            StartCoroutine(RunSynthCoroutine(input, config, sessionID, CreatePacketHandler(config)));
         }
 
         /// <summary>
@@ -244,73 +242,87 @@ namespace Lingotion.Thespeon.Engine
             return success;
         }
 
-        private void PacketHandler(ThespeonDataPacket packet)
+        /// <summary>
+        /// Builds the packet handler for a single synthesis, bound to the configuration that synthesis was started with.
+        /// </summary>
+        /// <param name="config">The InferenceConfig the synthesis runs under.</param>
+        /// <returns>A packet handler owning its own buffering state.</returns>
+        private Action<ThespeonDataPacket> CreatePacketHandler(InferenceConfig config)
         {
-            string packetSessionID = null;
-            if(!packet.Metadata.TryGetValue(CommonMetadataKeys.SessionID, out PacketMetadataValue metadataSessionID) || 
-                !metadataSessionID.TryGet(out packetSessionID) ||
-                packetSessionID == null
-            )
+            int bufferSamples = Mathf.Max(0, Mathf.CeilToInt(config.BufferSeconds * OutputSampleRate));
+            Queue<float[]> dataQueue = new();
+            int currentDataLength = 0;
+
+            return packet =>
             {
-                LingotionLogger.Error($"Packet received from unknown session, ignoring.");
-                return;
-            }
-            switch (packet.CallbackType)
-            {
-                case SynthCallbackType.CB_AUDIO:
-                    bool isFinalPacket = false;
-                    // Check for "is_final" in metadata
-                    if(packet.Metadata.TryGetValue("is_final", out PacketMetadataValue isFinalVal))
-                    {
-                        isFinalVal.TryGet(out isFinalPacket);
-                    }
-                    if(!packet.Payload.TryGet(out float[] audioSamples))
-                    {
-                        LingotionLogger.Error($"Faulty audio packet payload received from session {packetSessionID}, ignoring.");
-                        return;
-                    }
-                    currentDataLength += audioSamples.Length;
-
-                    dataQueue.Enqueue(audioSamples);
-                    if (isFinalPacket || currentDataLength >= bufferSeconds * 44100)
-                    {
-                        while (dataQueue.TryDequeue(out float[] currentPacket))
+                string packetSessionID = null;
+                if (!packet.Metadata.TryGetValue(CommonMetadataKeys.SessionID, out PacketMetadataValue metadataSessionID) ||
+                    !metadataSessionID.TryGet(out packetSessionID) ||
+                    packetSessionID == null
+                )
+                {
+                    LingotionLogger.Error($"Packet received from unknown session, ignoring.");
+                    return;
+                }
+                switch (packet.CallbackType)
+                {
+                    case SynthCallbackType.CB_AUDIO:
+                        bool isFinalPacket = false;
+                        // Check for "is_final" in metadata
+                        if (packet.Metadata.TryGetValue("is_final", out PacketMetadataValue isFinalVal))
                         {
-                            OnAudioReceived ??= DefaultFloatHandler;
-                            OnAudioReceived?.Invoke(packetSessionID, currentPacket);
+                            isFinalVal.TryGet(out isFinalPacket);
                         }
-                        if (isFinalPacket)
+                        if (!packet.Payload.TryGet(out float[] audioSamples))
                         {
-                            currentDataLength = 0;
-                            OnSynthesisComplete?.Invoke(packetSessionID);
+                            LingotionLogger.Error($"Faulty audio packet payload received from session {packetSessionID}, ignoring.");
+                            return;
                         }
-                    }
-                    break;
+                        currentDataLength += audioSamples.Length;
 
-                case SynthCallbackType.CB_TRIGGERSAMPLE:
-                    if(packet.Payload.TryGet(out long[] requestedIndices))
-                    {
-                        LingotionLogger.Debug($"Audio Sample Request received: {string.Join(", ", requestedIndices)}");
-                        OnAudioSampleRequestReceived?.Invoke(packetSessionID, requestedIndices);
-                    }
-                    break;
+                        dataQueue.Enqueue(audioSamples);
+                        if (isFinalPacket || currentDataLength >= bufferSamples)
+                        {
+                            while (dataQueue.TryDequeue(out float[] currentPacket))
+                            {
+                                OnAudioReceived ??= DefaultFloatHandler;
+                                OnAudioReceived?.Invoke(packetSessionID, currentPacket);
+                            }
+                            if (isFinalPacket)
+                            {
+                                currentDataLength = 0;
+                                OnSynthesisComplete?.Invoke(packetSessionID);
+                            }
+                        }
+                        break;
 
-                case SynthCallbackType.CB_ERROR:
-                    if(packet.Payload.TryGet(out string errorMsgValue))
-                    {
-                        LingotionLogger.Error($"Error packet received from session {packetSessionID} with message:\n {errorMsgValue}");
-                    } else
-                    {
-                        LingotionLogger.Error($"Error packet received from session {packetSessionID}.");
-                    }
-                    currentDataLength = 0;
-                    OnSynthesisFailed?.Invoke(packetSessionID);
-                    break;
+                    case SynthCallbackType.CB_TRIGGERSAMPLE:
+                        if (packet.Payload.TryGet(out long[] requestedIndices))
+                        {
+                            LingotionLogger.Debug($"Audio Sample Request received: {string.Join(", ", requestedIndices)}");
+                            OnAudioSampleRequestReceived?.Invoke(packetSessionID, requestedIndices);
+                        }
+                        break;
 
-                default:
-                    LingotionLogger.Warning("ThespeonComponent received unknown callback type!");
-                    break;
-            }
+                    case SynthCallbackType.CB_ERROR:
+                        if (packet.Payload.TryGet(out string errorMsgValue))
+                        {
+                            LingotionLogger.Error($"Error packet received from session {packetSessionID} with message:\n {errorMsgValue}");
+                        }
+                        else
+                        {
+                            LingotionLogger.Error($"Error packet received from session {packetSessionID}.");
+                        }
+                        dataQueue.Clear();
+                        currentDataLength = 0;
+                        OnSynthesisFailed?.Invoke(packetSessionID);
+                        break;
+
+                    default:
+                        LingotionLogger.Warning("ThespeonComponent received unknown callback type!");
+                        break;
+                }
+            };
         }
 
         private static void WarmupPacketHandler(ThespeonDataPacket packet)
@@ -322,7 +334,10 @@ namespace Lingotion.Thespeon.Engine
         {
             if (data != null)
             {
-                LingotionLogger.Debug($"Default packet receiver received data {string.Join(' ', data)}!");
+                if (LingotionLogger.CurrentLevel >= VerbosityLevel.Debug)
+                {
+                    LingotionLogger.Debug($"Default packet receiver received data {string.Join(' ', data)}!");
+                }
             }
             else
             {

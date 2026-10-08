@@ -13,6 +13,9 @@ namespace Lingotion.Thespeon.Editor
         private ListView _importedCharacterListView;
         private ListView _importedLanguageListView;
         private HelpBox _missingLanguageHelpBox;
+        private VisualElement _outdatedModulesSection;
+        private HelpBox _outdatedModulesHelpBox;
+        private VisualElement _outdatedModuleList;
 
         private void RefreshOverview()
         {
@@ -30,6 +33,52 @@ namespace Lingotion.Thespeon.Editor
             {
                 _missingLanguageHelpBox.style.display = DisplayStyle.None;
             }
+
+            RefreshOutdatedModules();
+        }
+
+        private void RefreshOutdatedModules()
+        {
+            var outdated = ManifestHandler.Instance.GetUnsupportedModules();
+            _outdatedModuleList.Clear();
+            if (outdated.Count == 0)
+            {
+                _outdatedModulesSection.style.display = DisplayStyle.None;
+                return;
+            }
+
+            _outdatedModulesHelpBox.text =
+                $"These character modules were built for another version of Thespeon and cannot be used. This version " +
+                $"runs {ModuleVersion.SupportedCharacterModuleMajor}.x character modules only. Delete them, then download " +
+                $"them again from the Lingotion portal.";
+            foreach (var (name, configFilename, version) in outdated)
+            {
+                var row = new VisualElement();
+                row.AddToClassList("outdated-module-row");
+                var nameLabel = new Label($"• {name}  (version {version})");
+                nameLabel.AddToClassList("list-item-name");
+                row.Add(nameLabel);
+                row.Add(new Button(() => HandleDeleteOutdated(new[] { configFilename }, name)) { text = "Delete" });
+                _outdatedModuleList.Add(row);
+            }
+            _outdatedModulesSection.style.display = DisplayStyle.Flex;
+        }
+
+        private void HandleDeleteOutdated(string[] configFilenames, string description)
+        {
+            bool confirm = EditorUtility.DisplayDialog(
+                "Confirm Deletion",
+                $"Are you sure you want to delete:\n\n{description}\n\nfrom disk?",
+                "Delete",
+                "Cancel"
+            );
+            if (!confirm)
+            {
+                return;
+            }
+
+            EditorImporter.DeleteModules(configFilenames);
+            Repaint();
         }
 
         private VisualElement CreateOverviewTab()
@@ -41,6 +90,19 @@ namespace Lingotion.Thespeon.Editor
             _missingLanguageHelpBox = result.Q<HelpBox>("MissingLanguageHelpBox");
             _importedCharacterListView = result.Q<ListView>("ImportedCharacterListView");
             _importedLanguageListView = result.Q<ListView>("ImportedLanguageListView");
+            _outdatedModulesSection = result.Q<VisualElement>("OutdatedModulesSection");
+            _outdatedModulesHelpBox = result.Q<HelpBox>("OutdatedModulesHelpBox");
+            _outdatedModuleList = result.Q<VisualElement>("OutdatedModuleList");
+            result.Q<Button>("DeleteAllOutdatedButton").clicked += () =>
+            {
+                var outdated = ManifestHandler.Instance.GetUnsupportedModules();
+                if (outdated.Count == 0)
+                {
+                    return;
+                }
+                string description = string.Join("\n", outdated.Select(module => $"• {module.Name}  (version {module.Version})"));
+                HandleDeleteOutdated(outdated.Select(module => module.ConfigFilename).ToArray(), description);
+            };
 
             result.Q<Button>("DownloadGuideHelpBoxButton").clicked += () => Application.OpenURL(EditorLingotionUrls.PortalHome);
 
@@ -66,11 +128,18 @@ namespace Lingotion.Thespeon.Editor
                 var nameLabel = new Label("• " + name);
                 nameLabel.AddToClassList("list-item-name");
                 listElement.Add(nameLabel);
-                foreach (var (info, version) in ManifestHandler.Instance.GetAllModuleInfoInCharacter(name))
+                foreach (var (info, version, tags) in ManifestHandler.Instance.GetAllModuleInfoInCharacter(name))
                 {
                     var sublabel = new Label($"- {info}");
                     sublabel.AddToClassList("list-item-sub");
                     listElement.Add(sublabel);
+
+                    foreach (var tag in tags)
+                    {
+                        var tagLabel = new Label(tag);
+                        tagLabel.AddToClassList("list-item-tag");
+                        listElement.Add(tagLabel);
+                    }
 
                     var versionLabel = new Label($"Version: {version}");
                     versionLabel.AddToClassList("list-item-version");
@@ -162,7 +231,6 @@ namespace Lingotion.Thespeon.Editor
 
             if (rootElement is not VisualElement container)
                 return;
-
 
             var labelTexts = container.Query<Label>().ToList()
                 .Skip(1)

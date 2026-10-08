@@ -124,44 +124,9 @@ Package Manager and are not redistributed inside this package.
 
 ---
 
-## 4. Sample-only assets (imported only with the "Demo GUI" sample)
-
-The "Demo GUI" sample (`Samples~/GUISampleScene/`) includes a copy of Unity's
-standard **TextMesh Pro "Examples & Extras"** assets
-(`Samples~/GUISampleScene/TextMesh Pro/`). These assets are distributed by Unity
-Technologies as part of TextMesh Pro and are licensed by their respective
-creators as follows:
-
-### Liberation Sans
-- **Where:** `.../TextMesh Pro/Fonts/LiberationSans.ttf`
-  (license file: `.../Fonts/LiberationSans - OFL.txt`)
-- **License:** SIL Open Font License (OFL) 1.1.
-- **Copyright:** Copyright 2012 Red Hat, Inc.
-
-### Noto Sans / Noto Sans Italic / Noto Emoji
-- **Where:** `.../TextMesh Pro/Resources/Fonts & Materials/NotoSans-*.ttf`,
-  `NotoEmoji-VariableFont_wght.ttf`
-- **License:** SIL Open Font License (OFL) 1.1.
-- **Copyright:** Copyright The Noto Project Authors (Google).
-
-### EmojiOne emoji sprites
-- **Where:** `.../TextMesh Pro/Sprites/EmojiOne.png`, `EmojiOne.json`
-  (attribution file: `.../Sprites/EmojiOne Attribution.txt`)
-- **License:** Creative Commons Attribution 4.0 International (CC-BY 4.0).
-- **Note:** This is the legacy **EmojiOne 2.x** sprite set bundled with Unity's
-  TextMesh Pro, which is licensed under CC-BY 4.0. It predates the EmojiOne 3.0
-  freemium change and the 2019 rebrand to JoyPixels; the more restrictive
-  JoyPixels licensing does **not** apply to these assets.
-- **Source:** https://github.com/joypixels/emojione-legacy
-- **Copyright:** Copyright EmojiOne (now JoyPixels).
-
----
-
 ## Notes
 
 - The actor/voice **ONNX acting models** used by Thespeon are **not** bundled in
   this package. They are downloaded separately as `.lingotion` files from the
   Lingotion Developer Portal and placed under
   `StreamingAssets/LingotionRuntimeFiles/` at runtime.
-- **TextMesh Pro** itself is part of the Unity engine (via `com.unity.ugui`) and
-  is therefore not declared as a package dependency.

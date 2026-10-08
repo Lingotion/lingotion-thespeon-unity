@@ -15,6 +15,25 @@
     margin-left: 10px;
 }
 
+.list-item-tag {
+    margin-left: 24px;
+    white-space: normal;
+    color: rgb(190, 190, 190);
+}
+
+.outdated-module-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.outdated-module-row > .list-item-name {
+    flex-shrink: 1;
+    white-space: normal;
+}
+
 .list-item-version {
     margin-left: 10px;
     -unity-font-style: italic;
