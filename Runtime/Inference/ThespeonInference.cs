@@ -10,7 +10,6 @@ using Unity.InferenceEngine;
 using Lingotion.Thespeon.Inputs;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Text;
 using UnityEngine.Profiling;
 using System.IO;
@@ -111,7 +110,6 @@ namespace Lingotion.Thespeon.Inference
                 if (characterModule == default)
                 {
                     LingotionLogger.Debug($"Character module for {characterName} of type {moduleType} is not registered or already deregistered.");
-
                     return true;
                 }
                 HashSet<string> langModsSafeToRemove = ModuleHandler.Instance.GetNonOverlappingLangModules(characterModule);
@@ -133,7 +131,6 @@ namespace Lingotion.Thespeon.Inference
                         LingotionLogger.Debug($"Language module {id} is still used by character on other backends, skipping unload on {backendStr}.");
                         continue;
                     }
-
                     BackendType langModForcedBackend = BackendType.CPU;
                     if (!InferenceWorkloadManager.Instance.TryDeregisterModuleWorkloads(langModule, langModForcedBackend))
                     {
@@ -167,7 +164,6 @@ namespace Lingotion.Thespeon.Inference
         /// <returns>An IEnumerator for coroutine execution.</returns>
         public override IEnumerator Infer(ThespeonInput input, InferenceConfig config, bool asyncDownload = true)
         {
-
             LingotionLogger.CurrentLevel = config.Verbosity;
             double timeSinceFrameStart = Time.realtimeSinceStartupAsDouble - Time.unscaledTimeAsDouble;
             double timeLeftOfFrame = config.TargetFrameTime - timeSinceFrameStart - config.TargetFrameTime / 10d;
@@ -207,7 +203,7 @@ namespace Lingotion.Thespeon.Inference
                 input.DefaultLanguage ??= config.FallbackLanguage;
                 input.DefaultEmotion = input.DefaultEmotion == Emotion.None ? config.FallbackEmotion : input.DefaultEmotion;
                 BeginProfilerSample("Thespeon Text preprocessing");
-                processedInput = TextPreprocessor.PreprocessInput(input);
+                processedInput = TextPreprocessor.PreprocessInput(input, language => GetTextPreprocessingRules(characterModule, languageModules, language));
                 EndProfilerSample();
                 BeginProfilerSample("Thespeon Find unknown words");
                 (unknownWordsByLanguage, markerPositionsBySegment) = FindUnknownWordsAndMarkerPositions(processedInput, characterModule, languageModules);
@@ -301,7 +297,10 @@ namespace Lingotion.Thespeon.Inference
             try
             {
                 (_, List<int> globalMarkerPositions) = PhonemizeInput(ref processedInput, characterModule, languageModules, markerPositionsBySegment);
-                LingotionLogger.Debug($"Phonemized input for MetaGraph: {processedInput.ToJson()}");
+                if (LingotionLogger.CurrentLevel >= VerbosityLevel.Debug)
+                {
+                    LingotionLogger.Debug($"Phonemized input for MetaGraph: {processedInput.ToJson()}");
+                }
                 SetMetaGraphInputTensors(characterModule, processedInput, globalMarkerPositions);
             }
             catch (Exception e)
@@ -384,7 +383,6 @@ namespace Lingotion.Thespeon.Inference
                 BeginProfilerSample($"Thespeon Register language module {langModule.moduleLanguage.Iso639_2}");
                 InferenceConfig langConfig = new InferenceConfig
                 {
-
                     PreferredBackendType = BackendType.CPU,
                 };
                 InferenceWorkloadManager.Instance.RegisterModule(langModule, langConfig);
@@ -469,7 +467,6 @@ namespace Lingotion.Thespeon.Inference
                 }
                 InferenceConfig langConfig = new InferenceConfig
                 {
-
                     PreferredBackendType = BackendType.CPU,
                 };
                 var registerLang = InferenceWorkloadManager.Instance.RegisterModuleCoroutine(langModule, langConfig);
@@ -530,6 +527,21 @@ namespace Lingotion.Thespeon.Inference
             return languageModule;
         }
 
+        private static TextPreprocessingRules GetTextPreprocessingRules(CharacterModule characterModule, Dictionary<string, LanguageModule> languageModules, ModuleLanguage segmentLanguage)
+        {
+            ModuleLanguage language = ModuleLanguage.BestMatch(ManifestHandler.Instance.GetAllLanguageModuleLanguages(), segmentLanguage.Iso639_2, null);
+            return RequireTextPreprocessingRules(ResolveLanguageModule(characterModule, languageModules, language));
+        }
+
+        private static TextPreprocessingRules RequireTextPreprocessingRules(LanguageModule languageModule)
+        {
+            if (languageModule.TextPreprocessingRules == null)
+            {
+                throw new InvalidDataException($"Language module {languageModule.ModuleID} does not contain valid text preprocessing rules. Cannot preprocess text. Please re-import your language pack.");
+            }
+            return languageModule.TextPreprocessingRules;
+        }
+
         private (Dictionary<string, Dictionary<string, int>>, List<int>) PhonemizeInput(ref ThespeonInput processedInput, CharacterModule characterModule, Dictionary<string, LanguageModule> languageModules, List<List<float>> markerPositionsBySegment)
         {
             Dictionary<string, Dictionary<string, int>> lengthChangesByLanguage = new();
@@ -541,7 +553,6 @@ namespace Lingotion.Thespeon.Inference
                 List<float> markerPositions = markerPositionsBySegment[segIdx++];
                 if (segment.IsCustomPronounced)
                 {
-
                     globalMarkerPositions.AddRange(markerPositions.Select(pos => Mathf.RoundToInt(globalLengthCount + pos)));
                     globalLengthCount += segment.Text.Length;
                     continue;
@@ -553,17 +564,16 @@ namespace Lingotion.Thespeon.Inference
                 }
                 ModuleLanguage language = ModuleLanguage.BestMatch(ManifestHandler.Instance.GetAllLanguageModuleLanguages(), segmentLanguage.Iso639_2, null);
                 LanguageModule segmentLanguageModule = ResolveLanguageModule(characterModule, languageModules, language);
-
                 RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(segmentLanguageModule.GetLookupTableID());
 
-                MatchCollection matches = TextPreprocessor.WordRegex.Matches(segment.Text);
+                List<Word> matches = RequireTextPreprocessingRules(segmentLanguageModule).Words.Split(segment.Text, lookupTable.ContainsKey);
                 StringBuilder sb = new(segment.Text);
                 int offset = 0;
                 int wordCount = 0;
                 int markerIdx = 0;
-                foreach (Match match in matches)
+                foreach (Word match in matches)
                 {
-                    string word = match.Value;
+                    string word = match.Text;
                     int index = match.Index + offset;
                     if (lookupTable.TryGetValue(word, out string phonemizedWord))
                     {
@@ -605,7 +615,6 @@ namespace Lingotion.Thespeon.Inference
                 {
                     (string cleanedPhonemizedText, List<int> markerPhonemizedIdx) = StripMarkers(segment.Text);
                     segment.Text = cleanedPhonemizedText;
-
                     markerPositionsBySegment.Add(markerPhonemizedIdx.Select(i => (float)i).ToList());
                     continue;
                 }
@@ -614,10 +623,10 @@ namespace Lingotion.Thespeon.Inference
                 LanguageModule segmentLanguageModule = ResolveLanguageModule(characterModule, languageModules, language);
                 RuntimeLookupTable lookupTable = LookupTableHandler.Instance.GetLookupTable(segmentLanguageModule.GetLookupTableID());
                 (string cleanedText, List<int> markerCleanIdx) = StripMarkers(segment.Text);
-                MatchCollection matches = TextPreprocessor.WordRegex.Matches(cleanedText);
-                foreach (Match match in matches)
+                List<Word> matches = RequireTextPreprocessingRules(segmentLanguageModule).Words.Split(cleanedText, lookupTable.ContainsKey);
+                foreach (Word match in matches)
                 {
-                    string word = match.Value;
+                    string word = match.Text;
                     if (!lookupTable.ContainsKey(word))
                     {
                         if (!unknownWordsByLanguage.ContainsKey(language.ToJson()))
@@ -752,7 +761,7 @@ namespace Lingotion.Thespeon.Inference
             return (sb.ToString(), idxs);
         }
 
-        private static List<float> ComputeMarkerPositions(MatchCollection matches, List<int> markerIdx)
+        private static List<float> ComputeMarkerPositions(List<Word> matches, List<int> markerIdx)
         {
             List<float> positions = new(markerIdx.Count);
             int mi = 0;
@@ -939,7 +948,6 @@ namespace Lingotion.Thespeon.Inference
                 }
                 (List<int> segmentPhonemes, _) = characterModule.EncodePhonemes(segment.Text);
                 phonemeKeys.AddRange(segmentPhonemes);
-
                 languageKeys.AddRange(Enumerable.Repeat(languageKey, segmentPhonemes.Count + (isFirstSegment ? 1 : 0)));
                 isFirstSegment = false;
                 lastLanguageKey = languageKey;
@@ -957,7 +965,6 @@ namespace Lingotion.Thespeon.Inference
             }
 
             phonemeKeys.Add(characterModule.EncodePhonemes("⏪").Item1[0]);
-
             languageKeys.Add(lastLanguageKey);
 
             int textLength = phonemeKeys.Count;
@@ -1045,10 +1052,13 @@ namespace Lingotion.Thespeon.Inference
                 characterKey = 1;
             }
 
-            LingotionLogger.Debug($"Phoneme keys: {string.Join(", ", phonemeKeys)}");
-            LingotionLogger.Debug($"Character key: {characterKey}");
-            LingotionLogger.Debug($"Language keys: {string.Join(", ", languageKeys)}");
-            LingotionLogger.Debug($"Emotion tensors: k={k}, N={textLength}, emotions=[{string.Join(", ", distinctEmotions.Select(emotion => $"{emotion}({(int)emotion})"))}]");
+            if (LingotionLogger.CurrentLevel >= VerbosityLevel.Debug)
+            {
+                LingotionLogger.Debug($"Phoneme keys: {string.Join(", ", phonemeKeys)}");
+                LingotionLogger.Debug($"Character key: {characterKey}");
+                LingotionLogger.Debug($"Language keys: {string.Join(", ", languageKeys)}");
+                LingotionLogger.Debug($"Emotion tensors: k={k}, N={textLength}, emotions=[{string.Join(", ", distinctEmotions.Select(emotion => $"{emotion}({(int)emotion})"))}]");
+            }
             LogControlTensors(input, distinctEmotions, controlSpans, blending, speedValues, loudnessValues, textLength, k);
 
             TensorPool.SetTensor("phoneme_keys", new Tensor<int>(new TensorShape(1, textLength), phonemeKeys.ToArray()));

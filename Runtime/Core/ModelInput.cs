@@ -97,7 +97,6 @@ namespace Lingotion.Thespeon.Core
             {
                 if (segment.Language != null && segment.Language.Iso639_2 != null)
                 {
-
                     segment.Language = ModuleLanguage.BestMatch(availableLangs, segment.Language.Iso639_2, segment.Language.Iso3166_1);
                     if (segment.Language.Equals(DefaultLanguage))
                     {
@@ -106,7 +105,6 @@ namespace Lingotion.Thespeon.Core
                 }
             }
         }
-
 
         public ModelInput(List<InputSegmentType> segments, string characterName = null, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, ModuleLanguage defaultLanguage = null)
         {

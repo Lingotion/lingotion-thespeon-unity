@@ -14,6 +14,18 @@
                 <ui:Button name="RegenerateInputsButton" text="Regenerate Input Assets" />
             </ui:VisualElement>
         </ui:VisualElement>
+        <ui:VisualElement name="OutdatedModulesSection" style="display: none;">
+            <uie:Toolbar style="margin-top: 10px; height: 21px;">
+                <ui:Label text="Outdated Modules" class="header-label" />
+            </uie:Toolbar>
+            <ui:HelpBox name="OutdatedModulesHelpBox" message-type="Warning" />
+            <ui:ScrollView style="max-height: 120px; margin-left: 5px;">
+                <ui:VisualElement name="OutdatedModuleList" />
+            </ui:ScrollView>
+            <ui:VisualElement style="flex-direction: row;">
+                <ui:Button name="DeleteAllOutdatedButton" text="Delete All Outdated" />
+            </ui:VisualElement>
+        </ui:VisualElement>
         <uie:Toolbar style="margin-top: 10px; height: 21px;">
             <ui:Label text="Imported Characters" class="header-label" />
         </uie:Toolbar>

@@ -58,6 +58,93 @@ namespace Lingotion.Thespeon.Core
     }
 
     /// <summary>
+    /// A module's semantic version as it is written to the manifest.
+    /// </summary>
+    public readonly struct ModuleVersion : IComparable<ModuleVersion>
+    {
+        /// <summary>
+        /// The only character module major this package can run. Character modules of any other major are
+        /// rejected on import, and the portal is told to serve only this major.
+        /// </summary>
+        public const int SupportedCharacterModuleMajor = 4;
+
+        public readonly int Major;
+        public readonly int Minor;
+        public readonly int Patch;
+
+        /// <summary>
+        /// Initializes a new instance of the ModuleVersion struct.
+        /// </summary>
+        /// <param name="major">Major version, bumped when a module stops being interchangeable with earlier builds.</param>
+        /// <param name="minor">Minor version.</param>
+        /// <param name="patch">Patch version.</param>
+        public ModuleVersion(int major, int minor, int patch)
+        {
+            Major = major;
+            Minor = minor;
+            Patch = patch;
+        }
+
+        /// <summary>
+        /// Reads a version from its manifest or config representation.
+        /// </summary>
+        /// <param name="versionToken">Token to read, expected to be an object with integer "major", "minor" and "patch".</param>
+        /// <param name="version">The parsed version, or default if the token holds no version.</param>
+        /// <returns>True if the token held a complete version.</returns>
+        public static bool TryParse(JToken versionToken, out ModuleVersion version)
+        {
+            version = default;
+            if (versionToken is not JObject versionObject
+                || versionObject["major"]?.Type != JTokenType.Integer
+                || versionObject["minor"]?.Type != JTokenType.Integer
+                || versionObject["patch"]?.Type != JTokenType.Integer)
+            {
+                return false;
+            }
+
+            version = new ModuleVersion(
+                versionObject["major"].Value<int>(),
+                versionObject["minor"].Value<int>(),
+                versionObject["patch"].Value<int>());
+            return true;
+        }
+
+        /// <summary>
+        /// Writes the version back in its manifest representation.
+        /// </summary>
+        /// <returns>An object with integer "major", "minor" and "patch".</returns>
+        public JObject ToJson()
+        {
+            return new JObject
+            {
+                ["major"] = Major,
+                ["minor"] = Minor,
+                ["patch"] = Patch
+            };
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(ModuleVersion other)
+        {
+            if (Major != other.Major)
+            {
+                return Major.CompareTo(other.Major);
+            }
+            if (Minor != other.Minor)
+            {
+                return Minor.CompareTo(other.Minor);
+            }
+            return Patch.CompareTo(other.Patch);
+        }
+
+        public override string ToString() => $"{Major}.{Minor}.{Patch}";
+
+        public override bool Equals(object obj) => obj is ModuleVersion other && CompareTo(other) == 0;
+
+        public override int GetHashCode() => HashCode.Combine(Major, Minor, Patch);
+    }
+
+    /// <summary>
     /// Singleton that handles parsing and distributing information found in the manifest file.
     /// </summary>
     public class ManifestHandler
@@ -203,8 +290,6 @@ namespace Lingotion.Thespeon.Core
                         });
                     });
                 })
-
-                // can carry the same dialect. Group by name so the duplicate is folded away instead of throwing.
                 .GroupBy(kvp => kvp.Key)
                 .ToDictionary(group => group.Key, group => group.First().Value);
         }
@@ -244,7 +329,6 @@ namespace Lingotion.Thespeon.Core
                         });
                     });
                 })
-
                 .GroupBy(kvp => kvp.Key)
                 .ToDictionary(group => group.Key, group => group.First().Value);
         }
@@ -257,19 +341,14 @@ namespace Lingotion.Thespeon.Core
         /// <returns>A list of ModuleLanguage objects representing the supported languages.</returns>
         public List<ModuleLanguage> GetAllSupportedLanguages(string characterName, ModuleType type)
         {
-            if (type == ModuleType.None) return new();
+            if (type == ModuleType.None)
+            {
+                return new();
+            }
             string moduleTypeString = ModuleTypeToString[type];
             List<ModuleLanguage> languages = GetAllLanguagesForCharacterAndModuleType(characterName, type).Values
                 .ToList();
-            var availableIso639_2 = manifestData["language_modules"]
-                .Children<JProperty>()
-                .SelectMany(p => p.Value["languages"]
-                    .Children<JProperty>()
-                    .SelectMany(lang => lang.Value.Children<JObject>())
-                    .Select(langObj => langObj["iso639_2"]?.ToString()))
-                .Where(code => !string.IsNullOrEmpty(code))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var requiredIso639_2 = manifestData["character_modules"].Children<JProperty>()
+            HashSet<string> supportedIso639_2 = manifestData["character_modules"].Children<JProperty>()
             .Where(p =>
             {
                 var module = p.Value;
@@ -278,9 +357,11 @@ namespace Lingotion.Thespeon.Core
 
                 return characters.Contains(characterName) && quality == moduleTypeString;
             })
-            .SelectMany(p => p.Value["required_language_modules"].Children<JProperty>().Select(kvp => kvp.Name.ToString()))
+            .SelectMany(p => p.Value["required_language_modules"].Children<JProperty>())
+            .Where(p => HasLanguageModule(GetRequiredModuleID(p.Value))
+                || !string.IsNullOrEmpty(FindLanguageModuleIDForISO(p.Name, GetRequiredModuleVersion(p.Value))))
+            .Select(p => p.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> supportedIso639_2 = availableIso639_2.Intersect(requiredIso639_2, StringComparer.OrdinalIgnoreCase).ToHashSet();
             return languages.Where(lang => supportedIso639_2.Contains(lang.Iso639_2, StringComparer.OrdinalIgnoreCase))
                 .ToList();
         }
@@ -316,8 +397,6 @@ namespace Lingotion.Thespeon.Core
                         return new KeyValuePair<string, string>(name, code);
                     }).Where(code => code.Key != null && code.Value != null);
                 })
-
-                // language name arriving from two modules still has to be grouped to avoid a duplicate key.
                 .GroupBy(kvp => kvp.Key)
                 .ToDictionary(group => group.Key, group => group.First().Value);
         }
@@ -329,13 +408,7 @@ namespace Lingotion.Thespeon.Core
         /// <returns>The formatted version, or "Unknown" if the entry carries no version.</returns>
         private static string FormatVersion(JToken versionToken)
         {
-
-            // here - this runs during editor window repaints, and it self-corrects on the next import. Imports
-            // reject unversioned modules, so anything unreadable here means a stale or hand-edited manifest.
-            if (versionToken is not JObject version) return UnknownVersion;
-
-            static int Part(JToken part) => part?.Type == JTokenType.Integer ? part.Value<int>() : 0;
-            return $"{Part(version["major"])}.{Part(version["minor"])}.{Part(version["patch"])}";
+            return ModuleVersion.TryParse(versionToken, out ModuleVersion version) ? version.ToString() : UnknownVersion;
         }
 
         /// <summary>
@@ -346,7 +419,6 @@ namespace Lingotion.Thespeon.Core
         /// <returns>The matching manifest property, or null if none matches.</returns>
         private JProperty FindCharacterModuleProperty(string characterName, ModuleType type)
         {
-
             if (!ModuleTypeToString.TryGetValue(type, out string moduleTypeString)) return null;
 
             var matches = manifestData["character_modules"].Children<JProperty>()
@@ -360,9 +432,6 @@ namespace Lingotion.Thespeon.Core
                 })
                 .ToList();
 
-
-            // carry the same character at the same quality. Taking the first keeps every consumer - runtime loading,
-            // generated assets and the info window - agreeing on which module is the one in play.
             if (matches.Count > 1)
                 LingotionLogger.Debug($"Found {matches.Count} modules for character {characterName} with module type {type}. Using {matches[0].Name}.");
 
@@ -425,24 +494,57 @@ namespace Lingotion.Thespeon.Core
         }
 
         /// <summary>
-        /// Finds the ID of any imported language module serving the given language. Used to substitute a
-        /// language module a character pins but which is not imported, since a module ID also encodes the
-        /// content it was built from and so differs between builds of the same language.
+        /// Finds the ID of an imported language module serving the given language at a compatible version. Used to
+        /// substitute a language module a character pins but which is not imported, since a module ID also encodes
+        /// the content it was built from and so differs between builds of the same language. Several versions of the
+        /// same language may be imported side by side, so the requested version is taken where it is present and the
+        /// highest minor.patch sharing its major otherwise. A differing major is never substituted, as it may carry an
+        /// incompatible phonemizer.
         /// </summary>
         /// <param name="iso639_2">ISO 639-2 code of the language to find a module for.</param>
-        /// <returns>The ID of an imported module serving that language, or null if none does.</returns>
-        public string FindLanguageModuleIDForISO(string iso639_2)
+        /// <param name="requestedVersion">Version the character was built against, or null to accept the highest imported version of any major.</param>
+        /// <returns>The ID of an imported module serving that language at a compatible version, or null if none does.</returns>
+        public string FindLanguageModuleIDForISO(string iso639_2, ModuleVersion? requestedVersion = null)
         {
             if (string.IsNullOrEmpty(iso639_2))
             {
                 return null;
             }
 
-            return manifestData["language_modules"].Children<JProperty>()
-                .FirstOrDefault(module => module.Value["languages"]
+            List<(string Name, ModuleVersion? Version)> candidates = manifestData["language_modules"].Children<JProperty>()
+                .Where(module => module.Value["languages"]
                     .SelectMany(langProp => langProp.Values())
                     .Any(langObj => string.Equals(langObj["iso639_2"]?.ToString(), iso639_2, StringComparison.OrdinalIgnoreCase)))
-                ?.Name;
+                .Select(module => (Name: module.Name, Version: ModuleVersion.TryParse(module.Value["version"], out ModuleVersion parsed) ? parsed : (ModuleVersion?)null))
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            if (requestedVersion == null)
+            {
+                return candidates.OrderByDescending(candidate => candidate.Version ?? default(ModuleVersion)).First().Name;
+            }
+
+            ModuleVersion requested = requestedVersion.Value;
+            List<(string Name, ModuleVersion? Version)> compatible = candidates
+                .Where(candidate => candidate.Version.HasValue && candidate.Version.Value.Major == requested.Major)
+                .ToList();
+
+            if (compatible.Count == 0)
+            {
+                return null;
+            }
+
+            (string Name, ModuleVersion? Version) exact = compatible.FirstOrDefault(candidate => candidate.Version.Value.CompareTo(requested) == 0);
+            if (exact.Name != null)
+            {
+                return exact.Name;
+            }
+
+            return compatible.OrderByDescending(candidate => candidate.Version.Value).First().Name;
         }
 
         /// <summary>
@@ -513,8 +615,8 @@ namespace Lingotion.Thespeon.Core
         /// Summarizes all module info inside a character.
         /// </summary>
         /// <param name="name">The specific name to find.</param>
-        /// <returns>A list of summary and version pairs, one per module inside the character.</returns>
-        public List<(string info, string version)> GetAllModuleInfoInCharacter(string name)
+        /// <returns>A list of summary, version and formatted tag lines, one per module inside the character.</returns>
+        public List<(string info, string version, List<string> tags)> GetAllModuleInfoInCharacter(string name)
         {
             return manifestData["character_modules"].Children<JProperty>()
                 .Where(p =>
@@ -526,16 +628,39 @@ namespace Lingotion.Thespeon.Core
                 .Select(module =>
                 {
                     var charactername = module.Value["characters"]?[0].ToString();
-                    StringToModuleType.TryGetValue(module.Value["quality"]?.ToString(), out ModuleType quality);
                     JObject languages = (JObject)module.Value["languages"];
                     var languageNames = languages?.Properties().Select((lang) => lang.Name.ToString());
+                    var tags = (module.Value["tags"] as JObject)?.Properties()
+                        .Select(tag => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(tag.Name.Replace('_', ' '))
+                            + ": "
+                            + (tag.Name == "module_type" && StringToModuleType.TryGetValue(tag.Value.ToString(), out ModuleType tagModuleType)
+                                ? tagModuleType.ToString()
+                                : FormatTagValue(tag.Value)))
+                        .ToList() ?? new List<string>();
                     return (
-                        "Character: " + charactername + ", Module Type: " + quality + ", Languages: " + string.Join(", ", languageNames),
-                        FormatVersion(module.Value["version"])
+                        info: "Character: " + charactername + ", Languages: " + string.Join(", ", languageNames),
+                        version: FormatVersion(module.Value["version"]),
+                        tags: tags,
+                        quality: module.Value["quality"]?.ToString()
                     );
                 })
-                .Distinct()
+                .GroupBy(entry => (entry.info, entry.quality, entry.version))
+                .Select(group => (group.First().info, group.First().version, group.First().tags))
                 .ToList();
+        }
+
+        /// <summary>
+        /// Formats a tag value as readable text: arrays become comma separated lists, everything else its plain string.
+        /// </summary>
+        private static string FormatTagValue(JToken value)
+        {
+            return value is JArray array
+                ? string.Join(", ", array.Select(item =>
+                {
+                    string text = FormatTagValue(item);
+                    return text.Length > 0 ? char.ToUpper(text[0]) + text.Substring(1) : text;
+                }))
+                : value.ToString();
         }
 
         /// <summary>
@@ -582,18 +707,41 @@ namespace Lingotion.Thespeon.Core
                     if (module.Value["required_language_modules"] is not JObject requiredLangs)
                         return Enumerable.Empty<string>();
 
-
-                    // resolving whenever the same language is rebuilt. Any imported module serving the ISO
-                    // code is substituted at load time, so only an unserved language counts as missing.
                     return requiredLangs.Properties()
-                        .Where(p => !HasLanguageModule(p.Value.ToString())
-                            && string.IsNullOrEmpty(FindLanguageModuleIDForISO(p.Name)))
+                        .Where(p => !HasLanguageModule(GetRequiredModuleID(p.Value))
+                            && string.IsNullOrEmpty(FindLanguageModuleIDForISO(p.Name, GetRequiredModuleVersion(p.Value))))
                         .Select(p => p.Name);
                 })
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             return missingLanguageKeys;
+        }
+
+        /// <summary>
+        /// Reads the module ID out of a "required_language_modules" entry. Entries written before required
+        /// versions were manifested are the bare ID string, and are still read here rather than discarded.
+        /// </summary>
+        /// <param name="entry">The manifest entry to read.</param>
+        /// <returns>The required module ID, or null if the entry holds none.</returns>
+        private static string GetRequiredModuleID(JToken entry)
+        {
+            return entry is JObject entryObject ? entryObject["id"]?.ToString() : entry?.ToString();
+        }
+
+        /// <summary>
+        /// Reads the required module version out of a "required_language_modules" entry.
+        /// </summary>
+        /// <param name="entry">The manifest entry to read.</param>
+        /// <returns>The required version, or null if the entry pins no version.</returns>
+        private static ModuleVersion? GetRequiredModuleVersion(JToken entry)
+        {
+            if (entry is JObject entryObject && ModuleVersion.TryParse(entryObject["version"], out ModuleVersion version))
+            {
+                return version;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -610,6 +758,41 @@ namespace Lingotion.Thespeon.Core
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             characterModuleIDs.UnionWith(languageModuleIDs);
             return characterModuleIDs.ToList();
+        }
+
+        /// <summary>
+        /// Fetches the config filenames of every module that uses a file, including unsupported modules.
+        /// </summary>
+        /// <param name="md5">The MD5 of the file.</param>
+        /// <returns>The config filenames using the file, or an empty list if the manifest does not track it.</returns>
+        public IReadOnlyList<string> GetFileUsers(string md5)
+        {
+            if (manifestData?["file_usage"]?[md5] is JArray usageArray)
+            {
+                return usageArray.Values<string>().ToList();
+            }
+            return Array.Empty<string>();
+        }
+
+        /// <summary>
+        /// Fetches the character modules on disk that this package cannot run, because they were built for another
+        /// module major. They are left out of every other lookup and are only listed so they can be deleted.
+        /// </summary>
+        /// <returns>The display name, config filename and version of each unsupported module.</returns>
+        public List<(string Name, string ConfigFilename, string Version)> GetUnsupportedModules()
+        {
+            if (manifestData?["unsupported_modules"] is not JObject unsupportedModules)
+            {
+                return new List<(string Name, string ConfigFilename, string Version)>();
+            }
+
+            return unsupportedModules.Properties()
+                .Select(module => (
+                    Name: module.Value["name"]?.ToString() ?? module.Name,
+                    ConfigFilename: module.Name,
+                    Version: FormatVersion(module.Value["version"])))
+                .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         /// <summary>

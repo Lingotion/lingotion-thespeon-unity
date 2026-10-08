@@ -100,6 +100,31 @@ namespace Lingotion.Thespeon.Language
 
             // The phonemizer's autoregressive loop lives in the pack's MetaGraph rather than in this repo.
             TryLoadMetaGraph();
+            TryLoadTextPreprocessingRules();
+        }
+
+        /// <summary>
+        /// Gets the text preprocessing rules for this module's language, or null if the module ships without
+        /// valid ones.
+        /// </summary>
+        public TextPreprocessingRules TextPreprocessingRules { get; private set; }
+
+        private void TryLoadTextPreprocessingRules()
+        {
+            Proto.TextPreprocessing rules = TryLoadProtobufFile("textpreprocessing", Proto.TextPreprocessing.Parser);
+            if (rules == null)
+            {
+                return;
+            }
+            try
+            {
+                TextPreprocessingRules = new TextPreprocessingRules(rules);
+                LingotionLogger.Info($"Loaded text preprocessing rules for {ModuleID} (version {rules.MajorVersion}.{rules.MinorVersion}.{rules.PatchVersion})");
+            }
+            catch (Exception e)
+            {
+                LingotionLogger.Error($"Invalid text preprocessing rules in {ModuleID}: {e.Message}");
+            }
         }
 
         /// <summary>

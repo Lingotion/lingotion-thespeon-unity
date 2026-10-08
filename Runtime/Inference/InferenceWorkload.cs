@@ -112,7 +112,6 @@ namespace Lingotion.Thespeon.Inference
                         layerCounter++;
                         currentElapsedTime = Time.realtimeSinceStartupAsDouble - startTime;
                         #if UNITY_EDITOR
-
                             if (!EditorApplication.isPlaying)
                             {
                                 timeSinceFrameStart = 0d;
@@ -138,8 +137,6 @@ namespace Lingotion.Thespeon.Inference
                                     AddHeavyLayer(layerCounter - 1, config.MaxSkipLayers);
                                 }
                             }
-                            //if (hasLayersLeft) UnityEngine.Profiling.Profiler.BeginSample($"autoregressive break \n Elapsed {currentElapsedTime}, Consumed {budgetConsumed + currentElapsedTime}\nBudget {inferSpecificBudget}, left {timeLeftOfBudget} \nFrame {timeSinceFrameStart}, left {timeLeftOfFrame} || {heavyLayers.Contains(layerCounter)}");
-                            //if (hasLayersLeft) UnityEngine.Profiling.Profiler.EndSample();
                             breakFrame = true;
                             break;
                         }
@@ -189,8 +186,6 @@ namespace Lingotion.Thespeon.Inference
                     if(breakFrame)
                     {
                         UnityEngine.Profiling.Profiler.EndSample();
-                        //UnityEngine.Profiling.Profiler.BeginSample($"Breaking: {timeLeftOfBudget}|{timeLeftOfFrame}\nbudget: {inferSpecificBudget}-{budgetConsumed}-{currentElapsedTime}\nframe: {config.TargetFrameTime}-{timeSinceFrameStart}-{config.TargetFrameTime / 10d}");
-                        //UnityEngine.Profiling.Profiler.EndSample();
                         yield return null;
                         yield return new WaitForEndOfFrame();
                         budgetConsumed = 0;

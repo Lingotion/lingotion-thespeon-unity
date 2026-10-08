@@ -98,8 +98,6 @@ namespace Lingotion.Thespeon.Inference
                 }
                 foreach (string md5 in workersToClear)
                 {
-
-
                     if (!TryDispose(md5)) return false;
                     LingotionLogger.Info($"Deregistering workload {md5} from module {module.ModuleID} on backend {backendType}.");
                 }
@@ -212,7 +210,6 @@ namespace Lingotion.Thespeon.Inference
                 LingotionLogger.Warning($"Workload with MD5: {md5} not found.");
             }
         }
-
 
         private bool TryDispose(string md5)
         {

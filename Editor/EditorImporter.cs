@@ -20,6 +20,44 @@ namespace Lingotion.Thespeon.Editor
     /// </summary>
     public class EditorImporter
     {
+        private const string OnnxStagingFolderName = "LingotionTempOnnx";
+
+        /// <summary>
+        /// State shared by every config in a single import.
+        /// </summary>
+        private sealed class ImportSession
+        {
+            /// <summary>Directory the payload was extracted to.</summary>
+            public string ExtractRoot;
+
+            /// <summary>Folder under Assets that ONNX files are staged in for conversion.</summary>
+            public string OnnxStagingFolder;
+
+            /// <summary>Files staged for conversion, deleted once the whole import is done.</summary>
+            public readonly List<string> StagedOnnxFiles = new List<string>();
+
+            private readonly HashSet<string> _written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// Reports whether this import has already written a payload file to the runtime directory.
+            /// </summary>
+            /// <param name="targetName">The file's name in the payload, "{md5}.{extension}".</param>
+            /// <returns>True if a write for that name has already succeeded in this import.</returns>
+            public bool IsWritten(string targetName)
+            {
+                return _written.Contains(targetName);
+            }
+
+            /// <summary>
+            /// Records a payload file as written, so the configs that follow can skip it.
+            /// </summary>
+            /// <param name="targetName">The file's name in the payload, "{md5}.{extension}".</param>
+            public void MarkWritten(string targetName)
+            {
+                _written.Add(targetName);
+            }
+        }
+
         /// <summary>
         /// Opens a file dialog and imports the selected Lingotion file.
         /// </summary>
@@ -36,9 +74,14 @@ namespace Lingotion.Thespeon.Editor
         /// </summary>
         public static void ImportThespeonFromPath(string zipPath)
         {
+            EditorWatcher.BeginBulkChange();
+
+            ImportSession session = new ImportSession { OnnxStagingFolder = GetOnnxStagingPath() };
             try
             {
-                string tempExtractPath = Path.Combine(Application.dataPath, "LingotionTempExtract");
+                RuntimeFileLoader.DeleteDirectory(Path.Combine(Application.dataPath, "LingotionTempExtract"), true);
+
+                string tempExtractPath = GetExtractStagingPath();
                 RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
                 ZipFile.ExtractToDirectory(zipPath, tempExtractPath, true);
 
@@ -49,6 +92,12 @@ namespace Lingotion.Thespeon.Editor
                 {
                     LingotionLogger.Debug($"No config files found in {zipPath}.");
                     LingotionLogger.Error("Import failure! The imported file is corrupted. Please re-download and try again, or contact support if the issue persists.");
+                    RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
+                    return;
+                }
+
+                if (!AllCharacterModulesSupported(configFiles))
+                {
                     RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
                     return;
                 }
@@ -74,7 +123,8 @@ namespace Lingotion.Thespeon.Editor
                     }
 
                     // Import files to flat runtime directory
-                    if (!ImportFiles(config, configPath, tempExtractPath))
+                    session.ExtractRoot = tempExtractPath;
+                    if (!ImportFiles(config, configPath, session))
                     {
                         LingotionLogger.Debug($"Import failed for config {configPath}. Skipping.");
                         LingotionLogger.Error("Partial import failure! An error occurred during file import. Please re-download and try again, or contact support if the issue persists.");
@@ -85,7 +135,6 @@ namespace Lingotion.Thespeon.Editor
                 }
 
                 RuntimeFileLoader.DeleteDirectory(tempExtractPath, true);
-                AssetDatabase.Refresh();
 
                 if (importedCount == 0)
                 {
@@ -101,6 +150,74 @@ namespace Lingotion.Thespeon.Editor
                 LingotionLogger.Error($"File import failed with error: {e.Message}");
                 throw;
             }
+            finally
+            {
+                CleanupTempOnnxFiles(session.StagedOnnxFiles, session.OnnxStagingFolder);
+
+                if (!EditorWatcher.EndBulkChange())
+                {
+                    AssetDatabase.Refresh();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the directory ONNX files are staged in for conversion.
+        /// </summary>
+        private static string GetOnnxStagingPath()
+        {
+            return Path.Combine(Application.dataPath, OnnxStagingFolderName);
+        }
+
+        /// <summary>
+        /// Returns the staging directory the .lingotion payload is extracted into.
+        /// </summary>
+        private static string GetExtractStagingPath()
+        {
+            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+            return Path.Combine(projectRoot, "Temp", "LingotionTempExtract");
+        }
+
+        /// <summary>
+        /// Checks every character module in a Lingotion file against the module major this package runs, and
+        /// logs one error listing those it cannot.
+        /// </summary>
+        /// <param name="configFiles">Every config found in the Lingotion file.</param>
+        /// <returns>True if every character module can be imported.</returns>
+        private static bool AllCharacterModulesSupported(List<(string path, JObject config)> configFiles)
+        {
+            List<string> rejected = new();
+            foreach ((string configPath, JObject config) in configFiles)
+            {
+                if (config["type"]?.ToString() != ConfigFormatDetector.LARA_TYPE)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    EditorConfigImporter.EnsureSupportedCharacterVersion(config, Path.GetFileName(configPath));
+                }
+                catch (UnsupportedModuleVersionException ex)
+                {
+                    rejected.Add($"{ex.FrontFacingName}: version {ex.Version}");
+                }
+                catch (InvalidDataException ex)
+                {
+                    rejected.Add(ex.Message);
+                }
+            }
+
+            if (rejected.Count == 0)
+            {
+                return true;
+            }
+
+            LingotionLogger.Error(
+                $"Import failure! This file was built for another version of Thespeon, which only runs " +
+                $"{ModuleVersion.SupportedCharacterModuleMajor}.x character modules, so nothing was imported. Download it again " +
+                $"from the Lingotion portal.\n• {string.Join("\n• ", rejected)}");
+            return false;
         }
 
         /// <summary>
@@ -136,70 +253,78 @@ namespace Lingotion.Thespeon.Editor
         /// Imports files to the flat runtime directory.
         /// ONNX files are serialized to Sentis format during import.
         /// </summary>
-        private static bool ImportFiles(JObject config, string configPath, string extractRoot)
+        /// <param name="config">The config describing the files to import.</param>
+        /// <param name="configPath">Path to the config file in the extract.</param>
+        /// <param name="session">State shared across every config in this import.</param>
+        /// <returns>True if all files were imported, false otherwise.</returns>
+        private static bool ImportFiles(JObject config, string configPath, ImportSession session)
         {
             string destPath = RuntimeFileLoader.RelativeRuntimeFiles;
-            string tempOnnxFolder = Path.Combine(Application.dataPath, "LingotionTempOnnx");
-            List<string> tempOnnxFiles = new List<string>();
             bool configModified = false;
 
-            try
+            // Copy referenced files
+            foreach (var (md5, ext, fileEntry) in GetValidFileEntries((JArray)config["files"]))
             {
-                // Copy referenced files
-                foreach (var (md5, ext, fileEntry) in GetValidFileEntries((JArray)config["files"]))
+                string targetName = $"{md5}.{ext}";
+                bool isOnnx = ext.ToLowerInvariant() == "onnx";
+
+                if (session.IsWritten(targetName))
                 {
-                    string targetName = $"{md5}.{ext}";
-                    string sourcePath = FindFileInTree(extractRoot, targetName);
-
-                    if (sourcePath == null)
+                    if (isOnnx)
                     {
-                        LingotionLogger.Error($"Required file not found: {targetName}");
-                        return false;
-                    }
-
-                    if (ext.ToLowerInvariant() == "onnx")
-                    {
-                        // ONNX files need to be serialized to Sentis format
-                        if (!SerializeOnnxToSentis(sourcePath, md5, destPath, tempOnnxFolder, tempOnnxFiles))
-                        {
-                            LingotionLogger.Error($"Failed to serialize ONNX file: {targetName}");
-                            return false;
-                        }
-
-                        // Update config to reflect .sentis extension
                         fileEntry["extension"] = "sentis";
                         configModified = true;
                     }
-                    else
-                    {
-                        // Non-ONNX files are copied directly
-                        string destFilePath = Path.Combine(destPath, targetName);
-                        File.Copy(sourcePath, destFilePath, overwrite: true);
-                    }
+                    continue;
                 }
 
-                // Copy the config file itself (potentially modified with .sentis extensions)
-                string configFileName = Path.GetFileName(configPath);
-                string configDestPath = Path.Combine(destPath, configFileName);
+                string sourcePath = FindFileInTree(session.ExtractRoot, targetName);
 
-                if (configModified)
+                if (sourcePath == null)
                 {
-                    // Write modified config with updated extensions
-                    string updatedConfigJson = JsonConvert.SerializeObject(config, Formatting.Indented);
-                    File.WriteAllText(configDestPath, updatedConfigJson);
+                    LingotionLogger.Error($"Required file not found: {targetName}");
+                    return false;
+                }
+
+                if (isOnnx)
+                {
+                    // ONNX files need to be serialized to Sentis format
+                    if (!SerializeOnnxToSentis(sourcePath, md5, destPath, session.OnnxStagingFolder, session.StagedOnnxFiles))
+                    {
+                        LingotionLogger.Error($"Failed to serialize ONNX file: {targetName}");
+                        return false;
+                    }
+
+                    // Update config to reflect .sentis extension
+                    fileEntry["extension"] = "sentis";
+                    configModified = true;
                 }
                 else
                 {
-                    File.Copy(configPath, configDestPath, overwrite: true);
+                    // Non-ONNX files are copied directly
+                    string destFilePath = Path.Combine(destPath, targetName);
+                    File.Copy(sourcePath, destFilePath, overwrite: true);
                 }
 
-                return true;
+                session.MarkWritten(targetName);
             }
-            finally
+
+            // Copy the config file itself (potentially modified with .sentis extensions)
+            string configFileName = Path.GetFileName(configPath);
+            string configDestPath = Path.Combine(destPath, configFileName);
+
+            if (configModified)
             {
-                // Clean up temporary ONNX files
-                CleanupTempOnnxFiles(tempOnnxFiles, tempOnnxFolder);
+                // Write modified config with updated extensions
+                string updatedConfigJson = JsonConvert.SerializeObject(config, Formatting.Indented);
+                File.WriteAllText(configDestPath, updatedConfigJson);
             }
+            else
+            {
+                File.Copy(configPath, configDestPath, overwrite: true);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -227,7 +352,7 @@ namespace Lingotion.Thespeon.Editor
                 tempOnnxFiles.Add(tempOnnxPath);
 
                 // Get Unity-relative path for AssetDatabase
-                string unityRelativePath = "Assets/LingotionTempOnnx/" + $"{md5}.onnx";
+                string unityRelativePath = $"Assets/{OnnxStagingFolderName}/{md5}.onnx";
 
                 // Import the asset so Unity recognizes it as a model
                 AssetDatabase.ImportAsset(unityRelativePath, ImportAssetOptions.ForceSynchronousImport);
@@ -255,8 +380,11 @@ namespace Lingotion.Thespeon.Editor
         }
 
         /// <summary>
-        /// Cleans up temporary ONNX files from Assets folder.
+        /// Cleans up temporary ONNX files from Assets folder. The caller is responsible for the
+        /// AssetDatabase.Refresh that makes the deletions visible.
         /// </summary>
+        /// <param name="tempOnnxFiles">The staged files to delete.</param>
+        /// <param name="tempOnnxFolder">The staging folder to remove.</param>
         private static void CleanupTempOnnxFiles(List<string> tempOnnxFiles, string tempOnnxFolder)
         {
             try
@@ -280,9 +408,6 @@ namespace Lingotion.Thespeon.Editor
                 {
                     RuntimeFileLoader.DeleteDirectory(tempOnnxFolder, true);
                 }
-
-                // Refresh to clean up Unity's asset database
-                AssetDatabase.Refresh();
             }
             catch (Exception ex)
             {
@@ -315,6 +440,41 @@ namespace Lingotion.Thespeon.Editor
         /// <param name="configFilename">The config filename to delete.</param>
         public static void DeleteModule(string configFilename)
         {
+            DeleteModules(new[] { configFilename });
+        }
+
+        /// <summary>
+        /// Deletes several modules by their config filenames. A file is only kept if a module outside this set
+        /// still uses it.
+        /// </summary>
+        /// <param name="configFilenames">The config filenames to delete.</param>
+        public static void DeleteModules(IReadOnlyCollection<string> configFilenames)
+        {
+            HashSet<string> deleting = new(configFilenames);
+            EditorWatcher.BeginBulkChange();
+            try
+            {
+                foreach (string configFilename in configFilenames)
+                {
+                    DeleteModuleFiles(configFilename, deleting);
+                }
+            }
+            finally
+            {
+                if (!EditorWatcher.EndBulkChange())
+                {
+                    AssetDatabase.Refresh();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deletes one module's config and every file of it that no module outside the delete set uses.
+        /// </summary>
+        /// <param name="configFilename">The config filename to delete.</param>
+        /// <param name="deleting">Every config filename being deleted in this pass.</param>
+        private static void DeleteModuleFiles(string configFilename, HashSet<string> deleting)
+        {
             string configPath = RuntimeFileLoader.GetRuntimePath(configFilename);
             if (!File.Exists(configPath))
             {
@@ -327,20 +487,22 @@ namespace Lingotion.Thespeon.Editor
                 string content = File.ReadAllText(configPath);
                 JObject config = JObject.Parse(content);
 
-                // Delete non-shared files
                 foreach (var (md5, ext, _) in GetValidFileEntries((JArray)config["files"]))
                 {
-                    // Check if file is shared before deleting
-                    if (!ManifestHandler.Instance.IsFileShared(md5))
+                    if (!ManifestHandler.Instance.GetFileUsers(md5).All(deleting.Contains))
                     {
-                        string filename = $"{md5}.{ext}";
-                        string filePath = RuntimeFileLoader.GetRelativeRuntimePath(filename);
-                        if (File.Exists(filePath))
+                        continue;
+                    }
+
+                    string filename = $"{md5}.{ext}";
+                    string filePath = RuntimeFileLoader.GetRelativeRuntimePath(filename);
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                        string metaPath = filePath + ".meta";
+                        if (File.Exists(metaPath))
                         {
-                            File.Delete(filePath);
-                            string metaPath = filePath + ".meta";
-                            if (File.Exists(metaPath))
-                                File.Delete(metaPath);
+                            File.Delete(metaPath);
                         }
                     }
                 }
@@ -349,9 +511,10 @@ namespace Lingotion.Thespeon.Editor
                 File.Delete(configPath);
                 string configMetaPath = configPath + ".meta";
                 if (File.Exists(configMetaPath))
+                {
                     File.Delete(configMetaPath);
+                }
 
-                AssetDatabase.Refresh();
                 LingotionLogger.Info($"Deleted module: {configFilename}");
             }
             catch (Exception ex)

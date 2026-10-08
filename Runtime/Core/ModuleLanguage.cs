@@ -13,7 +13,6 @@ namespace Lingotion.Thespeon.Core
     public class ModuleLanguage
     {
 
-
         [JsonProperty("iso639_2", Required = Required.Always)]
         public readonly string Iso639_2;
 #nullable enable
@@ -29,7 +28,6 @@ namespace Lingotion.Thespeon.Core
         public readonly string? CustomDialect;
 #nullable disable
         public static readonly string NoLang = "NOLANG";
-
 
         public ModuleLanguage() { }
         public ModuleLanguage(string iso639_2, string iso639_3 = null, string glottocode = null, string customDialect = null, string iso3166_1 = null, string iso3166_2 = null)

@@ -1,4 +1,3 @@
-
 # **Configuration and Performance Tuning Manual**
 
 ---
@@ -8,7 +7,7 @@
 - [**Overview**](#overview)
 - [**Using the InferenceConfigOverride Class**](#using-the-inferenceconfigoverride-class)
 	- [Purpose and Overview](#purpose-and-overview)
-	- [Properties and Use](#properties-and-usage)
+	- [Properties and Use](#properties-and-use)
 - [**Example**](#example)
 
 
@@ -16,12 +15,12 @@
 # Overview
 This is an in-depth manual on configurable parameters for Thespeon, and how you can use it to optimize the engine according to the needs of your Unity Project. 
  
-In broad strokes, the largest performance impact during synthesis comes from the choice of `ModuleType`, which serves as the main tradeoff between quality of acting and memory and computing performance. But once selected, the [**InferenceConfigOverride**](./api/Public%20API/Lingotion_Thespeon_Engine.md#class-inferenceconfigoverride) class is the tool used to tweak the performance of Thespeon.
+In broad strokes, the largest performance impact during synthesis comes from the choice of `ModuleType`, which serves as the main tradeoff between quality of acting and memory and computing performance. But once selected, the [**InferenceConfigOverride**](./api/Lingotion_Thespeon_Engine.md#class-inferenceconfigoverride) class is the tool used to tweak the performance of Thespeon.
 
 ---
 ## Using the InferenceConfigOverride Class
 
-In this section you will find a detailed description of the `InferenceConfigOverride` class and its purpose in your Unity Project. For a lighter overview see the [API documentation](./api/Public%20API/Lingotion_Thespeon_Engine.md#class-inferenceconfigoverride).
+In this section you will find a detailed description of the `InferenceConfigOverride` class and its purpose in your Unity Project. For a lighter overview see the [API documentation](./api/Lingotion_Thespeon_Engine.md#class-inferenceconfigoverride).
 
 ### Purpose and Overview
 A special asset will be automatically created upon installation which contains a number of default configuration settings. The out-of-the-box defaults are designed for general performance across platforms and may not suit your specific context. Instead you may find and edit the asset to your liking at **Assets > Lingotion Thespeon > Resources > ThespeonDefaultSettings.asset**. 
@@ -91,7 +90,7 @@ Controls how much data (in seconds) Thespeon should generate before streaming pa
 
 Enables or disables Thespeon’s adaptive Coroutine scheduling algorithm. When enabled, the engine uses runtime metrics to determine when to yield execution during synthesis in addition to the normal heuristic-based scheduler.
 
-This behavior helps avoid overshooting the `TargetBudgetTime` and balances frame stability against latency. Its agressiveness can be controlled by tuning the `OvershootMargin` and `MaxSkipLayers`.
+This behavior helps avoid overshooting the `TargetBudgetTime` and balances frame stability against latency. Its aggressiveness can be controlled by tuning the `OvershootMargin` and `MaxSkipLayers`.
 
 > [!CAUTION]
 > Disabling the adaptive scheduling may make frame pacing less reliable under load, though it may reduce synthesis latency.

@@ -38,7 +38,6 @@ namespace Lingotion.Thespeon.Inputs
             Speed = new AnimationCurve();
             if (speed != null)
             {
-
                 foreach(Keyframe key in speed.keys)
                 {
                     Speed.AddKey(key);
@@ -83,7 +82,6 @@ namespace Lingotion.Thespeon.Inputs
                 Loudness.AddKey(key);
             }
         }
-
 
 
         public ThespeonInput(string characterName, List<ThespeonInputSegment> segments, ModuleLanguage defaultLanguage, Emotion defaultEmotion = Emotion.None, ModuleType moduleType = ModuleType.None, AnimationCurve speed = null, AnimationCurve loudness = null)
@@ -135,7 +133,7 @@ namespace Lingotion.Thespeon.Inputs
         public static ThespeonInput ParseFromJson(JObject json, InferenceConfig configOverride = null)
         {
             configOverride ??= new InferenceConfig();
-            string characterName = string.IsNullOrEmpty(json["characterName"]?.ToString()) ? ManifestHandler.Instance.GetAllCharacters()[0] : json["characterName"]?.ToString();
+            string characterName = json["characterName"]?.ToString();
             List<ThespeonInputSegment> segments = new();
             if (json["segments"] is JArray segmentsArray)
             {
@@ -159,12 +157,12 @@ namespace Lingotion.Thespeon.Inputs
             List<double> speedValues = json["speed"]?.ToObject<List<double>>() ?? new List<double> { 1 };
             for (int i = 0; i < speedValues.Count; i++)
             {
-                speed.AddKey(i / (float)(speedValues.Count - 1), (float)speedValues[i]);
+                speed.AddKey(speedValues.Count > 1 ? i / (float)(speedValues.Count - 1) : 0f, (float)speedValues[i]);
             }
             List<double> loudnessValues = json["loudness"]?.ToObject<List<double>>() ?? new List<double> { 1 };
             for (int i = 0; i < loudnessValues.Count; i++)
             {
-                loudness.AddKey(i / (float)(loudnessValues.Count - 1), (float)loudnessValues[i]);
+                loudness.AddKey(loudnessValues.Count > 1 ? i / (float)(loudnessValues.Count - 1) : 0f, (float)loudnessValues[i]);
             }
             return new ThespeonInput(characterName, segments, defaultLanguage, defaultEmotion, moduleType, speed, loudness);
         }
@@ -198,7 +196,6 @@ namespace Lingotion.Thespeon.Inputs
             }
             if (Speed != null && Speed.keys.Count() > 0)
             {
-
                 json["speed"] = new JArray(Speed.keys.ToList().Select(key => key.value));
             }
             if (Loudness != null && Loudness.keys.Count() > 0)

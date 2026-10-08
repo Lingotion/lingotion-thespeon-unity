@@ -31,7 +31,6 @@ namespace Lingotion.Thespeon.Language
         /// <returns>True if the key exists in either table, otherwise false.</returns>
         public bool TryGetValue(string key, out string value)
         {
-
             if (staticLookupTable.TryGetValue(key, out value) || dynamicLookupTable.TryGetValue(key, out value))
             {
                 return true;

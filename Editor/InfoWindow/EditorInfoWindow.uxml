@@ -3,6 +3,12 @@
         <ui:Label text="Lingotion Thespeon" style="align-self: center; font-size: 23px; -unity-text-align: upper-center; letter-spacing: 0; word-spacing: 0; -unity-font-style: normal; padding-top: 0; padding-bottom: 0;"/>
         <ui:Button name="AlreadyHaveAccountButton" text="I already have an account" style="max-width: initial; width: 200px; align-items: auto; align-self: center; padding-top: 2px; margin-top: 48px;"/>
         <ui:Button name="CreateAccountButton" text="Create account" style="max-width: initial; width: 200px; align-items: auto; align-self: center; margin-top: 48px;"/>
+        <ui:VisualElement name="InstallReportingDisclosure" style="margin-top: 48px; max-width: 420px; align-self: center;">
+            <ui:Button name="InstallReportingTermsButton" class="unity-help-box unity-help-box--info helpbox-link">
+                <ui:VisualElement class="unity-help-box__icon unity-help-box__icon--info"/>
+                <ui:Label name="InstallReportingLabel" text="Until you activate Thespeon, opening this window tells Lingotion once per editor session that an install is still waiting to sign up. It sends a random id generated on this machine, plus the Thespeon and Unity version numbers &#8212; nothing about you, your project or your hardware.&#10;Click here for our Terms of Service and Use." class="unity-help-box__label" style="-unity-text-align: middle-left; white-space: normal;"/>
+            </ui:Button>
+        </ui:VisualElement>
     </ui:VisualElement>
     <ui:VisualElement name="LicenseRoot" style="flex-direction: column;">
         <ui:Button name="LicenseHelpBoxButton" class="unity-help-box unity-help-box--info helpbox-link">

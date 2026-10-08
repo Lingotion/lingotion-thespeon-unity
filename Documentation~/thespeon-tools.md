@@ -18,18 +18,18 @@ Aside from Thespeons main generative capabilities, the package also offers a num
 
 ---
 
-## [Inputs Namespace](./api/Public%20API/Lingotion_Thespeon_Inputs.md)
+## [Inputs Namespace](./api/Lingotion_Thespeon_Inputs.md)
 
-At the core of the [`Lingotion.Thespeon.Inputs`](./api/Public%20API/Lingotion_Thespeon_Inputs.md) namespace lies the `ThespeonInput` and `ThespeonInputSegment` classes we are familiar with from earlier [guides](./get-started-unity.md), but it also offers the following tools to help you easily create input instances in your code.
+At the core of the [`Lingotion.Thespeon.Inputs`](./api/Lingotion_Thespeon_Inputs.md) namespace lies the `ThespeonInput` and `ThespeonInputSegment` classes we are familiar with from earlier [guides](./get-started-unity.md), but it also offers the following tools to help you easily create input instances in your code.
 
-### **[ThespeonCharacterAsset](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterasset)**
+### **[ThespeonCharacterAsset](./api/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterasset)**
 
-The [`ThespeonCharacterAsset`](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterasset) is a ScriptableObject containing a `characterName` and a `ModuleType` and represents a selection of a specific character and module type to run. The Lingotion Thespeon package will dynamically generate a number of these for you to reflect the character packs you have imported. You will find an up to date set of these under your `Assets` > `Lingotion` > `CharacterAssets` folder. Each of these holds a valid combination of a `characterName` and a `ModuleType`, see the [SimpleCharacter](../Samples~/Simple%20Character/SimpleCharacter.cs) sample for an example of how to use a `ThespeonCharacterAsset` in your project. You may also create your own assets under `Assets/Create/Lingotion/Character` but with loss of validation.
+The [`ThespeonCharacterAsset`](./api/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterasset) is a ScriptableObject containing a `characterName` and a `ModuleType` and represents a selection of a specific character and module type to run. The Lingotion Thespeon package will dynamically generate a number of these for you to reflect the character packs you have imported. You will find an up to date set of these under your `Assets` > `Lingotion Thespeon` > `CharacterAssets` folder. Each of these holds a valid combination of a `characterName` and a `ModuleType`, see the [SimpleCharacter](../Samples~/Simple%20Character/SimpleCharacter.cs) sample for an example of how to use a `ThespeonCharacterAsset` in your project. You may also create your own assets under `Assets/Create/Lingotion/Character` but with loss of validation.
 
 ---
 
-### **[ControlCharacters](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-controlcharacters)**
-Thespeon utilizes some special characters for special purposes. These characters are not normally found on a keyboard and as such we have collected the supported characters in the [`ControlCharacters`](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-controlcharacters) static class for easier access.
+### **[ControlCharacters](./api/Lingotion_Thespeon_Inputs.md#class-controlcharacters)**
+Thespeon utilizes some special characters for special purposes. These characters are not normally found on a keyboard and as such we have collected the supported characters in the [`ControlCharacters`](./api/Lingotion_Thespeon_Inputs.md#class-controlcharacters) static class for easier access.
 
 Below is a list of the currently available options:
 #### `ControlCharacters.Pause`
@@ -45,8 +45,8 @@ This can be used to provide timing-specific callbacks in the middle of a sentenc
 > [!NOTE]
 > Input preprocessing will merge any subsequent markers into one.
 --- 
-### **[ThespeonCharacterHelper](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterhelper)**
-In some situations handling a number of `ThespeonCharacterAssets` is not suitable - such as when characters are selected during play mode and not in edit mode. To cover these cases the [`ThespeonCharacterHelper`](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterhelper) class provides a couple of `static` methods to help you select the character you want. 
+### **[ThespeonCharacterHelper](./api/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterhelper)**
+In some situations handling a number of `ThespeonCharacterAssets` is not suitable - such as when characters are selected during play mode and not in edit mode. To cover these cases the [`ThespeonCharacterHelper`](./api/Lingotion_Thespeon_Inputs.md#class-thespeoncharacterhelper) class provides a couple of `static` methods to help you select the character you want. 
 
 The first of the methods below returns a list of two-element tuples - one for each currently valid character-module type combination. If you already know which character you intend to use then the second will return a list of all ModuleTypes available for that character.
 
@@ -84,13 +84,13 @@ engine.OnSynthesisFailed += (string sessionID) =>
 ```
 
 ---
-## [Utils Namespace](./api/Public%20API/Lingotion_Thespeon_Utils.md)
-The purpose of the [`Lingotion.Thespeon.Utils`](./api/Public%20API/Lingotion_Thespeon_Utils.md) namespace it to provide general utilities that help you make Thespeon fit into your project in the way you want. Below you will find a description of the the set of tools currently available.
+## [Utils Namespace](./api/Lingotion_Thespeon_Utils.md)
+The purpose of the [`Lingotion.Thespeon.Utils`](./api/Lingotion_Thespeon_Utils.md) namespace is to provide general utilities that help you make Thespeon fit into your project in the way you want. Below you will find a description of the set of tools currently available.
 
-### **[WavExporter](./api/Public%20API/Lingotion_Thespeon_Utils.md#class-wavexporter)**
+### **[WavExporter](./api/Lingotion_Thespeon_Utils.md#class-wavexporter)**
 In all of the package samples the audio generated by Thespeon is directly streamed to an active `AudioClip` but there are circumstances where real-time consumption is not preferred. In Edit Mode, you can access the Audio Test Lab via the Thespeon Info Window, typically found under Window > Lingotion > Thespeon Info in the Unity Editor, where you can generate and save .wav files for later use. However, if your dialogue script is runtime dependent then you might want to generate audio whenever you have the time and resources to do so, and stow the results away for later use. 
 
-The [WavExporter](./api/Public%20API/Lingotion_Thespeon_Utils.md#class-wavexporter) class enables saving your generated audio to a wav file for later loading. Below is a snippet of code for how you can easily do that after a synthesis.
+The [WavExporter](./api/Lingotion_Thespeon_Utils.md#class-wavexporter) class enables saving your generated audio to a wav file for later loading. Below is a snippet of code for how you can easily do that after a synthesis.
 
 
 ```csharp

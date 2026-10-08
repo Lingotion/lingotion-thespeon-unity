@@ -13,7 +13,7 @@ The package runs entirely offline on the player’s device, eliminating cloud co
 
 This is version 2.1.0 of Lingotion Thespeon, and we appreciate any and all feedback on the package and its use. [Get in touch with the Lingotion developers and Thespeon users on our discord](https://discord.gg/9f2HFyu5gF)!
 
-[Please report any encountered issues to the Issues page](https://github.com/Lingotion/unity-package/issues) or in the Support section of the [Lingotion Discord](https://discord.gg/9f2HFyu5gF).
+[Please report any encountered issues to the Issues page](https://github.com/Lingotion/lingotion-thespeon-unity/issues) or in the Support section of the [Lingotion Discord](https://discord.gg/9f2HFyu5gF).
 
 ---
 
@@ -70,6 +70,18 @@ See [CHANGELOG.md](https://github.com/Lingotion/lingotion-thespeon-unity/blob/ma
 See [known-issues.md](./Documentation~/known-issues.md) for a list of known issues.
 
 
+# Data collection
+Thespeon runs entirely on-device and sends nothing while your game is running.
+
+The one exception is in the Unity Editor, before you activate the package: opening the
+**Thespeon Info Window** while Thespeon is unactivated reports once per editor session that an
+install is waiting at the signup screen. It sends a randomly generated install id plus the Thespeon
+and Unity version numbers, and nothing about you, your machine or your project. It stops for good
+once you activate a license key.
+
+See [What Thespeon reports before you sign up](./Documentation~/get-started-unity.md#what-thespeon-reports-before-you-sign-up)
+for the exact contents.
+
 # License
 ![License](https://img.shields.io/badge/license-Custom-blue.svg)
 
@@ -79,7 +91,8 @@ This project is licensed according to the Terms of Service found at [lingotion.c
 Simply uninstalling the package using the Package Manager will not remove all Thespeon related files. To completely remove Thespeon from your project you will also have to remove the following: 
 
 ```
-Folder: Assets > LingotionThespeon
-Folder: StreamingAssets > LingotionRuntimeFiles
+Folder: Assets > Lingotion Thespeon
+Folder: Assets > StreamingAssets > LingotionRuntimeFiles
 File: ProjectSettings > Lingotion.Thespeon.license
+File: UserSettings > Lingotion.Thespeon.install.json
 ```

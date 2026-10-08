@@ -23,7 +23,7 @@ On import of a character pack, Thespeon will generate a [ScriptableObject](https
 > If the directory is missing or no ThespeonCharacterAssets are found, press the **Regenerate Input Assets** button in the Thespeon Info Window.
 ---
 # Run the Simple Character
-Firstly we want to pick a ThespeonCharacterAsset. Go to the Game Object Hierachy and select the **Example Character** GameObject. In its Inspector window, find the field for **Character Asset** currently set to "None". Click the icon on the right and select one of the assets available, or drag a ThespeonCharacterAsset from the CharacterAsset directory to the field. 
+Firstly we want to pick a ThespeonCharacterAsset. Go to the Game Object Hierarchy and select the **Example Character** GameObject. In its Inspector window, find the field for **Character Asset** currently set to "None". Click the icon on the right and select one of the assets available, or drag a ThespeonCharacterAsset from the CharacterAsset directory to the field. 
 
 For this guide we recommend a character that can speak at least two dialects or languages. Both Freemium characters, _Elias Granhammar_ and _Denel Honeyball_, have that capability.
 
@@ -67,7 +67,7 @@ Weights are clamped to `[0,1]` and normalized to sum to 1. All the boundary valu
 
 One may also change the language or and dialect of the speaker, provided that the character supports it. To see what options your imported character supports, go to the **Characters** tab of the Thespeon Info Window, and select a character in the list to see all installed modules. Expand the target module to see the supported languages and dialects.
 
-![Character Information](./data/character-information.png?raw=true "Character Information")
+![Character Information](./data/character-information.png "Character Information")
 
 In this case, we see that the character Denel Honeyball has two available dialects in English, "_GB_" and "_US_" being the specific strings to give to the ThespeonInput.
 
@@ -87,7 +87,7 @@ and run the sample again. You should hear a change in dialect according to your 
 # Controlling pronunciation
 A very common case in video games is the pronunciation of something that is not necessarily a normal part of the language the character speaks, such as fictional names or single words from other languages. When given an input text, Thespeon translates it into the [International Phonetic Alphabet (IPA)](https://en.wikipedia.org/wiki/International_Phonetic_Alphabet) for the given language, which may not always produce exactly the pronunciation you want. 
 
-By activating the `isCustomPronounced` flag on a segment, you mark an entire segment to be interpreted as phonetic IPA script -- meaning you can provide your own bypass transcription to control pronunciation. Every character's unique voice and accent will still take priority meaning even if the IPA reflects a certain pronunciation the character will pronounce it as his or her character would with its accent intact. E.g. Elias with his swedish accent will still pronounce a line as if it were read by a swede with an accent.
+By activating the `isCustomPronounced` flag on a segment, you mark an entire segment to be interpreted as phonetic IPA script -- meaning you can provide your own bypass transcription to control pronunciation. Every character's unique voice and accent will still take priority meaning even if the IPA reflects a certain pronunciation the character will pronounce it as the character would with its accent intact. E.g. Elias with his Swedish accent will still pronounce a line as if it were read by a Swede with an accent.
 
 > [!CAUTION]
 > Any non-IPA text in an `isCustomPronounced` segment will be filtered out at synthesis, heavily impacting results.
@@ -112,7 +112,7 @@ Run the sample again, and you should hear the character speak Black Speech.
 > Enabling `isCustomPronounced` makes Thespeon bypass some initial steps for that segment, making it slightly more efficient in runtime.
 ---
 # Changing Input-Wide Parameters
-The [`ThespeonInput`](./api/Public%20API/Lingotion_Thespeon_Inputs.md#class-thespeoninput) class itself allows you to select defaults for emotion, lanugage and dialect with the optional arguments _defaultEmotion_, _defaultLanguage_ and _defaultDialect_. Whenever a segment does not have a specified parameter, it will fall back on the global default. The default will in turn be selected for you if you do not do so yourself. You may use this field to clean up your code to avoid having to provide the same instructions to several segments.
+The [`ThespeonInput`](./api/Lingotion_Thespeon_Inputs.md#class-thespeoninput) class itself allows you to select defaults for emotion, language and dialect with the optional arguments _defaultEmotion_, _defaultLanguage_ and _defaultDialect_. Whenever a segment does not have a specified parameter, it will fall back on the global default. The default will in turn be selected for you if you do not do so yourself. You may use this field to clean up your code to avoid having to provide the same instructions to several segments.
 
 You may also supply _speed_ and _loudness_ as `AnimationCurve`s spanning the whole input. They are sampled at each segment boundary and interpolated over the line, so a rising speed curve gradually speeds the delivery up. Leaving a curve out (or leaving it flat at 1) keeps the per-segment values instead.
 
@@ -124,4 +124,4 @@ Check out the [Configuration and Performance Tuning Manual](./thespeon-configura
 
 See the [Thespeon Tools Manual](./thespeon-tools.md) for to learn about more features such as mid-sentence callbacks and inserting pauses in a line.
 
-See the [DemoGUI Sample Guide](./using-the-demogui-sample.md) for a walkthrough of how to use the GUI sample to control your character interactively.
+See the [Package Samples](./samples.md) overview for a runnable example of each of these features, including the Advanced GUI sample for trying them out interactively.

@@ -14,8 +14,6 @@ namespace Lingotion.Thespeon.Core
     /// </summary>
     public static class KeypointUtils
     {
-
-        // but for now a simple piecewise-linear curve is enough to represent keypoints.
         private struct CurvePoint<TValue>
         {
             public int Position;
@@ -104,8 +102,6 @@ namespace Lingotion.Thespeon.Core
                 }
             }
 
-
-            // more to remove zero components and absorb floating-point accumulation error.
             SanitizeEmotionBlend(result);
             return result;
         }
@@ -184,8 +180,6 @@ namespace Lingotion.Thespeon.Core
             );
         }
 
-
-        // meaningful, so it always contributes a keypoint to the curve.
         private static bool SanitizeScalar(float value)
         {
             return true;
@@ -293,8 +287,6 @@ namespace Lingotion.Thespeon.Core
             if (firstAtOrAfter < curve.Count && curve[firstAtOrAfter].Position == position)
             {
                 int lastAtPosition = firstAtOrAfter;
-
-                // but handle more than 2 just in case by picking the last one.
                 while (lastAtPosition + 1 < curve.Count && curve[lastAtPosition + 1].Position == position)
                 {
                     lastAtPosition++;

@@ -77,7 +77,7 @@ namespace Lingotion.Thespeon.Engine
         /// Default: 20
         /// </summary>
         /// <remarks>
-        /// Used to set hard limit on the adaptive scheduler's agressiveness. A large value can make synthesis latency increase over time.
+        /// Used to set hard limit on the adaptive scheduler's aggressiveness. A large value can make synthesis latency increase over time.
         /// </remarks>
         [JsonProperty("maxSkipLayers")]
         public int? MaxSkipLayers { get; set; }

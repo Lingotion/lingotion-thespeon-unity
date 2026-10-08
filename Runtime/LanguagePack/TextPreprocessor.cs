@@ -2,7 +2,6 @@
 
 using Lingotion.Thespeon.Inputs;
 using Lingotion.Thespeon.Core;
-using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Text;
 using System;
@@ -15,69 +14,41 @@ namespace Lingotion.Thespeon.Language
     /// </summary>
     public static class TextPreprocessor
     {
-        private static readonly HashSet<char> ambiguousApostrophes = new()
-        {
-            '\u2018', // LEFT SINGLE QUOTATION MARK
-            '\u2019', // RIGHT SINGLE QUOTATION MARK
-            '\u201B', // SINGLE HIGH-REVERSED-9 QUOTATION MARK
-            '\u02BC', // MODIFIER LETTER APOSTROPHE
-            '\u02BB', // MODIFIER LETTER TURNED COMMA
-            '\uFF07', // FULLWIDTH APOSTROPHE
-            '\u0060', // GRAVE ACCENT
-            '\u00B4', // ACUTE ACCENT
-            '\u2032', // PRIME
-            '\u275B', // HEAVY SINGLE TURNED COMMA QUOTATION MARK ORNAMENT
-            '\u275C', // HEAVY SINGLE COMMA QUOTATION MARK ORNAMENT
-            '\u02C8', // MODIFIER LETTER VERTICAL LINE
-            '\u02CA', // MODIFIER LETTER ACUTE ACCENT
-            '\u02CB', // MODIFIER LETTER GRAVE ACCENT
-            '\u1FEF', // GREEK VARIA
-            '\u1FFD', // GREEK OXIA
-            '\u1FBF', // GREEK PSILI
-            '\u1FFE', // GREEK DASIA
-            '\u0374', // GREEK NUMERAL SIGN
-            '\u0384', // GREEK TONOS
-            '\u055A', // ARMENIAN APOSTROPHE
-            '\u07F4', // NKO HIGH TONE APOSTROPHE
-            '\u07F5', // NKO LOW TONE APOSTROPHE
-            '\u05F3', // HEBREW PUNCTUATION GERESH
-            '\u05F4', // HEBREW PUNCTUATION GERSHAYIM
-            '\uFE32' // PRESENTATION FORM FOR VERTICAL EN DASH
-        };
-
-        private static readonly Dictionary<string, Regex> NumberPatterns = new()
-        {
-            { "eng", new(@"(\d+(\.\d+)?)(st|nd|rd|th)?", RegexOptions.Compiled) },
-            { "swe", new(@"(\d+)", RegexOptions.Compiled) }
-
-
-        };
-
-        public static readonly Regex WordRegex = new(@"[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*", RegexOptions.Compiled);
-
         /// <summary>
-        /// Preprocesses the input by cleaning text segments and converting numbers to words (phonemes) where applicable.
+        /// Preprocesses the input by running each natural language segment through its language's text
+        /// preprocessing rules and speaking its numbers out in phonemes. Custom pronunciation segments only have
+        /// their audio sample request markers collapsed.
         /// </summary>
         /// <param name="input">The ThespeonInput containing text segments to preprocess.</param>
+        /// <param name="rulesForLanguage">Returns the text preprocessing rules for a segment's language. Expected to throw if there are none.</param>
         /// <returns>A new ThespeonInput with processed segments.</returns>
         /// <exception cref="ArgumentException">Thrown if a segment's text is null or whitespace.</exception>
-        /// <exception cref="NotSupportedException">Thrown if the language is not supported for number conversion.</exception>
-        public static ThespeonInput PreprocessInput(ThespeonInput input)
+        public static ThespeonInput PreprocessInput(ThespeonInput input, Func<ModuleLanguage, TextPreprocessingRules> rulesForLanguage)
         {
-            LingotionLogger.Debug("ProcessingInput: " + input.ToJson());
+            if (LingotionLogger.CurrentLevel >= VerbosityLevel.Debug)
+            {
+                LingotionLogger.Debug("ProcessingInput: " + input.ToJson());
+            }
             ThespeonInput result = new(input);
             result.Segments.Clear();
             foreach (var segment in input.Segments)
             {
                 string text = segment.Text;
-
-                string iso639_2 = segment.Language?.Iso639_2 ?? input.DefaultLanguage.Iso639_2;
                 if (string.IsNullOrWhiteSpace(text))
                 {
                     throw new ArgumentException("Segment text cannot be null or whitespace.");
                 }
-                string cleaned = CleanText(text);
-                List<(string, bool)> parts = PartitionByNumberMatches(cleaned, iso639_2);
+                if (segment.IsCustomPronounced)
+                {
+                    result.Segments.Add(new ThespeonInputSegment(segment)
+                    {
+                        Text = CollapseMarkers(text),
+                    });
+                    continue;
+                }
+                TextPreprocessingRules rules = rulesForLanguage(segment.Language ?? input.DefaultLanguage);
+                string cleaned = CollapseMarkers(rules.ApplySteps(text));
+                List<(string, bool)> parts = rules.Numbers.Partition(cleaned).Select(part => (part.Text, part.IsNumber)).ToList();
                 List<(string, bool, List<float>)> mergedParts;
                 if (segment.Text.Contains(ControlCharacters.AudioSampleRequest) && parts.Any(p => p.Item2))
                 {
@@ -96,22 +67,13 @@ namespace Lingotion.Thespeon.Language
                     result.Segments.Add(segmentCopy);
                     continue;
                 }
-                NumberConverter converter = null;
-                converter = iso639_2.ToLower() switch
-                {
-                    "eng" => new NumberToWordsConverter(),
-                    "swe" => new NumberToWordsSwedish(),
-                    _ => throw new NotSupportedException($"Language '{iso639_2}' is not supported."),
-                };
-
-                // empty emotion blends. The original outer endpoints are restored by ApplySplitKeypoints below.
                 List<ThespeonInputSegment> splitSegments = new();
                 ThespeonInputSegment currentSegment = MakeSplitSegment(segment, string.Empty, false);
 
 
                 foreach (var (part, isMatch, fractions) in mergedParts)
                 {
-                    string partText = isMatch ? converter.ConvertNumber(part) : part;
+                    string partText = isMatch ? rules.Numbers.Expand(part) : part;
                     if (fractions != null)
                     {
                         var indices = fractions
@@ -129,8 +91,12 @@ namespace Lingotion.Thespeon.Language
 
                         partText = sb.ToString();
                     }
-                    if (currentSegment.Text.All(c => c == ControlCharacters.AudioSampleRequest)) currentSegment.IsCustomPronounced = isMatch;
-                    if (currentSegment.IsCustomPronounced == isMatch || !WordRegex.IsMatch(part))
+                    if (currentSegment.Text.All(c => c == ControlCharacters.AudioSampleRequest))
+                    {
+                        currentSegment.IsCustomPronounced = isMatch;
+                    }
+                    bool nothingToPronounce = !isMatch && !rules.Words.ContainsWord(part);
+                    if (currentSegment.IsCustomPronounced == isMatch || nothingToPronounce)
                     {
                         currentSegment.Text += partText;
                     }
@@ -171,7 +137,10 @@ namespace Lingotion.Thespeon.Language
             {
                 throw new ArgumentException("Failed to populate loudness keypoints.");
             }
-            LingotionLogger.Debug("Done processing: " + result.ToJson());
+            if (LingotionLogger.CurrentLevel >= VerbosityLevel.Debug)
+            {
+                LingotionLogger.Debug("Done processing: " + result.ToJson());
+            }
             return result;
         }
 
@@ -299,39 +268,18 @@ namespace Lingotion.Thespeon.Language
             return start + (end - start) * Math.Clamp(alpha, 0f, 1f);
         }
 
-        private static string CleanText(string input)
+        private static string CollapseMarkers(string text)
         {
-            input = input.ToLowerInvariant();
-            input = Regex.Replace(input, @"\s+", " ");
-            char ASRChar = ControlCharacters.AudioSampleRequest;
-            input = Regex.Replace(input, $"{Regex.Escape(ASRChar.ToString())}+", ASRChar.ToString());
-            var builder = new StringBuilder(input.Length);
-            foreach (var c in input)
+            StringBuilder output = new(text.Length);
+            foreach (char c in text)
             {
-                builder.Append(ambiguousApostrophes.Contains(c) ? '\'' : c);
-            }
-            return builder.ToString();
-        }
-
-        private static List<(string, bool)> PartitionByNumberMatches(string text, string iso639_2)
-        {
-            var parts = new List<(string, bool)>();
-            int index = 0;
-            foreach (Match match in NumberPatterns[iso639_2].Matches(text))
-            {
-                if (match.Index > index)
+                if (c == ControlCharacters.AudioSampleRequest && output.Length > 0 && output[^1] == ControlCharacters.AudioSampleRequest)
                 {
-                    string before = text[index..match.Index];
-                    parts.Add((before, false));
+                    continue;
                 }
-                parts.Add((match.Value, true));
-                index = match.Index + match.Length;
+                output.Append(c);
             }
-            if (index < text.Length)
-            {
-                parts.Add((text.Substring(index), false));
-            }
-            return parts;
+            return output.ToString();
         }
 
         /// <summary>
@@ -346,7 +294,6 @@ namespace Lingotion.Thespeon.Language
             int i = 0;
             while (i < parts.Count)
             {
-
                 var (text, isMatch) = parts[i];
 
                 if (!isMatch)
@@ -355,7 +302,6 @@ namespace Lingotion.Thespeon.Language
                     i++;
                     continue;
                 }
-
                 int j = i + 1;
                 bool canMerge = false;
 
@@ -373,7 +319,6 @@ namespace Lingotion.Thespeon.Language
                     else
                     {
                         bool markersOnly = t.Length > 0 && t.All(c => c == ControlCharacters.AudioSampleRequest);
-
                         if (!markersOnly) break;
                         j++;
                     }
@@ -389,7 +334,6 @@ namespace Lingotion.Thespeon.Language
                 var sb = new StringBuilder(text);
                 var fractions = new List<float>();
                 int digitOffset = text.Length;
-
                 for (int k = i + 1; k < j; k++)
                 {
                     var (t, isM) = parts[k];
